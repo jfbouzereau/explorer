@@ -1,0 +1,1 @@
+Electron.app/Contents/Resources/app
