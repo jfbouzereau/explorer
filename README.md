@@ -28,14 +28,21 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Radviz
 * Discriminant analysis
 * Variance analysis
-* Line regression
+* Linear regression
 * Box plot
 * Parallel coordinates
 
 ## Principles
 
-The Explorer can load tabular data from local files or from the clipboard. The tabulation character is automatically recognized. The names of the fields are expected on the first line of the data. There are two kinds of fields :
+The Explorer can load tabular data from local files or from the clipboard. The tabulation character is automatically recognized. The names of the fields are expected to be found on the first line of the data. There are two kinds of fields :
 
 * Litteral (or qualitative) fields represended in pink
-* Numerical (or quantitative) fields represented in pale blue
+* Numerical (or quantitative) fields represented in pale blue. A field with name terminated by ":n" or "/n" is regarded as numerical.
 
+## Binaries
+
+Pre-build binary for OSX can be downloaded [here](http://jfbouzereau.free.fr/explorer/explorer.zip)
+
+Binaries for other platforms will follow.
+
+The Explorer is written in javascript and built with [electron](http://electron.atom.io)
