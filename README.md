@@ -39,6 +39,22 @@ The Explorer can load tabular data from local files or from the clipboard. The t
 * Litteral (or qualitative) fields represended in pink
 * Numerical (or quantitative) fields represented in pale blue. A field with name terminated by ":n" or "/n" is regarded as numerical.
 
+#### Basic gestures
+
+* Drag an icon to the workspace to create a new graph.
+
+* Drag an icon to an existing graph to change its type.
+
+* Drag a qualitative (pink) field or a quantitative (blue) field to the corresponding slot of a graph to change its definition.
+
+* Drag away a field from a slot to remove the definition.
+
+* Drag a slice of a pie chart to the workspace to create a subset of the data.
+
+* Drag a bar of a bar chart to the workspace to create a subset of the data.
+
+* Move the mouse over an element of a graph to highlight the corresponding element in all the graphs.
+
 ## Binaries
 
 Pre-built binary for OSX can be downloaded [here](http://jfbouzereau.free.fr/explorer/explorer.zip)
