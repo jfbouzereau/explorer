@@ -362,16 +362,16 @@ var words = data[0];
 var nv = words.length;
 for(var i=0;i<words.length;i++)
 	{
-	var j = words[i].indexOf(":n")
-	if(j<0)
+	var end = words[i].substring(words[i].length-2);	
+	if((end==":n")||(end=="/n"))
 		{
-		labels.push(words[i])
-		isnum.push(false)
+		values.push(words[i].substring(0,words[i].length-2));
+		isnum.push(true)
 		}
 	else
 		{
-		values.push(words[i].substring(0,j))
-		isnum.push(true)
+		labels.push(words[i])
+		isnum.push(false)
 		}
 	}
 

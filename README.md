@@ -41,8 +41,10 @@ The Explorer can load tabular data from local files or from the clipboard. The t
 
 ## Binaries
 
-Pre-build binary for OSX can be downloaded [here](http://jfbouzereau.free.fr/explorer/explorer.zip)
+Pre-built binary for OSX can be downloaded [here](http://jfbouzereau.free.fr/explorer/explorer.zip)
 
 Binaries for other platforms will follow.
 
 The Explorer is written in javascript and built with [electron](http://electron.atom.io)
+
+![](http://88.162.232.107/explorer.jpg)
