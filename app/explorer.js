@@ -220,14 +220,15 @@ var checkboard = createCheckboard();
 //***************************************************************************
 //***************************************************************************
 
-canvas = document.getElementById("canvas");
-
-window.addEventListener("mousedown", down);
-window.addEventListener("mousemove", move);
-window.addEventListener("mouseup", up);
-window.addEventListener("resize", draw);
 
 ipc.on("start",  function (message) {
+	canvas = document.getElementById("canvas");
+
+	window.addEventListener("mousedown", down);
+	window.addEventListener("mousemove", move);
+	window.addEventListener("mouseup", up);
+	window.addEventListener("resize", draw);
+
 	loadData(remote.getGlobal("data"));
 	draw();
 });
@@ -375,7 +376,6 @@ for(var i=0;i<words.length;i++)
 		}
 	}
 
-
 // data
 for(var k=1;k<data.length;k++)
 	{
@@ -389,7 +389,7 @@ for(var k=1;k<data.length;k++)
 			lrecord.push(words[j])
 		else
 			{
-			var x = words[j] == "" ? 0 : Number(words[j].replace(",","."))
+			var x = words[j]==undefined ? 0: words[j] == "" ? 0 : Number(words[j].replace(",","."))
 			if(isNaN(x)) x = 0
 			vrecord.push(x)
 			}

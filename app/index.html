@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+<textarea id="textarea" rows="20" cols="80" placeholder="Paste data here"></textarea>
+<br>
+<button  id="button">OK</button>
+</body>
+<script>
+function require(name) {
+	if(name=="remote")
+		return {
+		getGlobal:function g(what)  { return window[what] }
+		}
+	if(name=="ipc") 
+		return {
+		on:function o(event) { return null; }
+		}
+}
+
+document.getElementById("textarea").focus();
+document.getElementById("button").addEventListener("click",click);
+
+function click() {
+	var d = document.getElementById("textarea").value;
+	var lines = d.split("\n")
+	if(lines.length<2)
+		lines = d.split("\r")
+	if(lines.length<2) return;
+
+	data = [];
+	var sep = guess_field_separator(lines[0]);
+
+	for(var i=0;i<lines.length;i++)
+		data.push(lines[i].split(sep));
+	
+	document.body.removeChild(document.getElementById("textarea"));
+	document.body.removeChild(document.getElementById("button"));
+	canvas = document.createElement("canvas");
+	canvas.style.position = "fixed";
+	canvas.style.left = "0px";
+	canvas.style.top = "0px";
+	document.body.appendChild(canvas);		
+
+    window.addEventListener("mousedown", down);
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    window.addEventListener("resize", draw);
+
+    loadData(remote.getGlobal("data"));
+    draw();
+}
+
+
+function guess_field_separator(line) {
+    if(line.split("\t").length>2) return "\t";
+    if(line.split(";").length>2) return ";";
+    if(line.split("!").length>2) return "!";
+    if(line.split(",").length>2) return ",";
+    if(line.split(":").length>2) return ":";
+    return null;
+}
+
+
+</script>
+<script src="explorer.js"></script>
+</html>

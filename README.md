@@ -63,4 +63,9 @@ Binaries for other platforms will follow.
 
 The Explorer is written in javascript and built with [electron](http://electron.atom.io)
 
+## In the browser
+
+The Explorer can be executed in any modern browser. Open app/index.html, 
+paste the data from the clipboard, and click OK.
+
 ![](http://88.162.232.107/explorer.jpg)
