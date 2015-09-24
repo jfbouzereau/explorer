@@ -34,7 +34,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 
 ## Principles
 
-The Explorer can load tabular data from local files or from the clipboard. The tabulation character is automatically recognized. The names of the fields are expected to be found on the first line of the data. There are two kinds of fields :
+The Explorer can load data from tabular file, from excel spreadsheet, or from clipboard. The tabulation character is automatically recognized. The names of the fields are expected to be found on the first line of the data. There are two kinds of fields :
 
 * Litteral (or qualitative) fields represended in pink
 * Numerical (or quantitative) fields represented in pale blue. A field with name terminated by ":n" or "/n" is regarded as numerical.
