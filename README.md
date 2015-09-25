@@ -59,13 +59,13 @@ The Explorer can load data from tabular file, from excel spreadsheet, or from cl
 
 Pre-built binary for OSX can be downloaded [here](http://jfbouzereau.free.fr/explorer/explorer.zip)
 
-Binaries for other platforms will follow.
+Pre-built binary for Windows can be downloaded [here](http://jfbouzereau.free.fr/explorer/explorer-ms.zip)
 
 The Explorer is written in javascript and built with [electron](http://electron.atom.io)
 
 ## In the browser
 
-The Explorer can be executed in any modern browser. Open app/index.html, 
+The Explorer can also be executed in any modern browser. Open app/index.html, 
 paste the data from the clipboard, and click OK.
 
 ![](http://88.162.232.107/explorer.jpg)
