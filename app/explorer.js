@@ -387,6 +387,8 @@ for(var k=1;k<data.length;k++)
 	for(var j=0;j<words.length;j++)
 		if(!isnum[j])
 			lrecord.push(words[j])
+		else if(typeof(words[j])=="number")
+			vrecord.push(words[j])
 		else
 			{
 			var x = words[j]==undefined ? 0: words[j] == "" ? 0 : Number(words[j].replace(",","."))

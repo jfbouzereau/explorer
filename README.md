@@ -32,9 +32,40 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Box plot
 * Parallel coordinates
 
+## Loading data
+
+Data can be loaded from various sources :
+
+#### Clipboard
+
+Launch the application, and click the "Clipboard" button. The data must be in tabular form, with the names of the fields on the first line.
+
+#### Tabular file
+
+Launch the application, and drag the tabular file to the window. The names of the fields are expected to be on the first line.
+
+#### Excel spreadsheet
+
+Launch the application, and drag the excel file to the window. The names of the fields are expected to be at the top of the columns.
+
+#### Mysql database
+
+Launch the application, and drag a configuration file with a content like this:
+
+```
+mysql
+host:192.168.0.2
+user:bob
+password:secret
+database:test
+query:select * from mytable
+```
+
 ## Principles
 
-The Explorer can load data from tabular file, from excel spreadsheet, or from clipboard. The tabulation character is automatically recognized. The names of the fields are expected to be found on the first line of the data. There are two kinds of fields :
+#### Fields
+
+There are two kinds of fields :
 
 * Litteral (or qualitative) fields represended in pink
 * Numerical (or quantitative) fields represented in pale blue. A field with name terminated by ":n" or "/n" is regarded as numerical.

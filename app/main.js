@@ -4,6 +4,7 @@ var ipc = require("ipc");
 var fs = require("fs");
 var clipboard = require("clipboard");
 
+
 wreader = null;
 wexplorer = null;
 
@@ -26,17 +27,23 @@ ipc.on("clipboard",function() {
 
 function read_file(filename) {
 
-var magic = new Buffer(4);
+var magic = new Buffer(5);
 var fd = fs.openSync(filename,"r");
-fs.readSync(fd,magic,0,4,0);
-if((magic[0]==0x50)&&(magic[1]==0x4B)&&(magic[2]==0x03)&&(magic[3]==0x04))
-	read_xlsx_file(fd,filename);
+fs.readSync(fd,magic,0,magic.length,0);
+fs.closeSync(fd);
 
-if(data.length==0)
-	read_tabular_file(filename);
+if(check(magic,'P','K',0x03,0x04))
+	read_xlsx_file(filename,finish);
 
-if(data.length!=0)
+else if(check(magic,'m','y','s','q','l'))
+	read_mysql_file(filename,finish);
+
+else
+	read_tabular_file(filename,finish);
+
+	function finish() 
 	{
+	if(data.length==0) return;
 	wreader.close();
 	explore();
 	}
@@ -44,11 +51,27 @@ if(data.length!=0)
 
 //****************************************************************************
 
-function read_xlsx_file(fd,filename) {
+function check(a) {
+
+for(var i=1;i<arguments.length;i++)
+	{
+	var x = typeof(arguments[i])=="string" ? arguments[i].charCodeAt(0):arguments[i];
+	if(a[i-1]!=x) return false;
+	}
+
+return true;
+}
+
+//****************************************************************************
+
+function read_xlsx_file(filename, cb) {
+
 
 var zlib = require("zlib");
 
 try	{
+	var fd = fs.openSync(filename,"r");
+
 	var header = new Buffer(30);
 	var temp = new Buffer(1000);
 	var offset = 0;
@@ -86,7 +109,16 @@ catch(e)
 	{
 	console.log(e);
 	}
-fs.closeSync(fd);
+
+try	{
+	fs.closeSync(fd);
+	}
+catch(e)
+	{
+	console.log(e);
+	}
+	
+	cb();
 
 	function read_strings()
 	{
@@ -138,7 +170,65 @@ fs.closeSync(fd);
 
 //****************************************************************************
 
-function read_tabular_file(filename) {
+function read_mysql_file(filename,cb) {
+
+var mysql = require("mysql");
+
+try	{
+	var content = fs.readFileSync(filename,"utf8");
+	lines = content.split("\n");
+	if(lines.length<2)
+		lines = content.split("\r");
+
+	var params = {};
+	var m;
+	for(var i=0;i<lines.length;i++)
+		{
+		if(m=lines[i].match(/host:(.*)/))
+			params.host = m[1];
+		if(m=lines[i].match(/user:(.*)/))
+			params.user = m[1];
+		if(m=lines[i].match(/password:(.*)/))
+			params.password = m[1];
+		if(m=lines[i].match(/database:(.*)/))
+			params.database = m[1];
+		if(m=lines[i].match(/query:(.*)/))
+			params.query = m[1];
+		}
+
+	var cnx = mysql.createConnection(params);
+	cnx.query(params.query, function(err,rows,fields) {
+
+		if(err) { cnx.end(); return; }
+	
+		var record = [];
+		for(var i=0;i<fields.length;i++)
+			record.push(fields[i].name);
+		data.push(record);
+		
+		for(var i=0;i<rows.length;i++)
+			{
+			record = [];
+			for(var j=0;j<fields.length;j++)
+				record.push(rows[i][fields[j].name]);
+			data.push(record);
+			}
+
+		cnx.end();
+
+		cb();
+		});
+	}
+catch(e)
+	{
+	console.log(e);
+	}
+
+}
+
+//****************************************************************************
+
+function read_tabular_file(filename,cb) {
 
 try	 {
 	var content = fs.readFileSync(filename,"utf8");
@@ -160,6 +250,8 @@ catch(e)
 	{
 	console.log(e);
 	}
+
+	cb();
 }
 
 //****************************************************************************
