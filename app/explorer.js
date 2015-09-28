@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.40";
+var VERSION = "1.41";
 
 /***************************************************************************/
 
@@ -140,6 +140,8 @@ _type("TYPE_SOM","Self-organizing map",drawSomGraph);
 _type("TYPE_THREE","Graph 3",drawThreeGraph);
 _type("TYPE_MULTI","Treemap",drawMultiGraph);
 _type("TYPE_CHI2","Chi square test",drawChi2Graph);
+_type("TYPE_GINI","Gini impurity",drawGiniGraph);
+
 var NBTYPE1 = KNUM;			// max graph types
 
 _type("TYPE_REPART","Repartition",drawRepartGraph);
@@ -6736,7 +6738,7 @@ if(index>=0)
 
 if(inRect(ptmove,mywidth-20,myheight-40,20,20))
 	{
-	message = "Corbeille";
+	message = "Trash";
 	return;
 	}
 
@@ -6824,6 +6826,8 @@ else if(overBoxGraph(ptmove,graphs[i]))
 	return;
 else if(overDendroGraph(ptmove,graphs[i]))
 	return;
+else if(overGiniGraph(ptmove,graphs[i]))
+	return;
 else if((index=inGraphBin(ptmove,graphs[i]))>0)
 	{
 	if(index<=card(graphs[i].omit))
@@ -6837,6 +6841,7 @@ else if((index=inGraphBin(ptmove,graphs[i]))>0)
 		}
 	return;
 	}
+
 else if(graphs[i].type==TYPE_MULTI)
 	{
 	var graph = graphs[i];
@@ -7424,6 +7429,36 @@ var x = (ptmove.x - graph.x -5)/xscale + graph._z.xmin
 var y = (graph.y +graph.h - 5 - ptmove.y)/yscale + graph._z.ymin
 
 message = trunc(x,4)+"   "+trunc(y,4)
+
+return true;
+}
+
+//***************************************************************************
+
+function overGiniGraph(ptmove,graph)
+{
+if(graph.type!=TYPE_GINI) return false;
+
+if(graph.ilabel2<0)
+	{
+	var gini = Math.round(graph._z.gini*1000)/1000;
+	message = ""+gini;
+	return true;
+	}
+
+var dy = (graph.h-25)/graph._keys2.length;
+var j = Math.floor((ptmove.y-graph.y-25)/dy);
+if(j<0) return false;
+if(j>=graph._keys2.length) return false;
+
+
+var key2 = graph._keys2[j];
+var gini = Math.round(graph._z.gini[key2]*1000)/1000;
+
+message = key2+" : "+gini;
+
+overlabel1 = graph.ilabel2;
+overkey1 = key2;
 
 return true;
 }
@@ -8674,6 +8709,16 @@ else if(index==TYPE_CHI2)
 	ctx.textAlign = "center"
 	ctx.strokeText("χ",x+10,y+14)
 	*/
+	}
+else if(index==TYPE_GINI)
+	{
+	var font = ctx.font;
+	ctx.fillStyle = PINK;
+	ctx.fillRect(x,y,20,20);
+	ctx.font = "18px times italic";
+	ctx.fillStyle = "#000000";
+	ctx.fillText("Ig",x+10,y+16);
+	ctx.font = font;
 	}
 else if(index==TYPE_MOMENTS)
 	{
@@ -10231,6 +10276,108 @@ ctx.strokeStyle = "#000000"
 
 drawHLabel(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,title1)
 
+drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
+}
+
+//***************************************************************************
+
+function drawGiniGraph(ctx,graph)
+{
+
+var align = ctx.textAlign;
+
+if(graph.ilabel2<0)
+	{
+	// one dimension
+
+	var total = 0;
+	for(var j=0;j<graph._keys1.length;j++)
+		{
+		var key = graph._keys1[j]
+		if(key in graph.omit) continue
+		total += graph._count[key];
+		}
+	
+	graph._z.gini = 1;
+	for(var j=0;j<graph._keys1.length;j++)
+		{
+		var key = graph._keys1[j];
+		if(key in graph.omit) continue;
+		graph._z.gini -= graph._count[key]*graph._count[key]/total/total;
+		}
+
+	var gini = Math.round(graph._z.gini*1000)/1000;
+
+	ctx.fillStyle = "#000000";
+	ctx.textAlign = "center";
+	ctx.fillText(""+gini,graph.x+graph.w/2,graph.y+graph.h/2-5);
+	}
+else
+	{
+	// two dimensions
+	graph._z.gini = {};
+	var total = {};	
+
+	for(var j=0;j<graph._keys2.length;j++)
+		{
+		var key2 = graph._keys2[j];
+		total[key2] = 0;
+		graph._z.gini[key2] = 1;
+		}
+	
+	for(var i=0;i<graph._keys1.length;i++)
+		{	
+		var key1 = graph._keys1[i];
+		if(key1 in graph.omit) continue;
+		for(var j=0;j<graph._keys2.length;j++)
+			{
+			var key2 = graph._keys2[j];
+			var key = key1+"\t"+key2;
+			if(key in graph._count)
+				total[key2] += graph._count[key];
+			}
+		}
+
+	for(var i=0;i<graph._keys1.length;i++)
+		{
+		var key1 = graph._keys1[i];
+		if(key1 in graph.omit) continue;
+		for(var j=0;j<graph._keys2.length;j++)
+			{
+			var key2 = graph._keys2[j];
+			var key = key1+"\t"+key2;
+			if(key in graph._count)
+				{
+				var freq = graph._count[key]/total[key2];
+				graph._z.gini[key2] -= freq*freq;
+				}
+			}
+		}
+
+	ctx.strokeStyle = "#000000";
+	var dy = (graph.h-25)/graph._keys2.length;
+	var y = graph.y+25;
+	for(var j=0;j<graph._keys2.length;j++)
+		{
+		var key2 = graph._keys2[j];
+		if(hiliteMatch2(graph.ilabel2,key2))
+			ctx.fillStyle = getColor(graph.hue,1,0.5)
+		else
+			ctx.fillStyle = getColor(graph.hue,1,1)	
+		var dx = (graph.w-30)*graph._z.gini[key2];
+		ctx.fillRect(graph.x+30,y,dx,dy);
+		ctx.strokeRect(graph.x+30,y,dx,dy);
+		y += dy;
+		}
+	}
+
+ctx.textAlign = align;
+ctx.fillStyle = "#FFFFFF"
+ctx.strokeStyle = "#000000"
+var title1 = getGraphLabel1(graph)
+drawHLabel(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,title1)
+
+var title2 = getGraphLabel2(graph)
 drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
 }
 
