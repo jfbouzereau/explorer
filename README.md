@@ -18,6 +18,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Treemap
 * Chi-square test
 * Gini impurity
+* Entropy
 * Repartition curve
 * Distribution curve
 * Scatter plot

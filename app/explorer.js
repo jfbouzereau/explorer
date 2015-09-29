@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.41";
+var VERSION = "1.42";
 
 /***************************************************************************/
 
@@ -141,6 +141,7 @@ _type("TYPE_THREE","Graph 3",drawThreeGraph);
 _type("TYPE_MULTI","Treemap",drawMultiGraph);
 _type("TYPE_CHI2","Chi square test",drawChi2Graph);
 _type("TYPE_GINI","Gini impurity",drawGiniGraph);
+_type("TYPE_ENTROPY","Entropy",drawEntropyGraph);
 
 var NBTYPE1 = KNUM;			// max graph types
 
@@ -6828,6 +6829,8 @@ else if(overDendroGraph(ptmove,graphs[i]))
 	return;
 else if(overGiniGraph(ptmove,graphs[i]))
 	return;
+else if(overEntropyGraph(ptmove,graphs[i]))
+	return;
 else if((index=inGraphBin(ptmove,graphs[i]))>0)
 	{
 	if(index<=card(graphs[i].omit))
@@ -7446,8 +7449,8 @@ if(graph.ilabel2<0)
 	return true;
 	}
 
-var dy = (graph.h-25)/graph._keys2.length;
-var j = Math.floor((ptmove.y-graph.y-25)/dy);
+var dy = (graph.h-graph.hbar)/graph._keys2.length;
+var j = Math.floor((ptmove.y-graph.y-graph.hbar)/dy);
 if(j<0) return false;
 if(j>=graph._keys2.length) return false;
 
@@ -7456,6 +7459,36 @@ var key2 = graph._keys2[j];
 var gini = Math.round(graph._z.gini[key2]*1000)/1000;
 
 message = key2+" : "+gini;
+
+overlabel1 = graph.ilabel2;
+overkey1 = key2;
+
+return true;
+}
+
+//***************************************************************************
+
+function overEntropyGraph(ptmove,graph)
+{
+if(graph.type!=TYPE_ENTROPY) return false;
+
+if(graph.ilabel2<0)
+	{
+	var entropy = Math.round(graph._z.entropy*1000)/1000;
+	message = ""+gini;
+	return true;
+	}
+
+var dy = (graph.h-graph.hbar)/graph._keys2.length;
+var j = Math.floor((ptmove.y-graph.y-graph.hbar)/dy);
+if(j<0) return false;
+if(j>=graph._keys2.length) return false;
+
+
+var key2 = graph._keys2[j];
+var entropy = Math.round(graph._z.entropy[key2]*1000)/1000;
+
+message = key2+" : "+entropy;
 
 overlabel1 = graph.ilabel2;
 overkey1 = key2;
@@ -8719,6 +8752,40 @@ else if(index==TYPE_GINI)
 	ctx.fillStyle = "#000000";
 	ctx.fillText("Ig",x+10,y+16);
 	ctx.font = font;
+	}
+else if(index==TYPE_ENTROPY)
+	{
+	ctx.fillStyle = PINK;
+	ctx.fillRect(x,y,20,20);
+
+	ctx.fillStyle = "#9E9E9E";
+	ctx.fillRect(x+8,y+3,4,2);
+	ctx.fillRect(x+3,y+8,2,4);
+	ctx.fillRect(x+15,y+8,2,4);
+	ctx.fillRect(x+8,y+15,4,2);
+
+	ctx.fillStyle = "#000000";	
+	ctx.fillRect(x+3,y+3,3,3);
+	ctx.fillRect(x+5,y+5,2,2);
+	ctx.fillRect(x+6,y+6,2,2);
+
+	ctx.fillRect(x+12,y+6,2,2);
+	ctx.fillRect(x+13,y+5,2,2);
+	ctx.fillRect(x+14,y+3,3,3);
+
+	ctx.fillRect(x+9,y+2,2,16);
+	ctx.fillRect(x+7,y+7,6,6);
+	ctx.fillRect(x+2,y+9,16,2);
+
+	ctx.fillRect(x+6,y+12,2,2);	
+	ctx.fillRect(x+5,y+13,2,2);
+	ctx.fillRect(x+3,y+14,3,3);
+
+	ctx.fillRect(x+12,y+12,2,2);
+	ctx.fillRect(x+13,y+13,2,2);
+	ctx.fillRect(x+14,y+14,3,3);	
+
+	
 	}
 else if(index==TYPE_MOMENTS)
 	{
@@ -10355,8 +10422,8 @@ else
 		}
 
 	ctx.strokeStyle = "#000000";
-	var dy = (graph.h-25)/graph._keys2.length;
-	var y = graph.y+25;
+	var dy = (graph.h-graph.hbar)/graph._keys2.length;
+	var y = graph.y+graph.hbar;
 	for(var j=0;j<graph._keys2.length;j++)
 		{
 		var key2 = graph._keys2[j];
@@ -10365,6 +10432,114 @@ else
 		else
 			ctx.fillStyle = getColor(graph.hue,1,1)	
 		var dx = (graph.w-30)*graph._z.gini[key2];
+		ctx.fillRect(graph.x+30,y,dx,dy);
+		ctx.strokeRect(graph.x+30,y,dx,dy);
+		y += dy;
+		}
+	}
+
+ctx.textAlign = align;
+ctx.fillStyle = "#FFFFFF"
+ctx.strokeStyle = "#000000"
+var title1 = getGraphLabel1(graph)
+drawHLabel(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,title1)
+
+var title2 = getGraphLabel2(graph)
+drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
+}
+
+//***************************************************************************
+
+function drawEntropyGraph(ctx,graph)
+{
+
+var align = ctx.textAlign;
+
+var log2 = Math.log(2);
+
+if(graph.ilabel2<0)
+	{
+	// one dimension
+
+	var total = 0;
+	for(var j=0;j<graph._keys1.length;j++)
+		{
+		var key = graph._keys1[j]
+		if(key in graph.omit) continue
+		total += graph._count[key];
+		}
+	
+	graph._z.entropy = 0;
+	for(var j=0;j<graph._keys1.length;j++)
+		{
+		var key = graph._keys1[j];
+		if(key in graph.omit) continue;
+		var prob = graph._count[key]/total;
+		graph._z.entropy -= prob*Math.log(prob)/log2;
+		}
+
+	var entropy = Math.round(graph._z.entropy*1000)/1000;
+
+	ctx.fillStyle = "#000000";
+	ctx.textAlign = "center";
+	ctx.fillText(""+entropy,graph.x+graph.w/2,graph.y+graph.h/2-5);
+	}
+else
+	{
+	// two dimensions	
+
+	graph._z.entropy = {};
+	var total = {};	
+
+	for(var j=0;j<graph._keys2.length;j++)
+		{
+		var key2 = graph._keys2[j];
+		total[key2] = 0;
+		graph._z.entropy[key2] = 0;
+		}
+	
+	for(var i=0;i<graph._keys1.length;i++)
+		{	
+		var key1 = graph._keys1[i];
+		if(key1 in graph.omit) continue;
+		for(var j=0;j<graph._keys2.length;j++)
+			{
+			var key2 = graph._keys2[j];
+			var key = key1+"\t"+key2;
+			if(key in graph._count)
+				total[key2] += graph._count[key];
+			}
+		}
+
+	var max = 0;
+	for(var i=0;i<graph._keys1.length;i++)
+		{
+		var key1 = graph._keys1[i];
+		if(key1 in graph.omit) continue;
+		for(var j=0;j<graph._keys2.length;j++)
+			{
+			var key2 = graph._keys2[j];
+			var key = key1+"\t"+key2;
+			if(key in graph._count)
+				{
+				var prob = graph._count[key]/total[key2];
+				graph._z.entropy[key2] -= prob*Math.log(prob)/log2;
+				if(graph._z.entropy[key2]>max) max=graph._z.entropy[key2];
+				}
+			}
+		}
+
+	ctx.strokeStyle = "#000000";
+	var dy = (graph.h-graph.hbar)/graph._keys2.length;
+	var y = graph.y+graph.hbar;
+	for(var j=0;j<graph._keys2.length;j++)
+		{
+		var key2 = graph._keys2[j];
+		if(hiliteMatch2(graph.ilabel2,key2))
+			ctx.fillStyle = getColor(graph.hue,1,0.5)
+		else
+			ctx.fillStyle = getColor(graph.hue,1,1)	
+		var dx = (graph.w-30)*graph._z.entropy[key2]/max;
 		ctx.fillRect(graph.x+30,y,dx,dy);
 		ctx.strokeRect(graph.x+30,y,dx,dy);
 		y += dy;
