@@ -69,7 +69,7 @@ query:select * from mytable
 
 There are two kinds of fields :
 
-* Litteral (or qualitative) fields represended in pink
+* Categorical (or qualitative) fields represended in pink
 * Numerical (or quantitative) fields represented in pale blue. A field with name terminated by ":n" or "/n" is regarded as numerical.
 
 #### Basic gestures

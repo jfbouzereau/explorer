@@ -6226,11 +6226,17 @@ else
 	t = getDefaultTable(graph)
 
 var wname = (new Date()).getTime()+"";
-var w = window.open("",wname,"status=0");
-var d = w.document;
-d.open()
-d.write(t)
-d.close()
+
+if(window.inbrowser)
+	{
+	var w = window.open("",wname,"status=0");
+	var d = w.document;
+	d.open()
+	d.write(t)
+	d.close()
+	}
+else
+	ipc.send("window", {title:wname,source:t});
 
 }
 
@@ -7475,7 +7481,7 @@ if(graph.type!=TYPE_ENTROPY) return false;
 if(graph.ilabel2<0)
 	{
 	var entropy = Math.round(graph._z.entropy*1000)/1000;
-	message = ""+gini;
+	message = ""+entropy;
 	return true;
 	}
 

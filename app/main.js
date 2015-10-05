@@ -23,6 +23,16 @@ ipc.on("clipboard",function() {
 	read_clipboard();
 });
 
+ipc.on("window", function(event,options)  {
+	console.log("window");
+	console.log(options);
+	var www = new BrowserWindow({title:options.title});
+	www.loadUrl("file://"+__dirname+"/window.html");
+	www.webContents.on("did-finish-load", function() {
+		www.webContents.send("content", options.source);
+	});
+});
+
 //****************************************************************************
 
 function read_file(filename) {

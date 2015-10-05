@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<body>
+</body>
+<script>
+var ipc = require("ipc");
+ipc.on("content", function(content) {	
+	document.open();
+	document.write(content);
+	document.close();
+	});
+</script>
+</html>
+
