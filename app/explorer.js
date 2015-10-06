@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.42";
+var VERSION = "1.43";
 
 /***************************************************************************/
 
@@ -155,6 +155,8 @@ _type("TYPE_KMEANS","K-means",drawKmeansGraph);
 _type("TYPE_HUEN","Huen diagram",drawHuenGraph);
 _type("TYPE_DENDRO","Dendrogram",drawDendroGraph);
 _type("TYPE_RADVIZ","Radviz",drawRadvizGraph);
+_type("TYPE_TERNARY","Ternary plot",drawTernaryPlot);
+
 var NBTYPE2 = KNUM; 		//  max plot types
 
 _type("TYPE_DISCRI","Discriminant analysis",drawDiscriGraph);
@@ -1256,6 +1258,7 @@ return inRect(pt,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100)
 function hasValuen(graph)
 {
 if(graph.type == TYPE_ACP) return true;
+if(graph.type == TYPE_TERNARY) return true;
 if(graph.type == TYPE_CORR) return true;
 if(graph.type == TYPE_KMEANS) return true;
 if(graph.type == TYPE_DISCRI) return true;
@@ -6825,6 +6828,8 @@ else if(overCorrGraph(ptmove,graphs[i]))
 	return
 else if(overScatterGraph(ptmove,graphs[i]))
 	return
+else if(overTernaryPlot(ptmove,graphs[i]))
+	return;
 else if(overDistribGraph(ptmove,graphs[i]))
 	return;
 else if(overRepartGraph(ptmove,graphs[i]))
@@ -7440,6 +7445,46 @@ var y = (graph.y +graph.h - 5 - ptmove.y)/yscale + graph._z.ymin
 message = trunc(x,4)+"   "+trunc(y,4)
 
 return true;
+}
+
+//***************************************************************************
+
+function overTernaryPlot(ptmove,graph)
+{
+if(graph.type!=TYPE_TERNARY) return false;
+
+message = "";
+
+if(!graph.ivalues) return true;
+if(graph.ivalues.length<3) return true;
+
+
+var dx = graph.w-20;
+var dy = graph.h-graph.hbar-20;
+if(dy<dx*Math.sqrt(3)/2)
+	dx = Math.floor(dy*2/Math.sqrt(3));
+else
+	dy = Math.floor(dx*Math.sqrt(3)/2);
+
+var b = (graph.y+graph.h-10-ptmove.y)/dy;
+if(b<0) return true;
+if(b>1) return true;
+
+var a = (ptmove.x - graph.x-10)/dx-b/2;
+if(a<0) return true;
+if(a>1) return true;
+if(a+b>1) return true;
+
+var p1 = Math.round(a*100);
+var p2 = Math.round(b*100);
+var p3 = Math.round((1-a-b)*100);
+
+message = values[graph.ivalues[0]]+" : "+p1+"%         "
+		+values[graph.ivalues[1]]+" : " +p2+"%         "
+		+values[graph.ivalues[2]]+" : " +p3+"%";
+
+return true;
+
 }
 
 //***************************************************************************
@@ -9050,6 +9095,23 @@ else if(index==TYPE_REGRES)
 	ctx.fillStyle = "#000000";
 	ctx.fillText("R",x+10,y+17);
 	ctx.font = font;
+	}
+else if(index==TYPE_TERNARY)
+	{
+	ctx.fillStyle = BLUE;
+	ctx.fillRect(x,y,20,20);
+	
+	ctx.strokeStyle = "#000000";
+	ctx.beginPath();
+	ctx.moveTo(x+2,y+18);
+	ctx.lineTo(x+18,y+18);
+	ctx.lineTo(x+10,y+2);
+	ctx.lineTo(x+2,y+18);
+	ctx.moveTo(x+10,y+18);
+	ctx.lineTo(x+14,y+10);
+	ctx.lineTo(x+6,y+10);
+	ctx.lineTo(x+10,y+18);
+	ctx.stroke();
 	}
 else if(index==TYPE_PALETTE)
 	{
@@ -12876,8 +12938,8 @@ if((graph.ivalues.length>0)&&(graph.ivalue1>=0))
 	ctx.fillText("Source",graph.x+30,y);
 		
 	ctx.textAlign = "right";
-	ctx.fillText("\u03A3 carrés",graph.x+230,y);
-	ctx.fillText("d.d.l",graph.x+350,y);
+	ctx.fillText("\u03A3 squares",graph.x+230,y);
+	ctx.fillText("d.o.f",graph.x+350,y);
 
 	ctx.fillRect(graph.x+30,y+10,340,2)
 
@@ -13086,6 +13148,110 @@ drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*graph.ivalues.length,
 
 var title = (graph.ilabel1<0) ? "" : labels[graph.ilabel1]
 drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title);
+}
+
+//***************************************************************************
+
+function drawTernaryPlot(ctx,graph)
+{
+
+if(!graph.ivalues)	
+	graph.ivalues = [];
+
+
+ctx.textAlign = "center"
+
+for(var k=0;k<graph.ivalues.length;k++)
+	{
+	var title = values[graph.ivalues[k]]
+	drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*k,100,20,title)
+	}
+
+drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*graph.ivalues.length,100,20,"")
+
+if(graph.ivalues.length<3) return;
+
+var dx = graph.w-20;
+var dy = graph.h-graph.hbar-20;
+if(dy<dx*Math.sqrt(3)/2)
+	dx = Math.floor(dy*2/Math.sqrt(3));
+else
+	dy = Math.floor(dx*Math.sqrt(3)/2);
+
+ctx.strokeStyle = "#BBBBBB";
+ctx.beginPath();
+ctx.moveTo(graph.x+10,graph.y+graph.h-10);
+ctx.lineTo(graph.x+10+dx,graph.y+graph.h-10);
+ctx.lineTo(graph.x+10+dx/2,graph.y+graph.h-10-dy);
+ctx.lineTo(graph.x+10,graph.y+graph.h-10);
+
+ctx.moveTo(graph.x+10+dx/2,graph.y+graph.h-10);
+ctx.lineTo(graph.x+10+3*dx/4,graph.y+graph.h-10-dy/2);
+ctx.lineTo(graph.x+10+dx/4,graph.y+graph.h-10-dy/2);
+ctx.lineTo(graph.x+10+dx/2,graph.y+graph.h-10);
+
+ctx.moveTo(graph.x+10+dx/4,graph.y+graph.h-10);
+ctx.lineTo(graph.x+10+dx/8,graph.y+graph.h-10-dy/4);
+ctx.lineTo(graph.x+10+7*dx/8, graph.y+graph.h-10-dy/4);
+ctx.lineTo(graph.x+10+3*dx/4, graph.y+graph.h-10);
+ctx.lineTo(graph.x+10+3*dx/8, graph.y+graph.h-10-3*dy/4);
+ctx.lineTo(graph.x+10+5*dx/8, graph.y+graph.h-10-3*dy/4);
+ctx.lineTo(graph.x+10+dx/4, graph.y+graph.h-10);
+
+ctx.stroke();
+
+ctx.fillStyle = "#000000";
+
+// draw points
+for(var i=0;i<lrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue
+
+	ctx.fillStyle = "#000000";
+
+	if(vrecords[i][graph.ivalues[0]]<0) continue;
+	if(vrecords[i][graph.ivalues[1]]<0) continue;	
+	if(vrecords[i][graph.ivalues[2]]<0) continue;
+	var sum = vrecords[i][graph.ivalues[0]]+
+			vrecords[i][graph.ivalues[1]]+
+			vrecords[i][graph.ivalues[2]];
+
+	var a = vrecords[i][graph.ivalues[0]]/sum;
+	var b = vrecords[i][graph.ivalues[1]]/sum;
+
+	var x = Math.round(graph.x+10+dx*(a+b/2));
+	var y = Math.round(graph.y+graph.h-10-b*dy);
+
+	ctx.fillRect(x-1,y-1,3,3);	
+	}
+
+	if(overlabel1>=0)
+	{
+	for(var i=0;i<lrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue
+		if( lrecords[i][overlabel1] != overkey1) continue;
+		//if(!recordHilite(lrecords[i])) continue
+
+		ctx.fillStyle = ctx.strokeStyle = "#000000";
+
+		if(vrecords[i][graph.ivalues[0]]<0) continue;
+		if(vrecords[i][graph.ivalues[1]]<0) continue;	
+		if(vrecords[i][graph.ivalues[2]]<0) continue;
+		var sum = vrecords[i][graph.ivalues[0]]+
+				vrecords[i][graph.ivalues[1]]+
+				vrecords[i][graph.ivalues[2]];
+
+		var a = vrecords[i][graph.ivalues[0]]/sum;
+		var b = vrecords[i][graph.ivalues[1]]/sum;
+
+		var x = Math.round(graph.x+10+dx*(a+b/2));
+		var y = Math.round(graph.y+graph.h-10-b*dy);
+
+		ctx.fillRect(x-3,y-3,7,7);	
+		}
+	}
+
 }
 
 //***************************************************************************
