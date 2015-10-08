@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.45";
+var VERSION = "1.46";
 
 /***************************************************************************/
 
@@ -225,6 +225,7 @@ var overkey2 = null	;
 var overlabel3 = -1;
 var overkey3 = null;
 
+var informula = false;
 
 var checkboard = createCheckboard();
 
@@ -6225,6 +6226,18 @@ else if(action==SORT_DATA)
 	{
 	sortData();
 	}
+else if((action==DRAG_LABEL)&&informula)
+	{
+	if(labelindex>=0)
+		document.getElementById("fiform").value += "$C"+(labelindex+1);
+	document.getElementById("fiform").focus();
+	}
+else if((action==DRAG_VALUE)&&informula)
+	{
+	if(valueindex>0)
+		document.getElementById("fiform").value += "$N"+valueindex;
+	document.getElementById("fiform").focus();
+	}
 else if(action==EXPORT_CHART)
 	{
 	if(inRect(ptmove,mywidth-120,myheight-40,20,20))
@@ -6504,146 +6517,170 @@ function show_formula_dialog(action)
 {
 
 var text = ""
-text += "<div id='fi'>"
 text += "<table width='100%' cellspacing='10'>"
-text += "<tr><td width='30'>Nom</td><td><input type='text' id='finom' /></td><td width='15'>&nbsp;</td></tr>" 
-text += "<tr><td width='30'>Formule</td><td><input type='text' id='fiform' /></td><td width='15'><button id='fihelp'>?</button></td></tr>"
+text += "<tr><td width='30'>Name</td><td><input type='text' id='finom' placeholder='Enter name of new field'/></td><td width='15'>&nbsp;</td></tr>" 
+text += "<tr><td width='30'>Formula</td><td><input type='text' id='fiform' /></td><td width='15'><button id='fihelp'>?</button></td></tr>"
 text += "</table>"
 text += "<table width='100%' cellspacing='10'>"
 text += "<tr><td width='50%' align='center'><button id='ficancel'>Cancel</button>"
 text += "<td width='50%' align='center'><button id='fiok'>&nbsp; OK &nbsp;</button></td></tr>"
 text += "</table>"
-text += "</div>"
 
+var div = document.createElement("div");
+div.setAttribute("id","fi");
+document.body.appendChild(div);
 
-$("body",mywindow.document).append($(text))
+div.innerHTML = text;
 
-var options = {}
-	options.position = "fixed"
-	options["z-index"] = 10
-	options.top = "120px"
-	options.left = "110px"
-	options.right = "110px"
-	options["background-color"] = "#DEF7D6"
-	options.border = "1px solid #000000"
+div.style.position = "fixed";
+div.style["z-index"] = 10;
+div.style.top = "120px";
+div.style.left = "110px";
+div.style.right = "110px";
+div.style["background-color"] = "#DEF7D6"
+div.style.border = "1px solid #000000"
+div.style["user-select"] = "none";
+div.style["-webkit-user-select"] = "none";
+div.style["-moz-user-select"] = "none";
+div.style["-ms-user-select"] = "none";
 
-$("#fi",mywindow.document).css(options);
+document.getElementById("finom").style.width = "100%";
+document.getElementById("fiform").style.width = "100%";
 
-$("#finom",mywindow.document).css("width","100%")
-$("#fiform",mywindow.document).css("width","100%")
+document.getElementById("ficancel").addEventListener("click",cancel,false);
+document.getElementById("fiok").addEventListener("click",ok,false);
+document.getElementById("fihelp").addEventListener("click",help,false);
 
-$("#ficancel",mywindow.document).click(function()
-	{
-	$("#fi",mywindow.document).remove();
-	})
+document.getElementById("fi").addEventListener("mouseover", enter,false);
+document.getElementById("fi").addEventListener("mouseout", leave, false);
 
-$("#fiok",mywindow.document).click(function()
-	{	
-	var nom = $("#finom",mywindow.document).val()
-	var form = $("#fiform",mywindow.document).val()	
-	add_formula(nom,form,action)
-	$("#fi",mywindow.document).remove();
-	})
+informula = false;
 
-$("#fihelp",mywindow.document).click(show_formula_help);
+	function enter() { informula = true; }
+	function leave() { informula = false; }
 
-$("#finom",mywindow.document).get(0).focus();
+	function cancel() {
+		document.body.removeChild(div);
+	}
+
+	function ok() {
+		var nam = document.getElementById("finom").value;
+		var form = document.getElementById("fiform").value;
+		if((nam!="")&&(form!=""))
+			{
+			add_formula(nam,form,action);
+			document.body.removeChild(div);
+			}
+	}
+
+	function help() {
+		show_formula_help();
+	}
 }
 
 //***************************************************************************
 
 function show_formula_help()
 {
-var w = window.open("about:blank","formulahelp","width=500")
-var d = w.document;
+var t = "";
 
-d.open();
-d.write("<html>")
-d.write("<head>")
-d.write("<title>Aide</title>")
-d.write("<style>");
-d.write("td	{ font-family:Courier; font-size:12px; }");
-d.write("</style>");
-d.write("</head>")
-d.write("<body>")
-d.write("<table border='0' width='100%'>");
 
-var i = 0;
-d.write("<tr><td colspan='2' style='background-color:#000000;color:#FFFFFF'>Fonctions littérales</td></tr>");
-addLine("s.charAt(index)",getLabel(i++));
-addLine("s.charCodeAt(index)",getLabel(i++));
-addLine("s.concat(s1,...,sk)",getLabel(i++));
-addLine("s.indexOf(t)",getLabel(i++));
-addLine("s.lastIndexOf(t)",getLabel(i++));
-addLine("s.length",getLabel(i++));
-addLine("s.localeCompare(t)",getLabel(i++));
-addLine("s.match(re)",getLabel(i++));
-addLine("s.replace(re,t)",getLabel(i++));
-addLine("s.search(re)",getLabel(i++));
-addLine("s.slice(from,to)",getLabel(i++));
-addLine("s.split(sep)",getLabel(i++));
-addLine("s.substr(from,len)",getLabel(i++));
-addLine("s.substring(from,to)",getLabel(i++));
-addLine("s.toLocaleLowerCase()",getLabel(i++));
-addLine("s.toLocaleUpperCase()",getLabel(i++));
-addLine("s.toLowerCase()",getLabel(i++));
-addLine("s.toUpperCase()",getLabel(i++));
-addLine("s.trim()",getLabel(i++));
-addLine("s.trimLeft()",getLabel(i++));
-addLine("s.trimRight()",getLabel(i++));
+t += "<html>";
+t += "<head>";
+t += "<title>Help</title>";
+t += "<style>";;
+t += "td	{ font-family:Courier; font-size:12px; }";
+t += "</style>";
+t += "</head>";
+t += "<body>";
+t += "<table border='0' width='100%'>";
 
-i = 1;
-d.write("<tr><td colspan='2' style='background-color:#000000;color:#FFFFFF'>Fonctions numériques</td></tr>");
+t += "<tr><td colspan='1' style='background-color:#000000;color:#FFFFFF'>Categorical fields</td></tr>";
 
-addLine("Math.E: 2.718281828459045",getValue(i++));
-addLine("Math.LN2: 0.6931471805599453",getValue(i++));
-addLine("Math.LN10: 2.302585092994046",getValue(i++));
-addLine("Math.LOG2E: 1.4426950408889634",getValue(i++));
-addLine("Math.LOG10E: 0.4342944819032518",getValue(i++));
-addLine("Math.PI: 3.141592653589793",getValue(i++));
-addLine("Math.SQRT1_2: 0.7071067811865476",getValue(i++));
-addLine("Math.SQRT2: 1.4142135623730951",getValue(i++));
-addLine("Math.abs(x)",getValue(i++));
-addLine("Math.acos(x)",getValue(i++));
-addLine("Math.asin(x)",getValue(i++));
-addLine("Math.atan(x)",getValue(i++));
-addLine("Math.atan2(y,x)",getValue(i++));
-addLine("Math.ceil(x)",getValue(i++));
-addLine("Math.cos(x)",getValue(i++));
-addLine("Math.exp(x)",getValue(i++));
-addLine("Math.floor(x)",getValue(i++));
-addLine("Math.log(x)",getValue(i++));
-addLine("Math.max(x1,...,xk)",getValue(i++));
-addLine("Math.min(x1,...,xk)",getValue(i++));
-addLine("Math.pow(x,y)",getValue(i++));
-addLine("Math.random()",getValue(i++));
-addLine("Math.round(x)",getValue(i++));
-addLine("Math.sin(x)",getValue(i++));
-addLine("Math.sqrt(x)",getValue(i++));
-addLine("Math.tan(x)",getValue(i++));
+for(var i=0;i<labels.length;i++)
+	addLine("$C"+(i+1)+"  :   "+labels[i]);
 
-d.write("</table>");
-d.write("</body>");
-d.write("</html>");
+t += "<tr><td colspan='1' style='background-color:#000000;color:#FFFFFF'>Numerical fields</td></tr>";
 
-d.close()
+for(var i=1;i<values.length;i++)
+	addLine("$N"+i+"  :   "+values[i]);
 
-d.title = "Javascript functions";
+t += "<tr><td colspan='1' style='background-color:#000000;color:#FFFFFF'>String functions</td></tr>";;
 
-function addLine(a,b)
-{
-d.write("<tr><td>"+a+"</td><td>"+b+"</td></tr>");
-}
+addLine("s.charAt(index)");
+addLine("s.charCodeAt(index)");
+addLine("s.concat(s1,...,sk)");
+addLine("s.indexOf(t)");
+addLine("s.lastIndexOf(t)");
+addLine("s.length");
+addLine("s.localeCompare(t)");
+addLine("s.match(re)");
+addLine("s.replace(re,t)");
+addLine("s.search(re)");
+addLine("s.slice(from,to)");
+addLine("s.split(sep)");
+addLine("s.substr(from,len)");
+addLine("s.substring(from,to)");
+addLine("s.toLocaleLowerCase()");
+addLine("s.toLocaleUpperCase()");
+addLine("s.toLowerCase()");
+addLine("s.toUpperCase()");
+addLine("s.trim()");
+addLine("s.trimLeft()");
+addLine("s.trimRight()");
 
-function getLabel(i)
-{
-return i<labels.length ? "$l"+(i+1)+" : "+labels[i] : "&nbsp;";
-}
+t += "<tr><td colspan='1' style='background-color:#000000;color:#FFFFFF'>Numerical functions</td></tr>";
 
-function getValue(i)
-{
-return i <values.length ? "$v"+(i)+" : "+values[i] : "&nbsp;";
-}
+addLine("Math.E: 2.718281828459045");
+addLine("Math.LN2: 0.6931471805599453");
+addLine("Math.LN10: 2.302585092994046");
+addLine("Math.LOG2E: 1.4426950408889634");
+addLine("Math.LOG10E: 0.4342944819032518");
+addLine("Math.PI: 3.141592653589793");
+addLine("Math.SQRT1_2: 0.7071067811865476");
+addLine("Math.SQRT2: 1.4142135623730951");
+addLine("Math.abs(x)");
+addLine("Math.acos(x)");
+addLine("Math.asin(x)");
+addLine("Math.atan(x)");
+addLine("Math.atan2(y,x)");
+addLine("Math.ceil(x)");
+addLine("Math.cos(x)");
+addLine("Math.exp(x)");
+addLine("Math.floor(x)");
+addLine("Math.log(x)");
+addLine("Math.max(x1,...,xk)");
+addLine("Math.min(x1,...,xk)");
+addLine("Math.pow(x,y)");
+addLine("Math.random()");
+addLine("Math.round(x)");
+addLine("Math.sin(x)");
+addLine("Math.sqrt(x)");
+addLine("Math.tan(x)");
+
+t += "</table>";
+t += "</body>";
+t += "</html>";
+
+
+if(window.inbrowser)
+	{
+	var w = window.open("about:blank","help","width=500;status=0");
+	var d = w.document;
+	d.title = "Help";
+	d.open()
+	d.write(t)
+	d.close()
+	}
+else
+	ipc.send("window", {title:"Javascript functions",source:t});
+
+
+	function addLine(a)
+	{
+	t += "<tr><td>"+a+"</td></tr>";
+	}
+
 }
 
 //***************************************************************************
@@ -6668,15 +6705,19 @@ var formula = f[2];
 
 for(var i=labels.length;i>=1;i--)
 	{
-	while(formula.indexOf("$l"+i)>=0)
-		formula = formula.replace("$l"+i,"l["+(i-1)+"]");
+	while(formula.indexOf("$C"+i)>=0)
+		formula = formula.replace("$C"+i,"C["+(i-1)+"]");
+	while(formula.indexOf("$c"+i)>=0)
+		formula = formula.replace("$c"+i,"C["+(i-1)+"]");
 	}
 
 
 for(var i=values.length-1;i>=1;i--)
 	{
-	while(formula.indexOf("$v"+i)>=0)
-		formula = formula.replace("$v"+i,"v["+i+"]");
+	while(formula.indexOf("$N"+i)>=0)
+		formula = formula.replace("$N"+i,"N["+i+"]");
+	while(formula.indexOf("$n"+i)>=0)
+		formula = formula.replace("$n"+i,"N["+i+"]");
 	}
 
 
@@ -6684,14 +6725,14 @@ var nerr = 0;
 
 if(action==1)
 	{
-	var l;
-	var v;
+	var C;
+	var N;
 	var x;
 	labels.push(nom);
 	for(var i=0;i<lrecords.length;i++)
 		{	
-		l = lrecords[i];		
-		v = vrecords[i];
+		C = lrecords[i];		
+		N = vrecords[i];
 		try  {	eval("x="+formula) ; x = ""+x; }
 		catch(err)  { nerr+=1; x= ""}
 
@@ -6701,16 +6742,16 @@ if(action==1)
 	}
 else if(action==2)
 	{
-	var l;
-	var v;
+	var C;
+	var N;
 	var x;
 	values.push(nom);
 	for(var i=0;i<vrecords.length;i++)
 		{
-		l = lrecords[i];
-		v = vrecords[i];	
+		C = lrecords[i];
+		N = vrecords[i];	
 		try { eval("x="+formula); x = Number(x); }
-		catch(err) { console.log(err) ; nerr+=1; x = 0; }
+		catch(err) {  nerr+=1; x = 0; }
 
 		vrecords[i].push(x);
 		}
@@ -13718,14 +13759,19 @@ if((action==REMOVE_LABEL)||(action==REMOVE_VALUE))
 // if dragging a label
 if((action==DRAG_LABEL)||(action==SET_LABEL1)||(action==SET_LABEL2))
 	{
-	ctx.strokeStyle = GRAY
-	ctx.strokeRect(ptmove.x-50,ptmove.y-10,100,20)
+	if(!informula) {
+		ctx.strokeStyle = GRAY
+		ctx.strokeRect(ptmove.x-50,ptmove.y-10,100,20)
+		}
 	}
 
 if((action==DRAG_VALUE)||(action==SET_VALUE1)||(action==SET_VALUE2))
 	{
-	ctx.strokeStyle = GRAY
-	ctx.strokeRect(ptmove.x-50,ptmove.y-10,100,20)
+	if(!informula)
+		{
+		ctx.strokeStyle = GRAY
+		ctx.strokeRect(ptmove.x-50,ptmove.y-10,100,20)
+		}
 	}
 
 if((action==SET_LABEL1)||(action==SET_VALUE1)||(action==SWAP_VALUE21))

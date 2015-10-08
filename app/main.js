@@ -24,8 +24,6 @@ ipc.on("clipboard",function() {
 });
 
 ipc.on("window", function(event,options)  {
-	console.log("window");
-	console.log(options);
 	var www = new BrowserWindow({title:options.title});
 	www.loadUrl("file://"+__dirname+"/window.html");
 	www.webContents.on("did-finish-load", function() {
