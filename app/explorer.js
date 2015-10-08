@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.43";
+var VERSION = "1.44";
 
 /***************************************************************************/
 
@@ -109,6 +109,7 @@ _action("DONT_REMOVE_VARIABLE","Some graphs use this variable");
 _action("CHANGE_NCLASS","Change the number of classes");
 _action("EXPORT_CHART","Export graphs into HighCharts");
 _action("SAVE_CONFIG","Save the configuration");
+_action("CHANGE_LAG","Change lag value");
 
 
 // actions that gray the graph
@@ -148,6 +149,7 @@ var NBTYPE1 = KNUM;			// max graph types
 _type("TYPE_REPART","Repartition",drawRepartGraph);
 _type("TYPE_DISTRIB","Distribution curve",drawDistribGraph);
 _type("TYPE_SCATTER","Scatter plot",drawScatterGraph);
+_type("TYPE_LAG","Lag plot",drawLagPlot);
 _type("TYPE_MOMENTS","Statistics",drawMomentGraph);
 _type("TYPE_CORR","Correlations",drawCorrGraph);
 _type("TYPE_ACP","Principal components",drawAcpGraph);
@@ -1384,6 +1386,24 @@ else if(graph._z.cursor<0)
 		return DRAG_CURSORV
 	}
 return -1
+}
+
+//***************************************************************************
+
+function inLagCursor(pt,graph)
+{
+if(graph.type!=TYPE_LAG) return false;
+if(graph.ivalue1<0) return false;
+
+xmin = graph.x+10;
+xmax = graph.x + graph.w - 130;
+ymin = graph.y + graph.hbar + 25;
+ymax = graph.y + graph.h -70;
+
+var y = graph.y + graph.h - 30;
+var x = xmin+(xmax-xmin)*graph._z.lag/10;
+
+return inRect(pt,x-5,y-10,10,20);
 }
 
 //***************************************************************************
@@ -5440,6 +5460,11 @@ if(i>=0)
 		faction = CHANGE_NCLASS;
 		graphindex = i;
 		}
+	else if(inLagCursor(ptclick,graph))
+		{
+		faction = CHANGE_LAG;
+		graphindex = i;
+		}
 	else if(inHScroll(ptclick,graph))
 		{		
 		faction = HSCROLL_GRAPH
@@ -8121,6 +8146,15 @@ else if(faction==CHANGE_NCLASS)
 	if(graph._z.nc<3) graph._z.nc = 2;
 	if(graph._z.nc>50) graph._z.nc = 50;
 	}
+else if(faction==CHANGE_LAG)
+	{
+	var graph = graphs[graphindex];
+	var xmin = graph.x+10;
+	var xmax = graph.x + graph.w - 130;
+	graph._z.lag = Math.round((ptmove.x-xmin)*10/(xmax-xmin));
+	if(graph._z.lag<1) graph._z.lag = 1;
+	if(graph._z.lag>10) graph._z.lag = 10;
+	}
 else if(faction==DRAG_ERROR)
 	{
 	var graph = graphs[graphindex]
@@ -8765,6 +8799,42 @@ else if(index==TYPE_SCATTER)
 			18,11, 11,17, 12,14, 18,3, 16,2, 12,11, 8,13, 16,7]
 	for(var i=0;i<xy.length;i+=2)
 		ctx.fillRect(x+xy[i],y+xy[i+1],2,2)
+	}
+else if(index==TYPE_LAG)
+	{
+	ctx.fillStyle = BLUE;
+	ctx.fillRect(x,y,20,20);
+	
+	/*
+	ctx.fillStyle = "#AAAAAA";
+	ctx.fillRect(x+2,y+11,17,1);
+	ctx.fillRect(x+2,y+17,17,1);
+	ctx.fillRect(x+2,y+2,17,1);
+
+	ctx.fillStyle = "#000000";
+	ctx.fillRect(x+6,y+11,3,7);
+	ctx.fillRect(x+5,y+12,5,1);
+	ctx.fillRect(x+5,y+16,5,1);
+
+	ctx.fillRect(x+13,y+2,3,10);
+	ctx.fillRect(x+12,y+3,5,1);
+	ctx.fillRect(x+12,y+10,5,1);
+	*/
+	ctx.fillStyle = "#000000";
+
+	ctx.fillRect(x+3,y+16,2,2);
+	ctx.fillRect(x+4,y+14,2,2);
+	ctx.fillRect(x+6,y+13,2,2);
+	ctx.fillRect(x+7,y+11,2,2);
+	ctx.fillRect(x+8,y+12,2,2);
+	ctx.fillRect(x+10,y+11,2,2);
+	ctx.fillRect(x+11,y+9,2,2);
+	ctx.fillRect(x+12,y+8,2,2);
+	ctx.fillRect(x+14,y+9,2,2);
+	ctx.fillRect(x+14,y+5,2,2);
+	ctx.fillRect(x+15,y+6,2,2);
+	ctx.fillRect(x+16,y+3,2,2);
+	ctx.fillRect(x+17,y+2,2,2);
 	}
 else if(index==TYPE_CHI2)
 	{
@@ -11751,6 +11821,86 @@ drawVValue(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
 
 var title3 = getGraphLabel1(graph)
 drawHLabel(ctx,graph.x+graph.w-100-graph.margin3,graph.y+graph.h-25,100,20,title3)
+}
+
+//***************************************************************************
+
+function drawLagPlot(ctx,graph)
+{
+
+if(graph.ivalue1>=0)
+	{
+	if(!graph._z.lag)
+		graph._z.lag = 1;
+	
+	var history = [];
+
+	var xmin = graph.x+10;
+	var xmax = graph.x + graph.w - 20;
+	var ymin = graph.y + graph.hbar + 10;
+	var ymax = graph.y + graph.h - 40;
+
+	var xscale = (xmax-xmin)/(graph._z.xmax-graph._z.xmin)
+	var yscale = (ymax-ymin)/(graph._z.xmax-graph._z.xmin)
+
+	var i1 = graph.ivalue1 
+
+
+	// draw points
+	ctx.fillStyle = "#000000";
+	var x,y;
+	var vcurrent,vprevious;
+	for(var i=0;i<lrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue
+
+		vcurrent = vrecords[i][i1];
+		history.push(vcurrent);
+
+		if(history.length>graph._z.lag)
+			{
+			vprevious = history.shift();
+			x = xmin +(vcurrent-graph._z.xmin)*xscale;
+			y = ymax - (vprevious-graph._z.xmin)*yscale;
+			ctx.fillRect(x-1,y-1,3,3);
+			}
+		}
+
+	// draw cursor
+	xmin = graph.x+10;
+	xmax = graph.x + graph.w - 130;
+	ymin = graph.y + graph.hbar + 25;
+	ymax = graph.y + graph.h -70;
+
+	ctx.fillStyle = "#FFFFFF";
+	var y = graph.y + graph.h - 30;
+	ctx.fillRect(xmin,y-5,xmax-xmin,10);
+	ctx.strokeRect(xmin,y-5,xmax-xmin,10);
+
+	var x = xmin+(xmax-xmin)*graph._z.lag/10;
+	ctx.fillRect(x-5,y-10,10,20)
+	ctx.strokeRect(x-5,y-10,10,20)
+
+	ctx.beginPath()
+	for(var i=0;i<=10;i++)
+		{
+		x = xmin+(xmax-xmin)*i/10;
+		ctx.moveTo(x,y+15)
+		ctx.lineTo(x,y+25)
+		}
+	ctx.stroke()
+
+	ctx.fillStyle = "#000000";
+	ctx.textAlign = "center"
+	ctx.fillText("Lag = "+graph._z.lag,
+		graph.x+graph.w-65,graph.y+graph.h-25);
+	}
+
+
+ctx.textAlign = "center"
+var title1 = (graph.ivalue1<0) ? "" : values[graph.ivalue1]
+drawHValue(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,title1)
+
 }
 
 //***************************************************************************

@@ -23,6 +23,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Distribution curve
 * Scatter plot
 * Ternary plot
+* Lag plot
 * General statistics
 * Principal components
 * K-means
