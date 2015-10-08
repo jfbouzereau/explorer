@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.44";
+var VERSION = "1.45";
 
 /***************************************************************************/
 
@@ -40,10 +40,10 @@ _action("PASTE_LABEL21","Map axis");
 _action("PASTE_LABEL22","Map axis");
 _action("CREATE_GRAPH1","Create graph from axis 1");
 _action("CREATE_GRAPH2","Create graph from axis 2");
-_action("CREATE_VALUE","Create numerical variable");
+_action("CREATE_VALUE","Create numerical field");
 _action("DRAG_VALUE","");
-_action("SET_VALUE1","Define variable along axis 1");
-_action("SET_VALUE2","Define variable along axis 2");
+_action("SET_VALUE1","Define field along axis 1");
+_action("SET_VALUE2","Define field along axis 2");
 _action("DRAG_VALUE1","");
 _action("DRAG_VALUE2","");
 _action("REMOVE_VALUE1","Remove definition along axis 1");
@@ -84,32 +84,34 @@ _action("DRAG_TABLE","Display graph values");
 _action("SHOW_TABLE","Display graph values");
 _action("DRAG_INSPECTOR","Inspect graph values");
 _action("SHOW_INSPECTOR","Inspect graph values");
-_action("DRAG_ADD","Add variable");
+_action("DRAG_ADD","Add field");
 _action("ADD_LABEL","Add label");
-_action("ADD_VALUE","Add numerical variable");
+_action("ADD_VALUE","Add numerical field");
 _action("DRAG_ERROR","Change error value");
 _action("DRAG_NSLOT","Change the number of classes");
 _action("CHANGE_DISPLAY","Change the point representation");
 _action("DRAG_CLONE","Duplicate graph");
 _action("CLONE_GRAPH","Duplicate graph");
-_action("SET_VALUEN","Add variable");
+_action("SET_VALUEN","Add field");
 _action("DRAG_VALUEN","");
-_action("REMOVE_VALUEN","Remove variable");
-_action("SWAP_VALUEN","Swap variables");
+_action("REMOVE_VALUEN","Remove field");
+_action("SWAP_VALUEN","Swap fields");
 _action("DRAG_SIDEBAR","Move toolbar");
-_action("DRAG_AXIS","Create variable from projection");
-_action("CREATE_PROJECTION","Create variable from projection");
-_action("SWAP_VALUE12","Swap variables");
-_action("SWAP_VALUE21","Swap variables");
-_action("CREATE_KGROUP","Create variable from partition");
-_action("CREATE_BOOLEAN","Create boolean variable from modality");
-_action("REMOVE_LABEL","Remove variable");
-_action("REMOVE_VALUE","Remove variable");
-_action("DONT_REMOVE_VARIABLE","Some graphs use this variable");
+_action("DRAG_AXIS","Create field from projection");
+_action("CREATE_PROJECTION","Create field from projection");
+_action("SWAP_VALUE12","Swap fields");
+_action("SWAP_VALUE21","Swap fields");
+_action("CREATE_KGROUP","Create field from partition");
+_action("CREATE_BOOLEAN","Create boolean field from modality");
+_action("REMOVE_LABEL","Remove field");
+_action("REMOVE_VALUE","Remove field");
+_action("DONT_REMOVE_VARIABLE","Some graphs use this field");
 _action("CHANGE_NCLASS","Change the number of classes");
 _action("EXPORT_CHART","Export graphs into HighCharts");
 _action("SAVE_CONFIG","Save the configuration");
 _action("CHANGE_LAG","Change lag value");
+_action("DRAG_SORT","Sort data");
+_action("SORT_DATA","Sort data by");
 
 
 // actions that gray the graph
@@ -120,6 +122,7 @@ var GACTIONS = {}
     GACTIONS[SHOW_INSPECTOR] = 1;
     GACTIONS[CLONE_GRAPH] = 1;
 	GACTIONS[EXPORT_CHART] = 1;
+	
 
 /***************************************************************************/
 
@@ -167,6 +170,7 @@ _type("TYPE_REGRES","Linear regression",drawRegresGraph);
 _type("TYPE_BOX","Box plot",drawBoxGraph);
 _type("TYPE_PARA","Parallel coordinates",drawParaGraph);
 _type("TYPE_PALETTE","Palette",drawPaletteGraph);
+
 var NBTYPE3 = KNUM;			// max total types
 
 var TYPE_BAND = 99
@@ -5256,8 +5260,7 @@ if(inRect(ptclick,mywidth-100,myheight-40,20,20))
 
 if(inRect(ptclick,mywidth-120,myheight-40,20,20))
 	{	
-	faction = action = EXPORT_CHART;
-	draw();
+	faction = action = DRAG_SORT;
 	return;
 	}
 
@@ -6218,6 +6221,10 @@ else if(action==CHANGE_DISPLAY)
 	else
 		graph._display = labelindex;
 	}
+else if(action==SORT_DATA)
+	{
+	sortData();
+	}
 else if(action==EXPORT_CHART)
 	{
 	if(inRect(ptmove,mywidth-120,myheight-40,20,20))
@@ -6803,7 +6810,7 @@ if(inRect(ptmove,mywidth-100,myheight-40,20,20))
 
 if(inRect(ptmove,mywidth-120,myheight-40,20,20))
 	{
-	message = AHELP[EXPORT_CHART];
+	message = AHELP[DRAG_SORT];
 	return;
 	}
 
@@ -7819,6 +7826,26 @@ else if(faction==DRAG_CLONE)
 			graphindex = i;
 
 	action = (graphindex<0) ? DRAG_CLONE : CLONE_GRAPH;
+	}
+else if(faction==DRAG_SORT)
+	{
+	action = DRAG_SORT;
+	labelindex = -1;
+	valueindex = -1;
+	var index = inLabel(ptmove);
+	if(index>=0)
+		{
+		action = SORT_DATA;
+		labelindex = index;
+		AHELP[action] = 'Sort data by "'+labels[index]+'"';
+		}
+	index = inValue(ptmove);
+	if(index>0)
+		{
+		action = SORT_DATA;
+		valueindex = index;
+		AHELP[action] = 'Sort data by "'+values[index]+'"';
+		}
 	}
 else if(faction==EXPORT_CHART)
 	{
@@ -9416,6 +9443,22 @@ drawRect(ctx,x+7,y+7,9,9)
 ctx.strokeStyle = "#000000";
 ctx.strokeRect(x,y,20,20)
 
+// draw sort icon
+x = w-120;
+y = h-40;
+ctx.fillStyle = "#FFFFFF";
+ctx.fillRect(x,y,20,20);
+ctx.fillStyle = "#000000";
+ctx.fillRect(x+2,y+16,2,2);
+ctx.fillRect(x+5,y+13,2,5);
+ctx.fillRect(x+8,y+10,2,8);
+ctx.fillRect(x+11,y+7,2,11);
+ctx.fillRect(x+14,y+4,2,14);
+ctx.fillRect(x+17,y+2,2,16);
+ctx.strokeStyle = "#000000";
+ctx.strokeRect(x,y,20,20)
+
+/*
 // draw highcharts icon
 x = w -120;
 y = h-40;
@@ -9457,6 +9500,7 @@ ctx.fillRect(x+9,y+6,4,1);
 
 ctx.strokeStyle = "#000000";
 ctx.strokeRect(x,y,20,20)
+*/
 
 // draw dock 
 for(var i=0;i<dock.length;i++)
@@ -13726,7 +13770,7 @@ if(action==DRAG_AXIS)
 	}
 
 if((action==DRAG_TABLE)||(action==DRAG_INSPECTOR)||(action==DRAG_ADD)||(action==DRAG_CLONE)||
-	(action==EXPORT_CHART))
+	(action==EXPORT_CHART)||(action==DRAG_SORT))
 	{
 	ctx.strokeStyle = GRAY
 	ctx.strokeRect(ptmove.x-10,ptmove.y-10,20,20);
@@ -13737,7 +13781,11 @@ if(action==ADD_LABEL)
 	ctx.fillStyle = GRAY;
 	ctx.fillRect(mywidth-100,0,100,labels.length*20);
 	}
-
+if((action==SORT_DATA)&&(labelindex>=0))
+	{
+	ctx.fillStyle = GRAY;
+	ctx.fillRect(mywidth-100,labelindex*20,100,20);
+	}
 if((action==DRAG_TYPE)||(action==SET_TYPE))
 	{
 	ctx.strokeStyle = GRAY
@@ -13899,6 +13947,13 @@ else if((action==CREATE_VALUE)||(action==ADD_VALUE)||(action==CREATE_PROJECTION)
 	ctx.fillStyle = GRAY
 	ctx.fillRect(mywidth-100,labels.length*20+20+ni*20+20,100,values.length*20)
 	}
+else if((action==SORT_DATA)&&(valueindex>=0))
+	{
+	var ni = Math.ceil(NBTYPE3/5)
+	ctx.fillStyle = GRAY;
+	ctx.fillRect(mywidth-100,
+		labels.length*20+20+ni*20+20+20*valueindex,100,20);
+	}
 else if((action==CREATE_LABEL)||(action==CREATE_KGROUP))
 	{
 	ctx.fillStyle = GRAY
@@ -13980,6 +14035,63 @@ else
 }
 catch(e) {
 	alert("draw error "+e)
+	}
+}
+
+//***************************************************************************
+
+function sortData()
+{
+
+	var index;
+
+	if(labelindex>=0)
+		{
+		addLabelKey();
+
+		index = labelindex;
+		lrecords.sort(compareLabels);
+
+		index = vrecords[0].length-1;
+		vrecords.sort(compareLabels);
+
+		removeKey(vrecords);
+		}
+
+	if(valueindex>0)
+		{
+		addValueKey();
+
+		index = valueindex;
+		vrecords.sort(compareValues);
+
+		index = lrecords[0].length-1;
+		lrecords.sort(compareValues);
+
+		removeKey(lrecords);
+		}
+
+	function addLabelKey() {
+		for(var i=0;i<vrecords.length;i++)
+			vrecords[i].push(lrecords[i][labelindex]);
+	}
+
+	function addValueKey() {
+		for(var i=0;i<lrecords.length;i++)
+			lrecords[i].push(vrecords[i][valueindex]);
+	}
+
+	function removeKey(records) {
+		for(var i=0;i<records.length;i++)
+			records[i].splice(records[i].length-1,1);
+	}
+
+	function compareLabels(a,b) {
+		return a[index].localeCompare(b[index]);
+	}
+
+	function compareValues(a,b) {
+		return a[index] - b[index];
 	}
 }
 
