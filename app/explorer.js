@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.46";
+var VERSION = "1.47";
 
 /***************************************************************************/
 
@@ -3589,11 +3589,20 @@ var count = 0
 var min1 = Number.MAX_VALUE;
 var max1 = Number.MIN_VALUE;
 
+// if ivalue1=0 or ivalue2=0, use index instead
+var ind = 0;
+var b = (graph.ivalue1==0)||(graph.ivalue2==0);
+
+var x1,x2;
+
 for(var i=0;i<lrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;
-	var x1 = vrecords[i][graph.ivalue1]
-	var x2 = vrecords[i][graph.ivalue2]
+
+	x1 = graph.ivalue1==0 ? ind : vrecords[i][graph.ivalue1];
+	x2 = graph.ivalue2==0 ? ind : vrecords[i][graph.ivalue2];
+	if(b) ind++;
+
 	count += 1;
 	sum1 += x1;
 	sum2 += x2;
@@ -7509,11 +7518,17 @@ if(graph.type!=TYPE_SCATTER) return false;
 if(graph.ivalue1<0) return false;
 if(graph.ivalue2<0) return false;
 
-var xscale = (graph.w-10)/(graph._z.xmax-graph._z.xmin)
-var yscale = (graph.h-graph.hbar-10)/(graph._z.ymax-graph._z.ymin)
+var xmin = graph.ivalue1==0 ? 0 : graph._z.xmin;
+var xmax = graph.ivalue1==0 ? lrecords.length : graph._z.xmax;
 
-var x = (ptmove.x - graph.x -5)/xscale + graph._z.xmin
-var y = (graph.y +graph.h - 5 - ptmove.y)/yscale + graph._z.ymin
+var ymin = graph.ivalue2==0 ? 0 : graph._z.ymin;
+var ymax = graph.ivalue2==0 ? lrecords.length : graph._z.ymax;
+
+var xscale = (graph.w-10)/(xmax-xmin)
+var yscale = (graph.h-graph.hbar-10)/(ymax-ymin)
+
+var x = (ptmove.x - graph.x -5)/xscale + xmin;
+var y = (graph.y +graph.h - 5 - ptmove.y)/yscale + ymin;
 
 message = trunc(x,4)+"   "+trunc(y,4)
 
@@ -9490,12 +9505,11 @@ y = h-40;
 ctx.fillStyle = "#FFFFFF";
 ctx.fillRect(x,y,20,20);
 ctx.fillStyle = "#000000";
-ctx.fillRect(x+2,y+16,2,2);
-ctx.fillRect(x+5,y+13,2,5);
-ctx.fillRect(x+8,y+10,2,8);
-ctx.fillRect(x+11,y+7,2,11);
-ctx.fillRect(x+14,y+4,2,14);
-ctx.fillRect(x+17,y+2,2,16);
+ctx.fillRect(x+3,y+16,2,2);
+ctx.fillRect(x+6,y+13,2,5);
+ctx.fillRect(x+9,y+10,2,8);
+ctx.fillRect(x+12,y+7,2,11);
+ctx.fillRect(x+15,y+4,2,14);
 ctx.strokeStyle = "#000000";
 ctx.strokeRect(x,y,20,20)
 
@@ -11810,10 +11824,19 @@ var oldfont = ctx.font;
 if((graph.ivalue1>=0)&&(graph.ivalue2>=0))
 	{
 
+	var i1 = graph.ivalue1;
+	var i2 = graph.ivalue2;
+
 	var il = typeof(graph._display)=="undefined" ? -1 : graph._display;
 
-	var xscale = (graph.w-10)/(graph._z.xmax-graph._z.xmin)
-	var yscale = (graph.h-graph.hbar-10)/(graph._z.ymax-graph._z.ymin)
+	var xmin = i1==0 ? 0 : graph._z.xmin;
+	var xmax = i1==0 ? lrecords.length : graph._z.xmax;
+
+	var ymin = i2==0 ? 0 : graph._z.ymin;
+	var ymax = i2==0 ? lrecords.length : graph._z.ymax;
+
+	var xscale = (graph.w-10)/(xmax-xmin)
+	var yscale = (graph.h-graph.hbar-10)/(ymax-ymin)
 
 	// draw regression line
 	ctx.strokeStyle = "#008800";
@@ -11832,9 +11855,6 @@ if((graph.ivalue1>=0)&&(graph.ivalue2>=0))
 	ctx.stroke()
 
 
-	var i1 = graph.ivalue1 
-	var i2 = graph.ivalue2 
-
 	ctx.textAlign = "center"
 	ctx.font = "9px helvetica";
 
@@ -11844,13 +11864,18 @@ if((graph.ivalue1>=0)&&(graph.ivalue2>=0))
 
 	var x;
 	var y;
+	var v;
+
+	// if ivalue1=0 or ivalue2=0, use index instead
+	var ind = 0;
+	var b = (i1==0)||(i2==0);
 
 	// draw axes
 	ctx.fillStyle = "#999999"
 
-	x = graph.x + 5 +(0-graph._z.xmin)*xscale;
+	x = graph.x + 5 +(0-xmin)*xscale;
 	ctx.fillRect(x,graph.y+graph.hbar+5,1,graph.h-graph.hbar-10)
-	y = graph.y + graph.h - 5 -(0-graph._z.ymin)*yscale
+	y = graph.y + graph.h - 5 -(0-ymin)*yscale
 	ctx.fillRect(graph.x+5,y,graph.w-10,1)
 
 	// draw points
@@ -11863,14 +11888,21 @@ if((graph.ivalue1>=0)&&(graph.ivalue2>=0))
 		else
 			ctx.fillStyle = graph._colors1[lrecords[i][graph.ilabel1]]
 
-		x = graph.x + 5 +(vrecords[i][i1]-graph._z.xmin)*xscale
-		y = graph.y + graph.h -5 - (vrecords[i][i2]-graph._z.ymin)*yscale
+		v = i1==0 ? ind : vrecords[i][i1];	
+		x = graph.x + 5 +(v-xmin)*xscale
+		
+		v = i2==0 ? ind : vrecords[i][i2];
+		y = graph.y + graph.h -5 - (v-ymin)*yscale
+
+		if(b) ind++;
+
 		if(il<0)
 			ctx.fillRect(x-1,y-1,3,3)
 		else
 			ctx.fillText(lrecords[i][il],x,y+3)
 		}
 
+	ind = 0;
 	if(overlabel1>=0)
 		{
 		ctx.lineWidth = 1
@@ -11884,9 +11916,15 @@ if((graph.ivalue1>=0)&&(graph.ivalue2>=0))
 			else
 				ctx.fillStyle = ctx.strokeStyle = graph._hilites1[
 					lrecords[i][graph.ilabel1]];
+	
+			v = i1==0 ? ind : vrecords[i][i1];	
+			x = graph.x + 5 + (v-xmin)*xscale
 
-			var x = graph.x + 5 + (vrecords[i][i1]-graph._z.xmin)*xscale
-			var y = graph.y + graph.h -5 - (vrecords[i][i2]-graph._z.ymin)*yscale
+			v = i2==0 ? ind : vrecords[i][i2];
+			y = graph.y + graph.h -5 - (v-ymin)*yscale;
+
+			if(b) ind++;
+
 			if(il<0)
 				ctx.fillRect(x-3,y-3,7,7)
 			else
@@ -14089,56 +14127,45 @@ catch(e) {
 function sortData()
 {
 
-	var index;
+	// stable sort
+
+	// create index table
+	var n = vrecords.length;
+	var indices = new Array(n);
+	for(var i=0;i<n;i++)
+		indices[i] = i;
 
 	if(labelindex>=0)
 		{
-		addLabelKey();
-
-		index = labelindex;
-		lrecords.sort(compareLabels);
-
-		index = vrecords[0].length-1;
-		vrecords.sort(compareLabels);
-
-		removeKey(vrecords);
+		indices.sort(compareLabels);
 		}
 
 	if(valueindex>0)
 		{
-		addValueKey();
-
-		index = valueindex;
-		vrecords.sort(compareValues);
-
-		index = lrecords[0].length-1;
-		lrecords.sort(compareValues);
-
-		removeKey(lrecords);
+		indices.sort(compareValues);
 		}
 
-	function addLabelKey() {
-		for(var i=0;i<vrecords.length;i++)
-			vrecords[i].push(lrecords[i][labelindex]);
-	}
+	// new records
+	var newlrecords = new Array(n);
+	for(var i=0;i<n;i++)
+		newlrecords[i] = lrecords[indices[i]];
+	lrecords = newlrecords;
 
-	function addValueKey() {
-		for(var i=0;i<lrecords.length;i++)
-			lrecords[i].push(vrecords[i][valueindex]);
-	}
-
-	function removeKey(records) {
-		for(var i=0;i<records.length;i++)
-			records[i].splice(records[i].length-1,1);
-	}
+	var newvrecords = new Array(n);
+	for(var i=0;i<n;i++)
+		newvrecords[i] = vrecords[indices[i]];
+	vrecords = newvrecords;
 
 	function compareLabels(a,b) {
-		return a[index].localeCompare(b[index]);
+		var c = lrecords[a][labelindex].localeCompare(lrecords[b][labelindex]);
+		return c==0 ? a-b : c;
 	}
 
 	function compareValues(a,b) {
-		return a[index] - b[index];
+		var c = vrecords[a][valueindex] - vrecords[b][valueindex];		
+		return c==0 ? a-b : c;
 	}
+
 }
 
 //***************************************************************************
