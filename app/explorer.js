@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.47";
+var VERSION = "1.48";
 
 /***************************************************************************/
 
@@ -40,7 +40,7 @@ _action("PASTE_LABEL21","Map axis");
 _action("PASTE_LABEL22","Map axis");
 _action("CREATE_GRAPH1","Create graph from axis 1");
 _action("CREATE_GRAPH2","Create graph from axis 2");
-_action("CREATE_VALUE","Create numerical field");
+_action("CREATE_VALUE","Convert to numerical");
 _action("DRAG_VALUE","");
 _action("SET_VALUE1","Define field along axis 1");
 _action("SET_VALUE2","Define field along axis 2");
@@ -85,7 +85,7 @@ _action("SHOW_TABLE","Display graph values");
 _action("DRAG_INSPECTOR","Inspect graph values");
 _action("SHOW_INSPECTOR","Inspect graph values");
 _action("DRAG_ADD","Add field");
-_action("ADD_LABEL","Add label");
+_action("ADD_LABEL","Add categorical field");
 _action("ADD_VALUE","Add numerical field");
 _action("DRAG_ERROR","Change error value");
 _action("DRAG_NSLOT","Change the number of classes");
@@ -361,7 +361,6 @@ this.iunit = 0;
 
 function loadData(data) {
 
-
 graphs = [];
 labels = [];
 values = ["1"];
@@ -375,6 +374,7 @@ var words = data[0];
 var nv = words.length;
 for(var i=0;i<words.length;i++)
 	{
+	words[i] = unquote(words[i]);
 	var end = words[i].substring(words[i].length-2);	
 	if((end==":n")||(end=="/n"))
 		{
@@ -413,6 +413,14 @@ for(var k=1;k<data.length;k++)
 	}
 
 
+}
+
+//***************************************************************************
+
+function unquote(s)
+{
+var m = s.match(/^"(.*)"$/);
+return m==null ? s : m[1];
 }
 
 //***************************************************************************
@@ -4820,7 +4828,7 @@ return -1
 function createValue(index)
 {
 // if value already created
-if(indexIn(labels[index],values)>=0) return
+//if(indexIn(labels[index],values)>=0) return
 
 for(var i=0;i<lrecords.length;i++)
 	{
@@ -4830,6 +4838,46 @@ for(var i=0;i<lrecords.length;i++)
 	}
 
 values.push(labels[index])
+
+removeLabel(index);
+}
+
+//***************************************************************************
+
+function removeLabel(index)
+{
+for(var i=0;i<lrecords.length;i++)
+	lrecords[i].splice(index,1);
+
+labels.splice(index,1);
+
+for(var i=0;i<graphs.length;i++)
+	{	
+	if(graphs[i].ilabel1>index) graphs[i].ilabel1 -=1;
+	if(graphs[i].ilabel2>index) graphs[i].ilabel2 -=1;
+	if(graphs[i].ilabel3>index) graphs[i].ilabel3 -=1;
+	}
+}
+
+//***************************************************************************
+
+function removeValue(index)
+{
+
+for(var i=0;i<vrecords.length;i++)
+	vrecords[i].splice(index,1);	
+
+values.splice(index,1);
+
+for(var i=0;i<graphs.length;i++)
+	{
+	if(graphs[i].ivalue1>index) graphs[i].ivalue1 -=1;
+	if(graphs[i].ivalue2>index) graphs[i].ivalue2 -=1;
+	if(graphs[i].ivalues)
+		for(var j=0;j<graphs[i].ivalues.length;j++)
+			if(graphs[i].ivalues[j]>index)
+				graphs[i].ivalues[j] -=1;
+	}
 }
 
 //***************************************************************************
@@ -5510,7 +5558,7 @@ if(i>=0)
 } catch(err) { console.log("down error "+err) }
 
 if(faction==0)
-	if(inRect(ptclick,mywidth-100,0,100,myheight))
+	if(inRect(ptclick,mywidth-120,0,100,myheight))
 	{
 	faction = action = DRAG_SIDEBAR	
 	ptstart = ptclick
@@ -5599,30 +5647,11 @@ else if(action==UNDOCK_GRAPH)
 	}
 else if(action==REMOVE_LABEL)
 	{
-	for(var i=0;i<lrecords.length;i++)
-		lrecords[i].splice(labelindex,1);
-	labels.splice(labelindex,1);
-	for(var i=0;i<graphs.length;i++)
-		{	
-		if(graphs[i].ilabel1>labelindex) graphs[i].ilabel1 -=1;
-		if(graphs[i].ilabel2>labelindex) graphs[i].ilabel2 -=1;
-		if(graphs[i].ilabel3>labelindex) graphs[i].ilabel3 -=1;
-		}
+	removeLabel(labelindex);
 	}
 else if(action==REMOVE_VALUE)
 	{
-	for(var i=0;i<vrecords.length;i++)
-		vrecords[i].splice(valueindex,1);	
-	values.splice(valueindex,1);
-	for(var i=0;i<graphs.length;i++)
-		{
-		if(graphs[i].ivalue1>valueindex) graphs[i].ivalue1 -=1;
-		if(graphs[i].ivalue2>valueindex) graphs[i].ivalue2 -=1;
-		if(graphs[i].ivalues)
-			for(var j=0;j<graphs[i].ivalues.length;j++)
-				if(graphs[i].ivalues[j]>valueindex)
-					graphs[i].ivalues[j] -=1;
-		}
+	removeValue(valueindex);
 	}
 else if(action==SET_LABEL1)
 	{
@@ -6527,8 +6556,8 @@ function show_formula_dialog(action)
 
 var text = ""
 text += "<table width='100%' cellspacing='10'>"
-text += "<tr><td width='30'>Name</td><td><input type='text' id='finom' placeholder='Enter name of new field'/></td><td width='15'>&nbsp;</td></tr>" 
-text += "<tr><td width='30'>Formula</td><td><input type='text' id='fiform' /></td><td width='15'><button id='fihelp'>?</button></td></tr>"
+text += "<tr><td width='70'>Name :</td><td><input type='text' id='finom' placeholder='Enter name of new field'/></td><td width='15'>&nbsp;</td></tr>" 
+text += "<tr><td width='70'>Formula :</td><td><input type='text' id='fiform' /></td><td width='15'><button id='fihelp'>?</button></td></tr>"
 text += "</table>"
 text += "<table width='100%' cellspacing='10'>"
 text += "<tr><td width='50%' align='center'><button id='ficancel'>Cancel</button>"
@@ -6546,6 +6575,7 @@ div.style["z-index"] = 10;
 div.style.top = "120px";
 div.style.left = "110px";
 div.style.right = "110px";
+div.style["font-family"] = "sans-serif";
 div.style["background-color"] = "#DEF7D6"
 div.style.border = "1px solid #000000"
 div.style["user-select"] = "none";
@@ -7841,7 +7871,7 @@ if(faction==DRAG_SIDEBAR)
 	}
 else if(faction==DRAG_ADD)
 	{
-	if(inRect(ptmove,mywidth-100,0,100,labels.length*20))
+	if(inLabel(ptmove)>=0)
 		action = ADD_LABEL;
 	else if(inValue(ptmove)>=0)
 		action = ADD_VALUE;
@@ -7946,7 +7976,7 @@ else if(faction==DRAG_LABEL)
 		}
 	else if(inValue(ptmove)>=0)
 		{
-		action = CREATE_VALUE
+		action = labelInUse(labelindex) ? DONT_REMOVE_VARIABLE:CREATE_VALUE;
 		}
 	else if(i<0)
 		{
@@ -13863,12 +13893,12 @@ if((action==DRAG_TABLE)||(action==DRAG_INSPECTOR)||(action==DRAG_ADD)||(action==
 if(action==ADD_LABEL)
 	{
 	ctx.fillStyle = GRAY;
-	ctx.fillRect(mywidth-100,0,100,labels.length*20);
+	ctx.fillRect(mywidth-100,0-barshift,100,labels.length*20);
 	}
 if((action==SORT_DATA)&&(labelindex>=0))
 	{
 	ctx.fillStyle = GRAY;
-	ctx.fillRect(mywidth-100,labelindex*20,100,20);
+	ctx.fillRect(mywidth-100,labelindex*20-barshift,100,20);
 	}
 if((action==DRAG_TYPE)||(action==SET_TYPE))
 	{
@@ -14029,14 +14059,14 @@ else if((action==CREATE_VALUE)||(action==ADD_VALUE)||(action==CREATE_PROJECTION)
 	{	
 	var ni = Math.ceil(NBTYPE3/5)
 	ctx.fillStyle = GRAY
-	ctx.fillRect(mywidth-100,labels.length*20+20+ni*20+20,100,values.length*20)
+	ctx.fillRect(mywidth-100,labels.length*20+20+ni*20+20-barshift,100,values.length*20)
 	}
 else if((action==SORT_DATA)&&(valueindex>=0))
 	{
 	var ni = Math.ceil(NBTYPE3/5)
 	ctx.fillStyle = GRAY;
 	ctx.fillRect(mywidth-100,
-		labels.length*20+20+ni*20+20+20*valueindex,100,20);
+		labels.length*20+20+ni*20+20+20*valueindex-barshift,100,20);
 	}
 else if((action==CREATE_LABEL)||(action==CREATE_KGROUP))
 	{
