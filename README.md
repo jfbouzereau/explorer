@@ -27,6 +27,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * General statistics
 * Principal components
 * K-means
+* K-medoids
 * Huen diagram
 * Dendogram
 * Radviz
