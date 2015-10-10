@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.48";
+var VERSION = "1.50";
 
 /***************************************************************************/
 
@@ -1037,7 +1037,7 @@ else if(graph.type==TYPE_DISTRIB)
 else if(graph.type==TYPE_KMEANS)
 	{
 	if(graph.ivalues.length>0)
-		return inRect(pt,graph.x+160,graph.y+graph.hbar+5,30,30) ? 1 : -1
+		return inRect(pt,graph.x+245,graph.y+graph.hbar+5,30,30) ? 1 : -1
 	}
 else if(graph.type==TYPE_REPART)
 	{
@@ -3118,6 +3118,7 @@ for(var i=0;i<lrecords.length;i++)
 	rindices.push(i)
 	}
 
+// if not enough data
 if(rindices.length<=graph.nslot) return
 	
 // random center of groups
@@ -3143,12 +3144,6 @@ for(var i=0;i<graph.nslot;i++)
 	for(var j=0;j<graph.ivalues.length;j++)
 		centers[i].push(vrecords[k][graph.ivalues[j]])
 
-	/*
-	var s = "center["+i+"] = ";
-	for(var j=0;j<graph.ivalues.length;j++)
-		s += " "+centers[i][j]
-	console.log(s)
-	*/
 	}
 
 for(var iter=0;iter<50;iter++)
@@ -4958,7 +4953,7 @@ for(var i=0;i<lrecords.length;i++)
 		}
 	}
 
-labels.push("NUEES_"+(labels.length+1))
+labels.push("CLUSTERS_"+(labels.length+1))
 
 }
 
@@ -6306,10 +6301,19 @@ function showTable()
 if(graphindex<0) return;
 var graph = graphs[graphindex];
 
+var t = null;
+
 if(graph.type==TYPE_CORR)
 	t = getCorrTable(graph)
-else
+else if(graph.type==TYPE_SCATTER)
+	t = getScatterTable(graph);
+else if(graph.type==TYPE_KMEANS)
+	t = getKmeansTable(graph);
+
+if(!t)
 	t = getDefaultTable(graph)
+
+t = t || "";
 
 var wname = (new Date()).getTime()+"";
 
@@ -6323,6 +6327,92 @@ if(window.inbrowser)
 	}
 else
 	ipc.send("window", {title:wname,source:t});
+
+}
+
+//***************************************************************************
+
+function getKmeansTable(graph)
+{
+
+var t = ""
+
+t += "<html>";
+t += "<style>\n";
+t += "table	{ font-family:Courier; font-size:12px; }\n";
+t += "table tr td { text-align: right; }\n";
+t += "</style>\n";
+t += "<body>";
+t += "<table>\n";
+
+var sum = 0;
+for(var k=0;k<graph.nslot;k++)
+	sum += graph._z.counts[k];
+
+t += "<tr style='background-color:#CCCCCC;'>"
+t += "<td>Cluster</td>";
+t += "<td>Count</td>";
+t += "<td>Pct</td>";
+t += "</tr>\n"
+
+for(var k=0;k<graph.nslot;k++)
+	{	
+	t += "<tr style='background-color:#EEEEEE;'>"
+	t += "<td>"+(k+1)+"</td>";
+	t += "<td>"+graph._z.counts[k]+"</td>";
+	pct = Math.round(graph._z.counts[k]*100/sum);
+	t += "<td>"+pct+"</td>";
+	t += "</tr>\n";
+	}
+
+t += "</table>"
+t += "</body>"
+t += "</html>"
+
+return t
+}
+
+//***************************************************************************
+
+function getScatterTable(graph)
+{
+if(graph.ivalue1<0) return;
+if(graph.ivalue2<0) return;
+
+var t = ""
+
+t += "<html>";
+t += "<style>\n";
+t += "table	{ font-family:Courier; font-size:12px; }\n";
+t += "table tr td { text-align: right; }\n";
+t += "</style>\n";
+t += "<body>";
+t += "<table>\n";
+
+
+t += "<tr style='background-color:#CCCCCC;'>"
+t += "<td></td>";
+if(graph.ilabel1>=0) t += "<td>"+labels[graph.ilabel1]+"</td>";
+t += "<td>"+values[graph.ivalue1]+"</td>";
+t += "<td>"+values[graph.ivalue2]+"</td>";
+t += "</tr>"
+
+var n = vrecords.length;
+for(var j=0;j<n;j++)
+	{
+	t += "<tr style='background-color:#EEEEEE;'>"
+	t += "<td>"+(j+1)+"</td>";
+	if(graph.ilabel1>=0) t += "<td>"+lrecords[j][graph.ilabel1]+"</td>";
+	t += "<td>"+vrecords[j][graph.ivalue1]+"</td>";
+	t += "<td>"+vrecords[j][graph.ivalue2]+"</td>";
+	t += "</tr>"
+	}
+
+t += "</table>"
+t += "</body>"
+t += "</html>"
+
+return t
 
 }
 
@@ -12593,20 +12683,43 @@ if(graph.ivalues.length>0)
 	{
 	ctx.textAlign = "right"
 	ctx.fillStyle = "#000000"
-	ctx.fillText("Group",graph.x+80,graph.y+graph.hbar+20)
+	ctx.fillText("Cluster",graph.x+80,graph.y+graph.hbar+20)
 	ctx.fillText("Count",graph.x+150,graph.y+graph.hbar+20)
-	ctx.fillRect(graph.x+10,graph.y+graph.hbar+30,200,2)
+	ctx.fillText("Pct", graph.x+220,graph.y+graph.hbar+20);
+	ctx.fillRect(graph.x+10,graph.y+graph.hbar+30,220,2)
 
 
-	var y ;	
+	var sum = 0;
+	for(var k=0;k<graph.nslot;k++)
+		sum += graph._z.counts[k];
+
+	var x,y,pct;
+
 	for(var k=0;k<graph.nslot;k++)
 		{
 		y = graph.y + graph.hbar + 50 + 20*k
 		ctx.fillText(""+(k+1),graph.x+80,y)
 		ctx.fillText(""+graph._z.counts[k],graph.x+150,y)
+		pct = Math.round(graph._z.counts[k]*100/sum);
+		ctx.fillText(""+pct+"%",graph.x+220,y);
 		}
 
 	ctx.textAlign = "center"
+
+	// draw histogram if enough room
+	var dx = graph.w-330;
+	if(dx>0)
+		{
+		ctx.fillStyle = getColor(graph.hue,1,1);
+		ctx.strokeStyle = "#000000";
+		for(var k=0;k<graph.nslot;k++)
+			{
+			y = graph.y + graph.hbar + 37 + 20*k
+			x = dx*graph._z.counts[k]/sum;
+			ctx.fillRect(graph.x+230,y,x,16);
+			ctx.strokeRect(graph.x+230,y,x,16);
+			}	
+		}
 	
 	// draw cursor
 
@@ -12620,13 +12733,13 @@ if(graph.ivalues.length>0)
 	ctx.strokeRect(x-5,y-10,10,20)
 
 	ctx.fillStyle = "#000000"
-	ctx.fillText(""+graph.nslot+" groupes",graph.x+graph.w/2,
+	ctx.fillText(""+graph.nslot+" clusters",graph.x+graph.w/2,
 		graph.y+graph.h-10)
 
 	// draw arrow
 	ctx.fillStyle = PINK
 	ctx.strokeStyle = "#000000"
-	drawRightArrow(ctx,graph.x+170,graph.y+graph.hbar+15)
+	drawRightArrow(ctx,graph.x+250,graph.y+graph.hbar+15)
 	}
 
 ctx.textAlign = "center"
