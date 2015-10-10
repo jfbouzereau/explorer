@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.50";
+var VERSION = "1.51";
 
 /***************************************************************************/
 
@@ -157,6 +157,7 @@ _type("TYPE_MOMENTS","Statistics",drawMomentGraph);
 _type("TYPE_CORR","Correlations",drawCorrGraph);
 _type("TYPE_ACP","Principal components",drawAcpGraph);
 _type("TYPE_KMEANS","K-means",drawKmeansGraph);
+_type("TYPE_KMEDOIDS","K-medoids",drawKmedoidsGraph);
 _type("TYPE_HUEN","Huen diagram",drawHuenGraph);
 _type("TYPE_DENDRO","Dendrogram",drawDendroGraph);
 _type("TYPE_RADVIZ","Radviz",drawRadvizGraph);
@@ -1034,7 +1035,7 @@ else if(graph.type==TYPE_DISTRIB)
 	else if(graph._z.cursor<0)
 		return inRect(pt,graph.x+10,graph.y+graph.hbar,20,20) ? 1:-1
 	}
-else if(graph.type==TYPE_KMEANS)
+else if((graph.type==TYPE_KMEANS)||(graph.type==TYPE_KMEDOIDS))
 	{
 	if(graph.ivalues.length>0)
 		return inRect(pt,graph.x+245,graph.y+graph.hbar+5,30,30) ? 1 : -1
@@ -1276,6 +1277,7 @@ if(graph.type == TYPE_ACP) return true;
 if(graph.type == TYPE_TERNARY) return true;
 if(graph.type == TYPE_CORR) return true;
 if(graph.type == TYPE_KMEANS) return true;
+if(graph.type == TYPE_KMEDOIDS) return true;
 if(graph.type == TYPE_DISCRI) return true;
 if(graph.type == TYPE_HUEN) return true;
 if(graph.type == TYPE_DENDRO) return true;
@@ -1325,6 +1327,19 @@ return inRect(pt,x-10,y-15,20,30) ? 1 : -1;
 function inKmeansCursor(pt,graph)
 {
 if(graph.type!=TYPE_KMEANS) return -1
+if(graph.ivalues.length<=0) return -1
+
+x = graph.x+20+(graph.w-40)*graph.nslot/50
+y = graph.y + graph.h - 40
+
+return inRect(pt,x-10,y-15,20,30) ? 1 : -1;
+}
+
+//***************************************************************************
+
+function inKmedoidsCursor(pt,graph)
+{
+if(graph.type!=TYPE_KMEDOIDS) return -1
 if(graph.ivalues.length<=0) return -1
 
 x = graph.x+20+(graph.w-40)*graph.nslot/50
@@ -2476,6 +2491,7 @@ switch(graph.type)
 	case TYPE_ACP: computeAcpData(graph); break;
 	case TYPE_CORR: computeCorrData(graph); break;
 	case TYPE_KMEANS: computeKmeansData(graph); break;
+	case TYPE_KMEDOIDS: computeKmedoidsData(graph); break;
 	case TYPE_HUEN: computeHuenData(graph); break;
 	case TYPE_DENDRO: computeDendroData(graph); break;
 	case TYPE_REGRES: computeRegresData(graph); break;	
@@ -3110,112 +3126,232 @@ if(graph.ivalues.length<1) return
 if(typeof(graph.nslot)=="undefined")
 	graph.nslot = 3
 
-// list of valid record numbers
-var rindices = []
+// count valid record numbers
+var nv=0;
 for(var i=0;i<lrecords.length;i++)
-	{
-	if(!recordMatch(i,graph)) continue
-	rindices.push(i)
-	}
+	if(recordMatch(i,graph))
+		nv++;
 
 // if not enough data
-if(rindices.length<=graph.nslot) return
-	
-// random center of groups
+if(nv<graph.nslot) return
+
+var cluster = new Array(vrecords.length);
+for(var i=0;i<vrecords.length;i++)
+	cluster[i] = -1;
+
+var done = {};	
 var centers = new Array(graph.nslot)
 var counts = new Array(graph.nslot)
 
-for(var i=0;i<graph.nslot;i++)
+var ndim = graph.ivalues.length;
+
+for(var j=0;j<graph.nslot;j++)
 	{
-	// make sure we do not choose the same center twice
-	var j;
+	var i;
 	while(1)
 		{
-		j = Math.floor(Math.random()*rindices.length)
-		if(rindices[j]>=0) break;
+		i = Math.floor(Math.random()*vrecords.length);
+		if(!recordMatch(i,graph)) continue;
+		// make sure we do not choose the same center twice
+		if(!(i in done)) break;
 		}
-	k = rindices[j]
-	rindices[j] = -1		
-	
-	//console.log("center of group "+i+" is record "+k)	
+	done[i] = 1;	
 
-	counts[i] = 0
-	centers[i] = []
-	for(var j=0;j<graph.ivalues.length;j++)
-		centers[i].push(vrecords[k][graph.ivalues[j]])
+	// coordinates of center j
+	centers[j] = new Array(ndim);
+	for(var k=0;k<ndim;k++)
+		centers[j][k] = vrecords[i][graph.ivalues[k]];
 
 	}
+
 
 for(var iter=0;iter<50;iter++)
 	{
-	var sumdist = 0
-	var nchange = 0
-	for(var k=0;k<counts.length;k++)
-		counts[k] = 0
+	var nchange = 0;
 
-	// assign each record to the nearest center
-	for(var i=0;i<lrecords.length;i++)
+	for(var i=0;i<vrecords.length;i++)
 		{
 		if(!recordMatch(i,graph)) continue
-		var dist = Number.MAX_VALUE;
-		var idist = -1
-		var d = 0
-		for(var k=0;k<centers.length;k++)
+
+		var dmin = Number.MAX_VALUE;
+		var jmin = -1;
+
+		// look for nearest center
+		for(var j=0;j<graph.nslot;j++)
 			{
-			d = 0
-			for(var j=0;j<graph.ivalues.length;j++)
+			var d = 0;
+			for(var k=0;k<ndim;k++)
 				{
-				var x = vrecords[i][graph.ivalues[j]]-centers[k][j]
-				d += x*x
+				var x = vrecords[i][graph.ivalues[k]]-centers[j][k];
+				d += x*x;
 				}
-			if(d<dist)
+			if(d<dmin)
 				{
-				dist = d
-				idist = k
+				dmin = d;
+				jmin = j;
 				}
 			}
-		if(rindices[i]!=idist)
-			nchange += 1
-		rindices[i] = idist
-		counts[idist] += 1
-		sumdist += dist
-		}	
-	//console.log("iter="+iter+" sumdist="+sumdist+" changes="+nchange)
-	
-	// compute new centers
-	for(var k=0;k<centers.length;k++)
-		for(var j=0;j<graph.ivalues.length;j++)
-			centers[k][j] = 0
 
-	for(var i=0;i<lrecords.length;i++)
+		if(cluster[i]!=jmin)
+			{
+			nchange++;
+			cluster[i] = jmin;
+			}
+		}	
+
+
+	if(nchange==0) break;
+
+	for(var j=0;j<counts.length;j++)
+		counts[j] = 0;
+	for(var i=0;i<vrecords.length;i++)
+		if(recordMatch(i,graph))
+			counts[cluster[i]]++;
+
+	// compute new centers
+	for(var j=0;j<graph.nslot;j++)
+		for(var k=0;k<ndim;k++)
+			centers[j][k] = 0;
+
+	for(var i=0;i<vrecords.length;i++)
 		{
 		if(!recordMatch(i,graph)) continue
-		var k = rindices[i]
-		for(var j=0;j<graph.ivalues.length;j++)
-			centers[k][j] += vrecords[i][graph.ivalues[j]]
+		var j  = cluster[i];
+		for(var k=0;k<ndim;k++)
+			centers[j][k] += vrecords[i][graph.ivalues[k]]
 		}
 
-	for(var k=0;k<centers.length;k++)
-		for(var j=0;j<graph.ivalues.length;j++)
-			centers[k][j] = centers[k][j]/counts[k]
+	for(var j=0;j<graph.nslot;j++)
+		for(var k=0;k<ndim;k++)
+			centers[j][k] = centers[j][k]/counts[j]
 
 
-	/*	
-	for(var k=0;k<centers.length;k++)
-		{
-		var s = "center["+k+"] = ";
-		for(var j=0;j<graph.ivalues.length;j++)
-			s += " "+centers[k][j]
-		s += "     "+count[k]+" records"
-		console.log(s)
-		}
-	*/
 	if(nchange==0) break;
 	}
 
-graph._z.counts = counts
-graph._z.centers = centers
-graph._z.rindices = rindices
+graph._z.counts = counts;
+graph._z.centers = centers;
+graph._z.cluster = cluster;
+
+}
+
+//***************************************************************************
+
+function computeKmedoidsData(graph)
+{
+if(typeof(graph.ivalues)=="undefined")
+	graph.ivalues = []
+
+if(graph.ivalues.length<1) return
+
+if(typeof(graph.nslot)=="undefined")
+	graph.nslot = 3
+
+// count valid records
+var nv = 0;
+for(var i=0;i<lrecords.length;i++)
+	if(recordMatch(i,graph))
+		nv++;
+
+// if not enough data
+if(nv<graph.nslot) return
+
+var done = {};	
+var medoids = new Array(graph.nslot)
+var cluster = new Array(vrecords.length);
+
+for(var j=0;j<graph.nslot;j++)
+	{
+	var k;
+	while(1)
+		{
+		k = Math.floor(Math.random()*vrecords.length);
+		if(!recordMatch(k,graph)) continue;
+		// if k not already choosen
+		if(!(k in done)) break;
+		}
+	done[k] = 1;
+	medoids[j] = k;
+	}
+
+var ndim = graph.ivalues.length;
+var cost = Number.MAX_VALUE;
+
+for(var iter=0;iter<50;iter++)
+	{
+
+	// assign each record to the nearest medoid
+	for(var i=0;i<lrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+
+		var dmin = Number.MAX_VALUE;
+		for(var j=0;j<graph.nslot;j++)
+			{
+			var m = medoids[j];
+
+			var d = 0;
+			for(var k=0;k<ndim;k++)
+				{
+				var kk = graph.ivalues[k];
+				d += Math.abs(vrecords[i][kk]-vrecords[m][kk]);	
+				}
+
+			if(d<dmin)
+				{
+				dmin = d;
+				cluster[i] = j;
+				}
+			}
+		}	
+
+	var newcost = 0;
+
+	// in each cluster compute new medoid
+	for(var j=0;j<graph.nslot;j++)
+		{
+		var smin = Number.MAX_VALUE;
+		var imin = -1;
+		for(var i1=0;i1<lrecords.length;i1++)
+			{
+			var sum = 0;
+			if(!recordMatch(i1,graph)) continue;
+			if(cluster[i1]!=j) continue;
+			for(var i2=0;i2<lrecords.length;i2++)
+				{
+				if(!recordMatch(i2,graph)) continue;
+				if(cluster[i2]!=j) continue;
+				for(var k=0;k<ndim;k++)
+					{
+					var kk = graph.ivalues[k];
+					sum += Math.abs(vrecords[i1][kk]-vrecords[i2][kk]);
+					}
+				}
+			if(sum<smin)
+				{
+				smin = sum;
+				imin = i1;
+				}
+			}
+			newcost += smin;
+			medoids[j] = imin;
+		}
+
+	if(newcost>=cost) break;
+	cost = newcost;	
+	}
+
+var counts = [];
+for(var j=0;j<graph.nslot;j++)
+	counts[j] = 0;
+
+for(var i=0;i<vrecords.length;i++)
+	if(recordMatch(i,graph))
+		counts[cluster[i]]++;
+
+graph._z.counts = counts;
+graph._z.cluster = cluster;
+
 }
 
 //***************************************************************************
@@ -4947,13 +5083,13 @@ for(var i=0;i<lrecords.length;i++)
 		lrecords[i].push("")
 	else
 		{
-		var s = ""+(graph._z.rindices[i]+1)
+		var s = ""+(graph._z.cluster[i]+1)
 		if(s.length<2) s = "0"+s
 		lrecords[i].push(s)
 		}
 	}
 
-labels.push("CLUSTERS_"+(labels.length+1))
+labels.push("CLUST_"+(labels.length+1))
 
 }
 
@@ -5511,6 +5647,11 @@ if(i>=0)
 		faction = DRAG_NSLOT
 		graphindex = i
 		}
+	else if((index=inKmedoidsCursor(ptclick,graph))>=0)
+		{
+		faction = DRAG_NSLOT;
+		graphindex = i;
+		}
 	else if((index=inDendroCursor(ptclick,graph))>=0)
 		{
 		faction = CHANGE_NCLASS;
@@ -5899,6 +6040,7 @@ else if(action==DRAG_LABEL3)
 	}
 else if(action==CREATE_PROJECTION)
 	{	
+	console.log("create proj");
 	graph = graphs[graphindex];
 	createProjectionValue(graph,valueindex)
 	draw()
@@ -8264,7 +8406,7 @@ else if(faction==DRAG_AXIS)
 		action = (inValue(ptmove) >=0)  ? CREATE_PROJECTION : DRAG_AXIS
 	else if((graph.type==TYPE_DISTRIB)||(graph.type==TYPE_REPART)||(graph.type==TYPE_DENDRO))
 		action = (inLabel(ptmove) >=0) ?  CREATE_LABEL : DRAG_AXIS
-	else if(graph.type==TYPE_KMEANS)
+	else if((graph.type==TYPE_KMEANS)||(graph.type==TYPE_KMEDOIDS))
 		action = (inLabel(ptmove) >=0) ? CREATE_KGROUP : DRAG_AXIS
 	}
 else if(faction==DRAG_SLICE)
@@ -9265,6 +9407,34 @@ else if(index==TYPE_KMEANS)
 	ctx.fillRect(x+16,y+12,2,2)
 	ctx.fillRect(x+5,y+14,2,2)
 	ctx.fillRect(x+9,y+17,2,2)
+	}
+else if(index==TYPE_KMEDOIDS)
+	{
+	ctx.fillStyle = BLUE
+	ctx.fillRect(x,y,20,20)
+
+	ctx.strokeStyle = "#000000";
+
+	oval(x+7,y+13,3,5,Math.PI/4);
+	oval(x+15,y+6,3,5,3*Math.PI/4);
+	function oval(xc,yc,xr,yr,a) {
+		var ca = Math.cos(a);
+		var sa = Math.sin(a);
+		ctx.beginPath();
+		for(var i=0;i<Math.PI*2;i+=Math.PI/20)
+			{
+			var ci = Math.cos(i);
+			var si = Math.sin(i);
+			var x = xc-xr*si*sa+yr*ci*ca;
+			var y = yc+yr*ci*sa+xr*si*ca;
+			if(i==0)
+				ctx.moveTo(x,y);	
+			else 
+				ctx.lineTo(x,y);
+			}
+		ctx.stroke();
+		}	
+	
 	}
 else if(index==TYPE_DISCRI)
 	{	
@@ -12678,8 +12848,8 @@ drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
 
 function drawKmeansGraph(ctx,graph)
 {
-
-if(graph.ivalues.length>0)
+try {
+if((graph.ivalues.length>0)&&(graph._z.counts))
 	{
 	ctx.textAlign = "right"
 	ctx.fillStyle = "#000000"
@@ -12721,6 +12891,87 @@ if(graph.ivalues.length>0)
 			}	
 		}
 	
+	// draw cursor
+
+	y = graph.y + graph.h - 40
+	ctx.strokeStyle = "#000000";
+	ctx.strokeRect(graph.x+20,y-3,graph.w-40,6)
+
+	x = graph.x+20+(graph.w-40)*graph.nslot/50
+	ctx.fillStyle = "#FFFFFF";
+	ctx.fillRect(x-5,y-10,10,20)
+	ctx.strokeRect(x-5,y-10,10,20)
+
+	ctx.fillStyle = "#000000"
+	ctx.fillText(""+graph.nslot+" clusters",graph.x+graph.w/2,
+		graph.y+graph.h-10)
+
+	// draw arrow
+	ctx.fillStyle = PINK
+	ctx.strokeStyle = "#000000"
+	drawRightArrow(ctx,graph.x+250,graph.y+graph.hbar+15)
+	}
+} catch(e) { console.log("ERR IN DRAWKMEANS "+e) }
+
+ctx.textAlign = "center"
+
+for(var k=0;k<graph.ivalues.length;k++)
+	{
+	var title = values[graph.ivalues[k]]
+	drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*k,100,20,title)
+	}
+
+drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*graph.ivalues.length,100,20,"")
+
+}
+
+//***************************************************************************
+
+function drawKmedoidsGraph(ctx,graph)
+{
+
+if((graph.ivalues.length>0)&&(graph._z.counts))
+	{
+	ctx.textAlign = "right"
+	ctx.fillStyle = "#000000"
+	ctx.fillText("Cluster",graph.x+80,graph.y+graph.hbar+20)
+	ctx.fillText("Count",graph.x+150,graph.y+graph.hbar+20)
+	ctx.fillText("Pct", graph.x+220,graph.y+graph.hbar+20);
+	ctx.fillRect(graph.x+10,graph.y+graph.hbar+30,220,2)
+
+
+	var sum = 0;
+	for(var k=0;k<graph.nslot;k++)
+		sum += graph._z.counts[k];
+
+	var x,y,pct;
+
+	for(var k=0;k<graph.nslot;k++)
+		{
+		y = graph.y + graph.hbar + 50 + 20*k
+		ctx.fillText(""+(k+1),graph.x+80,y)
+		ctx.fillText(""+graph._z.counts[k],graph.x+150,y)
+		pct = Math.round(graph._z.counts[k]*100/sum);
+		ctx.fillText(""+pct+"%",graph.x+220,y);
+		}
+
+	ctx.textAlign = "center"
+
+	// draw histogram if enough room
+	var dx = graph.w-330;
+	if(dx>0)
+		{
+		ctx.fillStyle = getColor(graph.hue,1,1);
+		ctx.strokeStyle = "#000000";
+		for(var k=0;k<graph.nslot;k++)
+			{
+			y = graph.y + graph.hbar + 37 + 20*k
+			x = dx*graph._z.counts[k]/sum;
+			ctx.fillRect(graph.x+230,y,x,16);
+			ctx.strokeRect(graph.x+230,y,x,16);
+			}	
+		}
+
 	// draw cursor
 
 	y = graph.y + graph.h - 40
