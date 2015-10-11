@@ -91,6 +91,12 @@ There are two kinds of fields :
 
 * Move the mouse over an element of a graph to highlight the corresponding element in all the graphs.
 
+* Drag a field to the trash icon, or drag the trash icon to a field, to remove this field.
+
+* Drag a field to the table icon, or drag the table icon to a field, to display the values of this field.
+
+* Drag a field to the sort icon, or drag the sort icon to a field, to sort the data according to this field.
+
 ## Binaries
 
 Pre-built binary for OSX can be downloaded [here](http://jfbouzereau.free.fr/explorer/explorer.zip)
