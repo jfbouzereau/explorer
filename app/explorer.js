@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.52";
+var VERSION = "1.53";
 
 /***************************************************************************/
 
@@ -152,19 +152,20 @@ _type("TYPE_ENTROPY","Entropy",drawEntropyGraph);
 
 var NBTYPE1 = KNUM;			// max graph types
 
+_type("TYPE_MOMENTS","Statistics",drawMomentGraph);
 _type("TYPE_REPART","Repartition",drawRepartGraph);
 _type("TYPE_DISTRIB","Distribution curve",drawDistribGraph);
 _type("TYPE_SCATTER","Scatter plot",drawScatterGraph);
 _type("TYPE_LAG","Lag plot",drawLagPlot);
-_type("TYPE_MOMENTS","Statistics",drawMomentGraph);
 _type("TYPE_CORR","Correlations",drawCorrGraph);
+_type("TYPE_AUTOCORR","Autocorrelation plot",drawAutocorrGraph);
 _type("TYPE_ACP","Principal components",drawAcpGraph);
 _type("TYPE_KMEANS","K-means",drawKmeansGraph);
 _type("TYPE_KMEDOIDS","K-medoids",drawKmedoidsGraph);
 _type("TYPE_HUEN","Huen diagram",drawHuenGraph);
 _type("TYPE_DENDRO","Dendrogram",drawDendroGraph);
 _type("TYPE_RADVIZ","Radviz",drawRadvizGraph);
-_type("TYPE_TERNARY","Ternary plot",drawTernaryPlot);
+_type("TYPE_TERNARY","Ternary plot",drawTernaryGraph);
 
 var NBTYPE2 = KNUM; 		//  max plot types
 
@@ -2511,6 +2512,7 @@ switch(graph.type)
 	case TYPE_ANOVA: computeAnovaData(graph); break;
 	case TYPE_ACP: computeAcpData(graph); break;
 	case TYPE_CORR: computeCorrData(graph); break;
+	case TYPE_AUTOCORR: computeAutocorrData(graph); break;
 	case TYPE_KMEANS: computeKmeansData(graph); break;
 	case TYPE_KMEDOIDS: computeKmedoidsData(graph); break;
 	case TYPE_HUEN: computeHuenData(graph); break;
@@ -2913,6 +2915,32 @@ if(typeof(graph.ivalues)=="undefined")
 if(graph.ivalues.length<2) return;
 
 computeCorrelationMatrix(graph)
+}
+
+//***************************************************************************
+
+function computeAutocorrData(graph)
+{
+
+if(graph.ivalue1<=0) return;
+var i1 = graph.ivalue1;
+
+var avg = 0;
+for(var i=0;i<vrecords.length;i++)
+	avg += vrecords[i][i1];
+avg = avg/vrecords.length;
+
+var n = Math.floor(vrecords.length/2);
+graph._z.autocov = new Array(n);
+
+for(var h=0;h<n;h++)
+	{
+	var s = 0;
+	for(var i=0;i<vrecords.length-h;i++)
+		s += (vrecords[i][i1]-avg)*(vrecords[i+h][i1]-avg);
+	graph._z.autocov[h] = s/vrecords.length;
+	}
+
 }
 
 //***************************************************************************
@@ -3855,6 +3883,10 @@ for(var i=0;i<lrecords.length;i++)
 graph._z.stats.momentc2 = m2/n;
 graph._z.stats.momentc3 = m3/n;
 graph._z.stats.momentc4 = m4/n;
+
+var stdev = Math.sqrt(graph._z.stats.momentc2);
+graph._z.stats.skewness = graph._z.stats.momentc3/(stdev*stdev*stdev);
+graph._z.stats.kurtosis = graph._z.stats.momentc4/(stdev*stdev*stdev*stdev);
 
 xx.sort(function(a,b) { return a-b });
 graph._z.d1 = xx[Math.floor((n-1)/10)];
@@ -7153,47 +7185,42 @@ if(index>=0)
 	return;	
 	}
 
-if(inRect(ptmove,mywidth-20,myheight-40,20,20))
+if(inDustbinIcon(ptmove))
 	{
-	message = "Trash";
+	message = "Remove ...";
 	return;
 	}
 
-if(inRect(ptmove,mywidth-40,myheight-40,20,20))
+if(inTableIcon(ptmove))
 	{
 	message = AHELP[DRAG_TABLE];
 	return
 	}
 
-if(inRect(ptmove,mywidth-60,myheight-40,20,20))
+if(inInspectorIcon(ptmove))
 	{
 	message = AHELP[DRAG_INSPECTOR];
 	return;
 	}
 
-if(inRect(ptmove,mywidth-80,myheight-40,20,20))	
+if(inAddIcon(ptmove))
 	{
 	message = AHELP[DRAG_ADD];
 	return;
 	}
 
-if(inRect(ptmove,mywidth-100,myheight-40,20,20))
+if(inCloneIcon(ptmove))
 	{
 	message = AHELP[DRAG_CLONE];
 	return;
 	}
 
-if(inRect(ptmove,mywidth-120,myheight-40,20,20))
+if(inSortIcon(ptmove))
 	{
 	message = AHELP[DRAG_SORT];
 	return;
 	}
 
-if(inRect(ptmove,mywidth-140,myheight-40,20,20))
-	{
-	message = AHELP[SAVE_CONFIG];
-	return;
-	}
 
 var i = inFullGraph(ptmove);
 
@@ -9605,6 +9632,25 @@ else if(index==TYPE_CORR)
 	drawRect(ctx,x+10,y+3,6,6)
 	drawRect(ctx,x+10+3,y+10+3,4,4)	
 	drawRect(ctx,x+2,y+10,8,8)
+	}
+else if(index==TYPE_AUTOCORR)
+	{
+	ctx.fillStyle = BLUE;
+	ctx.fillRect(x,y,20,20);
+
+	ctx.strokeStyle = "#000000";
+	ctx.fillStyle = "#000000";
+	ctx.beginPath();
+	ctx.moveTo(x+1,y+3);
+	ctx.lineTo(x+3,y+2);
+	ctx.lineTo(x+5,y+10);	
+	ctx.lineTo(x+7,y+9);
+	ctx.lineTo(x+9,y+16);
+	ctx.lineTo(x+11,y+14);
+	ctx.lineTo(x+13,y+17);
+	ctx.lineTo(x+15,y+18);
+	ctx.lineTo(x+17,y+18);
+	ctx.stroke();
 	}
 else if(index==TYPE_HUEN)
 	{
@@ -12558,12 +12604,12 @@ if(graph.ivalue1>=0)
 	ctx.fillText(trunc(graph._z.stats.mean4,4),graph.x+170,y);
 
 	y += 30;
-	ctx.fillText("3rd order centered moment",graph.x+10,y)
-	ctx.fillText(trunc(graph._z.stats.momentc3,4),graph.x+170,y)
+	ctx.fillText("Skewness",graph.x+10,y)
+	ctx.fillText(trunc(graph._z.stats.skewness,4),graph.x+170,y)
 
 	y += 20;
-	ctx.fillText("4th order centered moment",graph.x+10,y)
-	ctx.fillText(trunc(graph._z.stats.momentc4,4),graph.x+170,y)
+	ctx.fillText("Kurtosis",graph.x+10,y)
+	ctx.fillText(trunc(graph._z.stats.kurtosis,4),graph.x+170,y)
 	}
 
 ctx.textAlign = "center"
@@ -13961,7 +14007,7 @@ drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title);
 
 //***************************************************************************
 
-function drawTernaryPlot(ctx,graph)
+function drawTernaryGraph(ctx,graph)
 {
 
 if(!graph.ivalues)	
@@ -14060,6 +14106,63 @@ for(var i=0;i<lrecords.length;i++)
 		ctx.fillRect(x-3,y-3,7,7);	
 		}
 	}
+
+}
+
+//***************************************************************************
+
+function drawAutocorrGraph(ctx,graph)
+{
+
+if((graph.ivalue1>=0)&&(graph._z.autocov))
+	{
+
+	ctx.fillStyle = "#000000";
+	ctx.textAlign = "left"
+
+	var n = graph._z.autocov.length;
+	var dx = graph.w-40;
+	var xo = graph.x+20;
+	var dy = Math.floor((graph.h-graph.hbar-40)/2);
+	var yo = graph.y+graph.hbar+20+dy;
+
+	ctx.fillStyle = "#AAAAAA";
+	ctx.fillRect(xo,yo,2*dx,1);
+	ctx.fillRect(xo,yo-dy,2*dx,1);
+	ctx.fillRect(xo,yo+dy,2*dx,1);
+
+	var band = 2/Math.sqrt(vrecords.length);
+	ctx.fillRect(xo,yo-Math.round(dy*band),2*dx,1);
+	ctx.fillRect(xo,yo+Math.round(dy*band),2*dx,1);
+
+	ctx.fillRect(xo,yo-dy,1,2*dy);
+	
+	ctx.textAlign = "right";
+
+	ctx.fillText("1",xo-5,yo-dy+5);
+	ctx.fillText("0",xo-5,yo+5);
+	ctx.fillText("-1",xo-5,yo+dy+5);
+
+	ctx.strokeStyle = "#000000";
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	for(var h=0;h<n;h++)
+		{
+		var x = xo+dx*h/n;
+		var r = graph._z.autocov[h]/graph._z.autocov[0];
+		var y = yo-dy*r;
+		if(h==0)
+			ctx.moveTo(x,y);
+		else
+			ctx.lineTo(x,y);
+		}
+	ctx.stroke();
+	}
+
+ctx.lineWidth = 1;
+ctx.textAlign = "center"
+var title1 = (graph.ivalue1<0) ? "" : values[graph.ivalue1]
+drawHValue(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,title1)
 
 }
 
@@ -14727,6 +14830,8 @@ function sortData()
 		return c==0 ? a-b : c;
 	}
 
+	for(var i=0;i<graphs.length;i++)
+		computeGraphData(graphs[i]);
 }
 
 //***************************************************************************
