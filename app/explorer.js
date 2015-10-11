@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.51";
+var VERSION = "1.52";
 
 /***************************************************************************/
 
@@ -80,8 +80,8 @@ _action("SET_LABELN","Define partition along axis");
 _action("DRAG_LABELN","");
 _action("REMOVE_LABELN","Remove partition");
 _action("SWAP_LABELN","Swap partition");
-_action("DRAG_TABLE","Display graph values");
-_action("SHOW_TABLE","Display graph values");
+_action("DRAG_TABLE","Show values ...");
+_action("SHOW_TABLE","Show graph values");
 _action("DRAG_INSPECTOR","Inspect graph values");
 _action("SHOW_INSPECTOR","Inspect graph values");
 _action("DRAG_ADD","Add field");
@@ -105,13 +105,16 @@ _action("CREATE_KGROUP","Create field from partition");
 _action("CREATE_BOOLEAN","Create boolean field from modality");
 _action("REMOVE_LABEL","Remove field");
 _action("REMOVE_VALUE","Remove field");
-_action("DONT_REMOVE_VARIABLE","Some graphs use this field");
+_action("DONT_REMOVE","Some graphs use this field");
 _action("CHANGE_NCLASS","Change the number of classes");
 _action("EXPORT_CHART","Export graphs into HighCharts");
 _action("SAVE_CONFIG","Save the configuration");
 _action("CHANGE_LAG","Change lag value");
 _action("DRAG_SORT","Sort data");
 _action("SORT_DATA","Sort data by");
+_action("SHOW_LABEL","Show values of ");
+_action("SHOW_VALUE","Show values of ");
+_action("DRAG_DUSTBIN","Remove ...");
 
 
 // actions that gray the graph
@@ -1075,9 +1078,34 @@ return Math.floor((pt.x-20)/20)
 
 //***************************************************************************
 
-function inTableIcon(pt)
+function inDustbinIcon(pt)
 {
 return inRect(pt,mywidth-20,myheight-40,20,20);
+}
+
+function inTableIcon(pt)
+{
+return inRect(pt,mywidth-40,myheight-40,20,20);
+}
+
+function inInspectorIcon(pt)
+{
+return inRect(pt,mywidth-60,myheight-40,20,20);
+}
+
+function inAddIcon(pt)
+{
+return inRect(pt,mywidth-80,myheight-40,20,20);
+}
+
+function inCloneIcon(pt)
+{
+return inRect(pt,mywidth-100,myheight-40,20,20);
+}
+
+function inSortIcon(pt)
+{
+return inRect(pt,mywidth-120,myheight-40,20,20);
 }
 
 //***************************************************************************
@@ -1158,13 +1186,6 @@ for(var i=0;i<graphs.length;i++)
 				return true;
 	}
 return false;
-}
-
-//***************************************************************************
-
-function inDustbin(pt)
-{
-return inRect(pt,mywidth-20,myheight-40,20,20);
 }
 
 //***************************************************************************
@@ -4809,7 +4830,7 @@ function createProjectionValue(graph,index)
 
 if(graph.type==TYPE_ACP)
 	{
-	values.push("ACP_"+values.length)
+	values.push("PCA_"+values.length)
 
 	var n = graph.ivalues.length;
 	var x;
@@ -5414,51 +5435,42 @@ var index = -1
 
 var movetop = false
 
-// click in dustbin
-if(inRect(ptclick,mywidth-20,myheight-40,20,20))
+if(inDustbinIcon(ptclick))
 	{
-	faction = 0;
+	faction = action = DRAG_DUSTBIN;
 	return;
 	}
 
-// check if click in table icon
-if(inRect(ptclick,mywidth-40,myheight-40,20,20))
+if(inTableIcon(ptclick))
 	{
-	faction = action = DRAG_TABLE
+	faction = action = DRAG_TABLE;
 	return
 	}
 
-// check if click in inspector icon
-if(inRect(ptclick,mywidth-60,myheight-40,20,20))
+if(inInspectorIcon(ptclick))
 	{
 	faction = action = DRAG_INSPECTOR;
 	return;
 	}
 
-if(inRect(ptclick,mywidth-80,myheight-40,20,20))	
+if(inAddIcon(ptclick))
 	{
 	faction = action = DRAG_ADD;
 	return;
 	}
 
-if(inRect(ptclick,mywidth-100,myheight-40,20,20))
+if(inCloneIcon(ptclick))
 	{
 	faction = action = DRAG_CLONE;
 	return;
 	}
 
-if(inRect(ptclick,mywidth-120,myheight-40,20,20))
+if(inSortIcon(ptclick))
 	{	
 	faction = action = DRAG_SORT;
 	return;
 	}
 
-if(inRect(ptclick,mywidth-140,myheight-40,20,20))
-	{
-	faction = action = SAVE_CONFIG;
-	draw();
-	return;
-	}
 
 // check if dragging label
 index = inLabel(ptclick)
@@ -5732,7 +5744,7 @@ if(action==DRAG_SIDEBAR)
 	}
 if(action==SHOW_TABLE)
 	{
-	showTable();
+	showGraphTable();
 	}
 else if(action==SHOW_INSPECTOR)
 	{
@@ -5788,6 +5800,14 @@ else if(action==REMOVE_LABEL)
 else if(action==REMOVE_VALUE)
 	{
 	removeValue(valueindex);
+	}
+else if(action==SHOW_LABEL)
+	{
+	showRecordsTable(labels[labelindex],lrecords,labelindex,"left");
+	}
+else if(action==SHOW_VALUE)
+	{
+	showRecordsTable(values[valueindex],vrecords,valueindex,"right");
 	}
 else if(action==SET_LABEL1)
 	{
@@ -6438,7 +6458,42 @@ draw()
 
 //***************************************************************************
 
-function showTable()
+function showRecordsTable(name,records,index,align)
+{
+
+var t = "";
+
+t += "<html>";
+t += "<style>\n";
+t += "table	{ font-family:Courier; font-size:12px; }\n";
+t += "table tr td { text-align: "+align+"; }\n";
+t += "</style>\n";
+t += "<body>";
+t += "<table>\n";
+
+t += "<tr style='background-color:#CCCCCC;'>"
+t += "<td>&nbsp;</td>";
+t += "<td>"+name+"</td>";
+t += "</tr>\n"
+
+for(var i=0;i<records.length;i++)
+	{
+	t += "<tr style='background-color:#EEEEEE;'>"
+	t += "<td>"+(k+1)+"</td>";
+	t += "<td>"+records[i][index]+"</td>";
+	t += "</tr>\n";
+	}
+
+t += "</table>"
+t += "</body>"
+t += "</html>"
+
+showTable(t);
+}
+
+//***************************************************************************
+
+function showGraphTable()
 {
 if(graphindex<0) return;
 var graph = graphs[graphindex];
@@ -6455,6 +6510,14 @@ else if(graph.type==TYPE_KMEANS)
 if(!t)
 	t = getDefaultTable(graph)
 
+showTable(t);
+
+}
+
+//***************************************************************************
+
+function showTable(t) 
+{
 t = t || "";
 
 var wname = (new Date()).getTime()+"";
@@ -8110,14 +8173,61 @@ else if(faction==DRAG_ADD)
 	else
 		action = DRAG_ADD;
 	}
+else if(faction==DRAG_DUSTBIN)
+	{
+	labelindex = -1;	
+	valueindex = -1;
+	var index;
+	if((index=inLabel(ptmove))>=0)
+		{
+		if(labelInUse(index))
+			action = DONT_REMOVE;
+		else
+			{
+			labelindex = index;
+			action = REMOVE_LABEL;
+			AHELP[action] = 'Remove field "'+labels[labelindex]+'"';
+			}
+		}
+	else if((index=inValue(ptmove))>0)
+		{
+		if(valueInUse(index))
+			action = DONT_REMOVE;
+		else
+			{
+			valueindex = index;
+			action = REMOVE_VALUE;
+			AHELP[action] = 'Remove field "'+values[valueindex]+'"';
+			}
+		}
+	else
+		action = DRAG_DUSTBIN;
+	}
 else if(faction==DRAG_TABLE)
 	{
+	labelindex = -1;
+	valueindex = -1;
 	graphindex = -1;
-	for(var i=0;i<graphs.length;i++)
-		if(inRect(ptmove,graphs[i].x,graphs[i].y,graphs[i].w,graphs[i].h))
-			graphindex = i;
-
-	action = (graphindex<0) ? DRAG_TABLE : SHOW_TABLE;
+	var index;
+	if((index=inLabel(ptmove))>=0)
+		{
+		labelindex = index;
+		action = SHOW_LABEL;
+		AHELP[action] = 'Show values of "'+labels[labelindex]+'"';
+		}		
+	else  if((index=inValue(ptmove))>0)
+		{
+		valueindex = index;
+		action = SHOW_VALUE;
+		AHELP[action] = 'Show values of "'+values[valueindex]+'"';
+		}
+	else if((index=inGraph(ptmove))>=0)
+		{
+		graphindex = index;
+		action = SHOW_TABLE;
+		}
+	else
+		action = DRAG_TABLE;
 	}
 else if(faction==DRAG_INSPECTOR)
 	{
@@ -8202,13 +8312,29 @@ else if(faction==DRAG_LABEL)
 	{
 	graphindex = -1
 	var i = inFullGraph(ptmove);
-	if(inDustbin(ptmove))
+	if(inDustbinIcon(ptmove))
 		{
-		action = labelInUse(labelindex) ? DONT_REMOVE_VARIABLE:REMOVE_LABEL;
+		if(labelInUse(labelindex))
+			action = DONT_REMOVE;
+		else
+			{
+			action = REMOVE_LABEL;
+			AHELP[action] = 'Remove field "'+labels[labelindex]+'"';
+			}
+		}
+	else if(inTableIcon(ptmove))
+		{
+		action = SHOW_LABEL;
+		AHELP[action] = 'Show values of "'+labels[labelindex]+'"';
+		}
+	else if(inSortIcon(ptmove))
+		{
+		action = SORT_DATA;
+		AHELP[action] = 'Sort data by "'+labels[labelindex]+'"';
 		}
 	else if(inValue(ptmove)>=0)
 		{
-		action = labelInUse(labelindex) ? DONT_REMOVE_VARIABLE:CREATE_VALUE;
+		action = labelInUse(labelindex) ? DONT_REMOVE:CREATE_VALUE;
 		}
 	else if(i<0)
 		{
@@ -8246,9 +8372,25 @@ else if(faction==DRAG_VALUE)
 	{
 	graphindex = -1
 	var i = inFullGraph(ptmove);
-	if(inDustbin(ptmove)&&(valueindex>0))
+	if(inDustbinIcon(ptmove)&&(valueindex>0))
 		{
-		action = valueInUse(valueindex)? DONT_REMOVE_VARIABLE:REMOVE_VALUE;
+		if(valueInUse(valueindex))
+			action = DONT_REMOVE;
+		else
+			{
+			action = REMOVE_VALUE;
+			AHELP[action] = 'Remove field "'+values[valueindex]+'"';
+			}
+		}
+	else if(inTableIcon(ptmove))
+		{
+		action = SHOW_VALUE;
+		AHELP[action] = 'Show values of "'+values[valueindex]+'"';
+		}
+	else if(inSortIcon(ptmove))
+		{
+		action = SORT_DATA;
+		AHELP[action] = 'Sort data by "'+values[valueindex]+'"';
 		}
 	else if(i<0)
 		action = DRAG_VALUE;
@@ -8302,7 +8444,7 @@ else if(faction==DRAG_LABEL1)
 		}
 	else if(i<0)
 		{
-		action = REMOVE_LABEL1;
+		action = REMOVE_LABEL1;		
 		}
 	else if(inGraphLabel1(ptmove,graphs[i]))
 		{
@@ -14182,10 +14324,33 @@ drawSticker(ctx,mywidth-100,y,100,20,-1,"")
 // dock
 drawDock(ctx,mywidth,myheight)
 
-if((action==REMOVE_LABEL)||(action==REMOVE_VALUE))
+if(action==REMOVE_LABEL)
 	{
 	ctx.fillStyle = GRAY;
 	ctx.fillRect(mywidth-20,myheight-40,20,20);
+	ctx.fillRect(mywidth-100,20*labelindex-barshift,100,20);
+	}
+else if(action==REMOVE_VALUE)
+	{
+	var ni = Math.ceil(NBTYPE3/5)
+	ctx.fillStyle = GRAY;
+	ctx.fillRect(mywidth-20,myheight-40,20,20);
+	ctx.fillRect(mywidth-100,
+		labels.length*20+20+ni*20+20+20*valueindex-barshift,100,20);
+	}
+else if(action==SHOW_LABEL)	
+	{
+	ctx.fillStyle = GRAY;
+	ctx.fillRect(mywidth-40,myheight-40,20,20);
+	ctx.fillRect(mywidth-100,20*labelindex-barshift,100,20);
+	}
+else if(action==SHOW_VALUE)
+	{
+	var ni = Math.ceil(NBTYPE3/5)
+	ctx.fillStyle = GRAY;
+	ctx.fillRect(mywidth-40,myheight-40,20,20);	
+	ctx.fillRect(mywidth-100,
+		labels.length*20+20+ni*20+20+20*valueindex-barshift,100,20);
 	}
 
 // if dragging a label
@@ -14247,7 +14412,7 @@ if(action==DRAG_AXIS)
 	ctx.fillRect(ptmove.x-10,ptmove.y-10,20,20)
 	}
 
-if((action==DRAG_TABLE)||(action==DRAG_INSPECTOR)||(action==DRAG_ADD)||(action==DRAG_CLONE)||
+if((action==DRAG_TABLE)||(action==DRAG_DUSTBIN)||(action==DRAG_INSPECTOR)||(action==DRAG_ADD)||(action==DRAG_CLONE)||
 	(action==EXPORT_CHART)||(action==DRAG_SORT))
 	{
 	ctx.strokeStyle = GRAY
@@ -14262,6 +14427,7 @@ if(action==ADD_LABEL)
 if((action==SORT_DATA)&&(labelindex>=0))
 	{
 	ctx.fillStyle = GRAY;
+	ctx.fillRect(mywidth-120,myheight-40,20,20);
 	ctx.fillRect(mywidth-100,labelindex*20-barshift,100,20);
 	}
 if((action==DRAG_TYPE)||(action==SET_TYPE))
@@ -14429,6 +14595,7 @@ else if((action==SORT_DATA)&&(valueindex>=0))
 	{
 	var ni = Math.ceil(NBTYPE3/5)
 	ctx.fillStyle = GRAY;
+	ctx.fillRect(mywidth-120,myheight-40,20,20);
 	ctx.fillRect(mywidth-100,
 		labels.length*20+20+ni*20+20+20*valueindex-barshift,100,20);
 	}
