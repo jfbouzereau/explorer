@@ -27,7 +27,11 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Autocorrelation plot
 * Lag plot
 * General statistics
+* Analysis of variance
 * Bartlett's test
+* F-test
+* Levene test
+* Brown Forsythe test
 * Principal components
 * K-means
 * K-medoids
@@ -35,7 +39,6 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Dendogram
 * Radviz
 * Discriminant analysis
-* Variance analysis
 * Linear regression
 * Box plot
 * Parallel coordinates

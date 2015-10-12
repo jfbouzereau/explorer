@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.56";
+var VERSION = "1.57";
 
 /***************************************************************************/
 
@@ -2944,7 +2944,97 @@ switch(graph.test)
 	{
 	case TEST_FISHER: computeFisherData(graph); break;
 	case TEST_BARTLETT : computeBartlettData(graph); break;
+	case TEST_LEVENE: computeLeveneData(graph); break;
+	case TEST_BROWN: computeLeveneData(graph); break;
 	}
+}
+
+//***************************************************************************
+
+function computeLeveneData(graph)
+{
+if(graph.ilabel1<0) return;
+if(graph.ivalue1<0) return;
+
+var stats = {};
+var ng = 0;
+var nr = 0;
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	nr++;
+
+	var x = vrecords[i][graph.ivalue1];
+	var g = lrecords[i][graph.ilabel1];
+
+	if(!(g in stats))
+		stats[g] = {zavg:0,median:0,values:[]};			
+	stats[g].values.push(x);
+	}
+
+if(graph.test==TEST_BROWN)
+	for(var g in stats)	
+		{
+		// compute median of each group
+		ng++;
+		stats[g].values.sort( function(a,b) { return a-b} );	
+		var i = Math.floor(stats[g].values.length/2);
+		if(stats[g].values.length%2==1)
+			stats[g].median = stats[g].values[i];
+		else
+			stats[g].median = (stats[g].values[i-1]+stats[g].values[i])/2;
+			
+		}
+if(graph.test==TEST_LEVENE)
+	for(var g in stats)
+		{
+		// compute mean of each group
+		ng++;	
+		var s =0;
+		for(var i=0;i<stats[g].values.length;i++)
+			s += stats[g].values[i];		
+		stats[g].median = s/stats[g].values.length;
+		}
+
+console.log(stats);
+
+var zavg = 0;
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	
+	var g = lrecords[i][graph.ilabel1];
+	var z = Math.abs(vrecords[i][graph.ivalue1]-stats[g].median);
+	stats[g].zavg += z;	
+	zavg += z;
+	}
+
+for(var g in stats)
+	stats[g].zavg /= stats[g].values.length;
+zavg /= nr;
+
+var sum1 = 0;
+for(var g in stats)	
+	sum1 += stats[g].values.length*(stats[g].zavg-zavg)*(stats[g].zavg-zavg);
+
+var sum2 = 0;	
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+
+	var g = lrecords[i][graph.ilabel1];
+	var z = Math.abs(vrecords[i][graph.ivalue1]-stats[g].median);
+
+	sum2 += (z-stats[g].zavg)*(z-stats[g].zavg);
+	}
+
+var w = (nr-ng)*sum1/(ng-1)/sum2;
+
+graph._z.ng = ng;
+graph._z.nr = nr;
+graph._z.w = w;
+
 }
 
 //***************************************************************************
@@ -13567,6 +13657,8 @@ if((graph.ivalue1>=0)&&(graph.ilabel1>=0))
 		{
 		case TEST_FISHER: drawFisherGraph(ctx,graph); break;
 		case TEST_BARTLETT: drawBartlettGraph(ctx,graph); break;
+		case TEST_LEVENE: drawLeveneGraph(ctx,graph); break;
+		case TEST_BROWN: drawLeveneGraph(ctx,graph); break;
 		}
 
 drawTestMenu(ctx,graph);
@@ -13604,7 +13696,7 @@ ctx.strokeRect(x-w/2,y,w,20);
 for(var i=0;i<7;i++)
 	ctx.fillRect(x+w/2-18+i,y+5+i,14-2*i,1);
 
-if(faction==SELECT_TEST)
+if((faction==SELECT_TEST)&&(graphs[graphindex]==graph))
 	{
 	ctx.fillStyle = "#FFFFFF";
 	ctx.fillRect(x-w/2,y+21,w,20*TNUM);
@@ -13649,59 +13741,9 @@ testindex = -1;
 
 function drawFisherGraph(ctx,graph)
 {
-	ctx.fillStyle = "#000000";
-	ctx.strokeStyle = "#000000";
-	ctx.textAlign = "left"
-	ctx.lineWidth = 1
+	var F = (graph._z.vinter/graph._z.ninter)/(graph._z.vintra/graph._z.nintra)	
+	var pvalue = Fspin(F,graph._z.ninter,graph._z.nintra)	
 
-	var y = graph.y+graph.hbar+80;
-
-	ctx.fillText("Source",graph.x+30,y);
-	ctx.fillText("DoF",graph.x+140,y)
-	ctx.fillText("Variance",graph.x+190,y)
-	ctx.fillText("F",graph.x+290,y)
-	ctx.fillText("p-value",graph.x+390,y)
-
-	ctx.fillRect(graph.x+30,y+10,450,2)
-
-	y += 30;
-	ctx.fillText(labels[graph.ilabel1],graph.x+30,y)
-	ctx.fillText(""+graph._z.ninter,graph.x+140,y)
-	ctx.fillText(trunc(graph._z.vinter/graph._z.ninter,4),graph.x+190,y)
-
-	y += 10
-	var F = (graph._z.vinter/graph._z.ninter)/(graph._z.vintra/graph._z.nintra)
-	ctx.fillText(trunc(F,4),graph.x+290,y)
-
-	var pvalue = Fspin(F,graph._z.ninter,graph._z.nintra)
-	ctx.fillText(trunc(pvalue,4),graph.x+390,y)
-
-	y += 10;
-	ctx.fillText("Residuals",graph.x+30,y)
-	ctx.fillText(""+graph._z.nintra,graph.x+140,y)
-	ctx.fillText(trunc(graph._z.vintra/graph._z.nintra,4),graph.x+190,y)
-
-	y += 30;
-	if(pvalue<0.05)
-		{
-		ctx.fillStyle = "#008800";
-		ctx.fillText("p-value < 0.05 : "+labels[graph.ilabel1]+" has influence on "+values[graph.ivalue1],graph.x+30,y)
-		}
-	else
-		{
-		ctx.fillStyle= "#FF0000";
-		ctx.fillText("p-value > 0.05 : "+labels[graph.ilabel1]+" has no influence on "+values[graph.ivalue1],graph.x+30,y)
-		}
-
-	ctx.fillStyle = "#000000";
-
-
-	// draw fisher curve
-	ctx.strokeStyle = "#000000";
-	ctx.lineWidth = 1;
-	ctx.beginPath();
-
-	// max value along x
 	var max = F;
 	var pmax = pvalue;
 	while(pmax>0.001)
@@ -13709,6 +13751,69 @@ function drawFisherGraph(ctx,graph)
 		max *= 1.1;
 		pmax = Fspin(max,graph._z.ninter,graph._z.nintra);
 		}
+
+	ctx.fillStyle = "#000000";
+	ctx.strokeStyle = "#000000";
+	ctx.textAlign = "left"
+	ctx.lineWidth = 1
+
+	var y = graph.y+graph.hbar+80;
+
+
+	ctx.fillText("Number of groups",graph.x+40,y);
+	var ng = graph._z.ninter+1;
+	ctx.fillText(""+ng,graph.x+240,y);
+
+	y += 20;
+	var no = graph._z.nintra+ng;
+	ctx.fillText("Number of observations", graph.x+40,y);
+	ctx.fillText(""+no, graph.x+240,y);
+
+	y += 20;
+	ctx.fillText("Degrees of freedom",graph.x+40,y);
+	ctx.fillText(graph._z.ninter+" , "+graph._z.nintra,graph.x+240,y)
+
+	y += 20;	
+	var level = 0.05;
+	var cv = Finv(0.001,max,level,graph._z.ninter,graph._z.nintra);
+	cv = Math.round(cv*10000)/10000;
+	ctx.fillText("Critical value", graph.x+40,y);
+	ctx.fillText(""+cv,graph.x+240,y);
+	ctx.fillText("(\u03B1="+level+")",graph.x+360,y);
+	
+	y += 20;
+	F = Math.round(F*10000)/10000;
+	pvalue = Math.round(pvalue*10000)/10000;
+	ctx.fillText("Test statistic F",graph.x+40,y);
+	ctx.fillText(""+F,graph.x+240,y);
+	ctx.fillText("(p="+pvalue+")",graph.x+360,y);
+
+	y += 30;
+	ctx.fillStyle= "#FF0000";
+	if(pvalue<0.05)
+		{
+		ctx.fillText("At least one mean is different from the others",
+			graph.x+40,y);
+		ctx.fillText(labels[graph.ilabel1]+" has influence on "+
+			values[graph.ivalue1],graph.x+40,y+20);
+		}
+	else
+		{
+		ctx.fillText("All the means are equals",
+			graph.x+40,y);
+		ctx.fillText(labels[graph.ilabel1]+" has no influence on "+
+			values[graph.ivalue1],graph.x+40,y+20);
+		}
+
+	y += 20;
+	ctx.fillStyle = "#000000";
+
+	// draw fisher curve
+	ctx.strokeStyle = "#000000";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+
+	// max value along x
 	
 	var dy = 200;
 	var dx = graph.w-40;
@@ -13721,7 +13826,6 @@ function drawFisherGraph(ctx,graph)
 		var d = fisherdensity(max*i/100,graph._z.ninter,graph._z.nintra);
 		if(d>dmax) dmax = d;
 		}
-
 
 	for(var i=0;i<=100;i++)
 		{
@@ -13739,7 +13843,6 @@ function drawFisherGraph(ctx,graph)
 	ctx.stroke();
 
 	ctx.fillStyle = "#000000";
-	var cv = Finv(0.001,max,0.05,graph._z.ninter,graph._z.nintra);
 	var j = Math.round(cv*100/max);	
 
 	ctx.beginPath();
@@ -13769,58 +13872,67 @@ function drawFisherGraph(ctx,graph)
 
 function drawBartlettGraph(ctx,graph)
 {
+	var level = 0.05;
+	var dof = graph._z.ng-1;
+	var max = Math.max(graph._z.cv,graph._z.t);
+	max *= 1.1;
+	var pvalue = chi2inv(0.01,max,graph._z.t,dof);
+	pvalue = Math.round(pvalue*10000)/10000;
+
 	ctx.fillStyle = "#000000";
 	ctx.strokeStyle = "#000000";
 	ctx.textAlign = "left"
 	ctx.lineWidth = 1
 
-	var y = graph.y+graph.hbar+60;
+	var y = graph.y+graph.hbar+80;
 	var z;
 
 	ctx.fillText("WARNING : this test is sensitive to departure from normality",
-		graph.x+40,y+=20);
+		graph.x+40,y);
 
 
-	y = graph.y+graph.hbar+100;
+	y += 30;
+	ctx.fillText("Number of groups",graph.x+40,y);
+	ctx.fillText(""+graph._z.ng,graph.x+240,y);
 
-	ctx.fillText("Number of groups",graph.x+40,y+=20);
-	ctx.fillText("Degrees of freedom",graph.x+40,y+=20)		
-	ctx.fillText("Significance level",graph.x+40,y+=20);
-	ctx.fillText("Critical value",graph.x+40,y+=20)
-	ctx.fillText("Test statistic",graph.x+40,y+=20);
-
-	y = graph.y+graph.hbar+100;
-
-	ctx.fillText(""+graph._z.ng,graph.x+240,y+=20);
-
-	ctx.fillText(""+(graph._z.ng-1),graph.x+240,y+=20);
-
-	ctx.fillText("0.05",graph.x+240,y+=20);
-
-	z = Math.round(graph._z.cv*10000)/10000;
-	ctx.fillText(""+z,graph.x+240,y+=20);
-
-	z = Math.round(graph._z.t*10000)/10000;
-	ctx.fillText(""+z,graph.x+240,y+=20);
+	y += 20;	
+	ctx.fillText("Degrees of freedom",graph.x+40,y);
+	ctx.fillText(""+dof,graph.x+240,y);
 
 	y += 20;
+	ctx.fillText("Critical value",graph.x+40,y);
+	z = Math.round(graph._z.cv*10000)/10000;
+	ctx.fillText(""+z,graph.x+240,y);
+	ctx.fillText("(\u03B1="+level+")",graph.x+360,y);
+
+	y += 20;	
+	ctx.fillText("Test statistic T",graph.x+40,y);
+	z = Math.round(graph._z.t*10000)/10000;
+	ctx.fillText(""+z,graph.x+240,y);
+	ctx.fillText("(p="+pvalue+")",graph.x+360,y);
+
+	y += 40;
+	ctx.fillStyle= "#FF0000";	
 	if(isNaN(graph._z.t))
 		{
 		y += 40;
 		}
 	else if(graph._z.t>graph._z.cv)
 		{
-		ctx.fillStyle= "#FF0000";	
-		ctx.fillText("T > critical value :",graph.x+40,y+=20);
 		ctx.fillText("At least one variance is different from the others",
-			graph.x+40,y+=20);
+			graph.x+40,y);
+		ctx.fillText(labels[graph.ilabel1]+" has influence on "+
+			values[graph.ivalue1],graph.x+40,y+20);
 		}
 	else	
 		{
-		ctx.fillStyle = "#008800";
-		ctx.fillText("T < critical value :",graph.x+40,y+=20);
-		ctx.fillText("All groups have the same variance",graph.x+40,y+=20);
+		ctx.fillText("All the variances are equal",
+			graph.x+40,y);
+		ctx.fillText(labels[graph.ilabel1]+" has no influence on "+
+			values[graph.ivalue1],graph.x+40,y+20);	
 		}
+
+	y += 20;
 
 	// draw chi2 curve
 	ctx.strokeStyle = "#000000";
@@ -13880,6 +13992,138 @@ function drawBartlettGraph(ctx,graph)
 	ctx.lineTo(x+dx*graph._z.t/max,y+12);
 	ctx.stroke();
 
+}
+
+//***************************************************************************
+
+function drawLeveneGraph(ctx,graph)
+{
+	var level = 0.05;
+	var w = graph._z.w;
+	var dof1 = graph._z.ng-1;
+	var dof2 = graph._z.nr-graph._z.ng;
+	var pvalue = Fspin(w,dof1,dof2);
+
+	var max = w;
+	var pmax = pvalue;
+	while(pmax>0.001)
+		{
+		max *= 1.1;
+		pmax = Fspin(max,dof1,dof2);
+		}
+
+	ctx.fillStyle = "#000000";
+	ctx.strokeStyle = "#000000";
+	ctx.textAlign = "left"
+	ctx.lineWidth = 1
+
+	var y = graph.y+graph.hbar+80;
+
+
+	ctx.fillText("Number of groups",graph.x+40,y);
+	ctx.fillText(""+graph._z.ng,graph.x+240,y);
+
+	y += 20;
+	ctx.fillText("Number of observations", graph.x+40,y);
+	ctx.fillText(""+graph._z.nr, graph.x+240,y);
+
+	y += 20;
+	ctx.fillText("Degrees of freedom",graph.x+40,y);
+	ctx.fillText(dof1+" , "+dof2,graph.x+240,y)
+
+	y += 20;	
+	var level = 0.05;
+	var cv = Finv(0.001,max,level,dof1,dof2);
+	cv = Math.round(cv*10000)/10000;
+	ctx.fillText("Critical value", graph.x+40,y);
+	ctx.fillText(""+cv,graph.x+240,y);
+	ctx.fillText("(\u03B1="+level+")",graph.x+360,y);
+	
+	y += 20;
+	w = Math.round(w*10000)/10000;
+	pvalue = Math.round(pvalue*10000)/10000;
+	ctx.fillText("Test statistic W",graph.x+40,y);
+	ctx.fillText(""+w,graph.x+240,y);
+	ctx.fillText("(p="+pvalue+")",graph.x+360,y);
+
+	y += 30;
+	ctx.fillStyle= "#FF0000";
+	if(pvalue<0.05)
+		{
+		ctx.fillText("At least one variance is different from the others",
+			graph.x+40,y);
+		ctx.fillText(labels[graph.ilabel1]+" has influence on "+
+			values[graph.ivalue1],graph.x+40,y+20);
+		}
+	else
+		{
+		ctx.fillText("All the variances are equals",
+			graph.x+40,y);
+		ctx.fillText(labels[graph.ilabel1]+" has no influence on "+
+			values[graph.ivalue1],graph.x+40,y+20);
+		}
+
+	y += 20;
+	ctx.fillStyle = "#000000";
+
+	// draw fisher curve
+	ctx.strokeStyle = "#000000";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+
+	// max value along x
+	
+	var dy = 200;
+	var dx = graph.w-40;
+	var x = graph.x+20;	
+	y += 220;
+
+	var dmax = 0;
+	for(var i=0;i<=100;i++)
+		{
+		var d = fisherdensity(max*i/100,dof1,dof2);
+		if(d>dmax) dmax = d;
+		}
+
+	for(var i=0;i<=100;i++)
+		{
+		var d = fisherdensity(max*i/100,dof1,dof2);
+		if(i==0)
+			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+		else
+			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+		}
+	ctx.stroke();
+
+	ctx.beginPath();
+	ctx.moveTo(x,y);
+	ctx.lineTo(x+dx,y);
+	ctx.stroke();
+
+	ctx.fillStyle = "#000000";
+	var j = Math.round(cv*100/max);	
+
+	ctx.beginPath();
+	for(var i=j;i<=100;i++)
+		{
+		var d = fisherdensity(max*i/100,dof1,dof2);
+		if(i==0)
+			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+		else
+			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+		}
+	ctx.lineTo(x+dx,y);
+	ctx.lineTo(x+dx*j/100,y);
+	ctx.fill();
+
+	ctx.textAlign = "center";
+	ctx.fillText("W",x+dx*w/max,y+25);	
+	ctx.beginPath();
+	ctx.moveTo(x+dx*w/max,y+2);
+	ctx.lineTo(x+dx*w/max,y+12);
+	ctx.stroke();
+
+	
 }
 
 //***************************************************************************
@@ -15910,24 +16154,34 @@ return med;
 
 //***************************************************************************
 
-function gamma(x)
+function chi2inv(min,max,value,ddl)
 {
-if(Math.round(x)==x)
-    {
-    var g = 1;
-    for(var i=2;i<x;i++)
-        g = i*g;
-    return g;
-    }
-else if(Math.round(2*x)==2*x)
-    {
-    var g = Math.sqrt(Math.PI);
-    for(var i=3;i<=2*x;i+=2)
-        g = (i/2-1)*g;
-    return g;
-    }
-else
-    return 0;
+for(var i=0;i<30;i++)
+	{
+	var med = (min+max)/2;
+	var x = critchi(med,ddl);
+	if(x>value)
+		min = med;
+	else
+		max = med;
+	}
+return med;
+}
+
+//***************************************************************************
+
+function gamma(z)
+{
+	var  RECIP_E = 0.36787944117144232159552377016147;
+    var TWOPI = 6.283185307179586476925286766559;
+
+    var d = 1.0 / (10.0 * z);
+    d = 1.0 / ((12 * z) - d);
+    d = (d + z) * RECIP_E;
+    d = Math.pow(d, z);
+    d *= Math.sqrt(TWOPI / z);
+
+    return d;
 }
 
 //***************************************************************************
@@ -15951,11 +16205,11 @@ return a*b/c/gamma(k/2);
 
 function fisherdensity(x,d1,d2)
 {
-var a = Math.pow(d1*x,d1);
-var b = Math.pow(d2,d2);
-var c = Math.pow(d1*x+d2,d1+d2);
+var a = Math.pow(d1*x,d1/2);
+var b = Math.pow(d2,d2/2);
+var c = Math.pow(d1*x+d2,(d1+d2)/2);
 var d = x*beta(d1/2,d2/2);
-return Math.sqrt(a*b/c)/d;
+return a*b/c/d;
 }
 
 //***************************************************************************
