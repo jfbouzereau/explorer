@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.53";
+var VERSION = "1.54";
 
 /***************************************************************************/
 
@@ -184,9 +184,9 @@ var TYPE_BAND = 99
 
 var NIL = "\r"
 
-var PINK = "#FFEEEE"
-var BLUE = "#EEEEFF"
-var GRAY = "#808080"
+var PINK = "#FFEEEE";
+var BLUE = "#EEEEFF";
+var GRAY = "rgba(64,64,64,0.5)";
 var YELLOW = "#FFFFDA"
 var TINTS = []
 for(var k=0;k<25;k++)
@@ -5797,30 +5797,14 @@ else if((action==ADD_LABEL)||(action==ADD_VALUE))
 else if(action==DOCK_GRAPH)
 	{
 	graph = graphs[graphindex]
-
-	// remove graph
-	var newgraphs = []
-	for(var i=0;i<graphs.length;i++)
-		if(i!=graphindex)
-			newgraphs.push(graphs[i])
-	graphs = newgraphs
-	myconfig.graphs = graphs
-
-	// add graph to dock
+	graphs.splice(graphindex,1);
 	dock.push(graph)
 	}	
 else if(action==UNDOCK_GRAPH)
 	{
 	graph = dock[graphindex]
-	
-	// remove graph from the dock
-	var newdock = []	
-	for(var i=0;i<dock.length;i++)
-		if(i!=graphindex)
-			newdock.push(dock[i])
-	dock = newdock
+	dock.splice(graphindex,1);
 
-	// put back graph in active list
 	graph.x = ptmove.x-graph.w/2
 	graph.y = ptmove.y-20
 	graphs.push(graph)
@@ -7147,7 +7131,8 @@ if(gindex>=0)
 	{	
 	message = ""
 	sep = ""
-	var graph = dock[gindex]
+	var graph = dock[gindex];
+	if(graph.selection)
 	for(var i=0;i<graph.selection.length;i+=2)
 		{
 		message += sep + graph.selection[i+1]
@@ -14311,12 +14296,14 @@ for(var i=0;i<graphs.length;i++)
 	{
 	var graph = graphs[i]
 
+	/*
     if((i==graphindex)&&(action in GACTIONS))
         {
         ctx.fillStyle = GRAY
         ctx.fillRect(graph.x,graph.y,graph.w,graph.h);
         continue;
         }
+	*/
 
 	// bar height
 
@@ -14390,6 +14377,12 @@ for(var i=0;i<graphs.length;i++)
 	ctx.strokeRect(graph.x+graph.w-10,graph.y+graph.h-10,10,10)
 
 	ctx.restore()
+
+    if((i==graphindex)&&(action in GACTIONS))
+        {
+        ctx.fillStyle = GRAY
+        ctx.fillRect(graph.x,graph.y,graph.w,graph.h);
+        }
 	}
 
 var y = -barshift
