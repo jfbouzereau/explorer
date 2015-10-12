@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.55";
+var VERSION = "1.56";
 
 /***************************************************************************/
 
@@ -115,6 +115,7 @@ _action("SORT_DATA","Sort data by");
 _action("SHOW_LABEL","Show values of ");
 _action("SHOW_VALUE","Show values of ");
 _action("DRAG_DUSTBIN","Remove ...");
+_action("SELECT_TEST","Select test");
 
 
 // actions that gray the graph
@@ -170,8 +171,7 @@ _type("TYPE_TERNARY","Ternary plot",drawTernaryGraph);
 var NBTYPE2 = KNUM; 		//  max plot types
 
 _type("TYPE_DISCRI","Discriminant analysis",drawDiscriGraph);
-_type("TYPE_ANOVA","Variance analysis",drawAnovaGraph);
-_type("TYPE_BARTLETT","Bartlett's test",drawBartlettGraph);
+_type("TYPE_TEST","Analysis of variance",drawTestGraph);
 _type("TYPE_REGRES","Linear regression",drawRegresGraph);
 _type("TYPE_BOX","Box plot",drawBoxGraph);
 _type("TYPE_PARA","Parallel coordinates",drawParaGraph);
@@ -183,8 +183,23 @@ var TYPE_BAND = 99
 
 /***************************************************************************/
 
+var TNAME = {};
+var TTEST = {};
+var THELP = {};
+
+var TNUM = 0;
+
+_test("TEST_BARTLETT","Bartlett's test");
+_test("TEST_FISHER","Fisher's test");
+_test("TEST_LEVENE","Levene's test");
+_test("TEST_BROWN","Brown-Forsythe test");
+
+
+/***************************************************************************/
+
 var NIL = "\r"
 
+var BG = "#DEF7D6";
 var PINK = "#FFEEEE";
 var BLUE = "#EEEEFF";
 var GRAY = "rgba(64,64,64,0.5)";
@@ -283,6 +298,20 @@ KNUM++;
 
 //***************************************************************************
 
+function _test(name,help)
+{
+window[name] = TNUM;
+
+TNAME[TNUM] = name;
+TTEST[name] = TNUM;
+THELP[TNUM] = help;
+
+TNUM++;
+
+}
+
+//***************************************************************************
+
 function Graph(x,y,closeable,selection,index1,hue,type)
 {
 this.x = x;
@@ -327,6 +356,7 @@ this.omit = {};
 
 this.type = type;
 this.option = 0;
+this.test = -1;	
 
 this._count = {};
 
@@ -745,6 +775,7 @@ var graphindex = -1
 var graphindex2 = -1
 var sliceindex = -1
 var labelindex = -1
+var testindex = -1;
 var destlabelindex = -1
 var destvalueindex = -1
 var typeindex = -1
@@ -1284,14 +1315,13 @@ return inRect(pt,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100)
 
 function hasLabel2(graph)
 {
-if(graph.type==TYPE_ANOVA) return true;
+if(graph.type==TYPE_TEST) return true;
 if(graph.type==TYPE_DISCRI) return true;
 if(graph.type==TYPE_REPART) return true;
 if(graph.type==TYPE_BOX) return true;
 if(graph.type==TYPE_PARA) return true;
 if(graph.type==TYPE_ACP) return true;
 if(graph.type==TYPE_RADVIZ) return true;
-if(graph.type==TYPE_BARTLETT) return true;
 }
 
 //***************************************************************************
@@ -1329,6 +1359,17 @@ for(var k=0;k<=n;k++)
 		}
 
 return false
+}
+
+//***************************************************************************
+
+function inTestMenu(pt,graph)
+{
+if(graph.type!=TYPE_TEST) return false;
+
+var x = graph.x+graph.w/2-220/2;
+var y = graph.y+graph.hbar+30;
+return inRect(pt,x,y,220,20);
 }
 
 //***************************************************************************
@@ -2512,8 +2553,7 @@ switch(graph.type)
 	case TYPE_DISCRI: computeDiscriData(graph); break;	
 	case TYPE_PARA: computeParaData(graph); break;
 	case TYPE_BOX: computeBoxData(graph); break;
-	case TYPE_ANOVA: computeAnovaData(graph); break;
-	case TYPE_BARTLETT: computeBartlettData(graph); break;
+	case TYPE_TEST: computeTestData(graph); break;
 	case TYPE_ACP: computeAcpData(graph); break;
 	case TYPE_CORR: computeCorrData(graph); break;
 	case TYPE_AUTOCORR: computeAutocorrData(graph); break;
@@ -2898,7 +2938,18 @@ graph._z.cv = critchi(0.05,ng-1);
 
 //***************************************************************************
 
-function computeAnovaData(graph)
+function computeTestData(graph)
+{
+switch(graph.test)
+	{
+	case TEST_FISHER: computeFisherData(graph); break;
+	case TEST_BARTLETT : computeBartlettData(graph); break;
+	}
+}
+
+//***************************************************************************
+
+function computeFisherData(graph)
 {
 if(graph.ilabel1<0) return;
 if(graph.ivalue1<0) return;
@@ -5519,6 +5570,7 @@ sliceindex = -1
 typeindex = -1
 titleindex = -1
 stickerindex = -1
+testindex = -1;
 
 var index = -1
 
@@ -5727,6 +5779,11 @@ if(i>=0)
 		faction = DRAG_SLICE
 		graphindex = i
 		sliceindex = index
+		}
+	else if(inTestMenu(ptclick,graph))
+		{
+		faction = SELECT_TEST;
+		graphindex = i;
 		}
 	else if((index=inRepartCursor(ptclick,graph))>=0)
 		{
@@ -6518,6 +6575,16 @@ else if(action==SAVE_CONFIG)
 	if(inRect(ptmove,mywidth-140,myheight-40,20,20))
 		saveStorageConfig();
 	}
+else if(action==SELECT_TEST)
+	{
+	if((testindex>=0)&&(graphindex>=0))
+		{
+		graph = graphs[graphindex];
+		graph.test = testindex;
+		computeTestData(graph);
+		}	
+	}
+
 
 faction = 0;
 action = 0;
@@ -6944,7 +7011,7 @@ div.style.top = "120px";
 div.style.left = "110px";
 div.style.right = "110px";
 div.style["font-family"] = "sans-serif";
-div.style["background-color"] = "#DEF7D6"
+div.style["background-color"] =  BG;
 div.style.border = "1px solid #000000"
 div.style["user-select"] = "none";
 div.style["-webkit-user-select"] = "none";
@@ -8679,6 +8746,11 @@ else if(faction==DRAG_BIN)
 	else
 		action = DRAG_BIN;
 	}
+else if(faction==SELECT_TEST)
+	{
+	var graph = graphs[graphindex];
+	selectTest(ptmove,graph);
+	}
 else if(faction==DRAG_NSLOT)
 	{
 	var graph = graphs[graphindex];
@@ -9539,30 +9611,27 @@ else if(index==TYPE_PARA)
 
 	ctx.stroke();
 	}
-else if(index==TYPE_ANOVA)
+else if(index==TYPE_TEST)
 	{
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
-	var font = ctx.font;
-	ctx.font = "18px helvetica";
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
-	ctx.fillStyle = "#000000";
-	ctx.fillText("A",x+7,y+17);
-	ctx.fillText("V",x+15,y+17);
-	ctx.font = font;
+	ctx.fillStyle = BLUE;
+	ctx.fillRect(x,y,20,20);
+
+    ctx.fillStyle = BLUE
+    ctx.fillRect(x,y,20,20)
+    var font = ctx.font;
+    ctx.font = "18px helvetica";
+    ctx.fillStyle = BLUE
+    ctx.fillRect(x,y,20,20)
+    ctx.fillStyle = "#000000";
+    ctx.fillText("A",x+7,y+17);
+    ctx.fillText("V",x+15,y+17);
+    ctx.font = font;
 	/*
-	ctx.strokeStyle = "#000000";
-	ctx.lineWidth =2
-	ctx.beginPath()
-	ctx.moveTo(x+4,y+20-4)
-	ctx.lineTo(x+8,y+5)
-	ctx.lineTo(x+12,y+20-4)
-	ctx.lineTo(x+16,y+5)
-	ctx.moveTo(x+6,y+20-8)
-	ctx.lineTo(x+10,y+20-8)
-	ctx.stroke()
-	ctx.lineWidth = 1
+	var font = ctx.font;
+	ctx.font = "bold 20px times";
+	ctx.fillStyle = "#000000";
+	ctx.fillText("?",x+10,y+17);
+	ctx.font = font;
 	*/
 	}
 else if(index==TYPE_ASSOC)
@@ -9758,16 +9827,6 @@ else if(index==TYPE_RADVIZ)
 	ctx.fillRect(x+9,y+13,2,2);
 	ctx.fillRect(x+12,y+12,2,2);
 	ctx.fillRect(x+11,y+9,2,2);
-	}
-else if(index==TYPE_BARTLETT)
-	{
-	var font = ctx.font;
-	ctx.font = "18px helvetica";
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
-	ctx.fillStyle = "#000000";
-	ctx.fillText("B",x+10,y+17);
-	ctx.font = font;
 	}
 else if(index==TYPE_REGRES)
 	{
@@ -13499,19 +13558,106 @@ drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
 
 //***************************************************************************
 
-function drawAnovaGraph(ctx,graph)
+function drawTestGraph(ctx,graph)
 {
+
+
 if((graph.ivalue1>=0)&&(graph.ilabel1>=0))
+	switch(graph.test)
+		{
+		case TEST_FISHER: drawFisherGraph(ctx,graph); break;
+		case TEST_BARTLETT: drawBartlettGraph(ctx,graph); break;
+		}
+
+drawTestMenu(ctx,graph);
+
+ctx.textAlign = "center"
+
+var title1 = (graph.ivalue1<0) ? "" : values[graph.ivalue1]
+drawHValue(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,title1)
+
+var title2 = getGraphLabel1(graph)
+drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
+
+}
+
+//***************************************************************************
+
+function drawTestMenu(ctx,graph)
+{
+
+var x = graph.x+graph.w/2;
+var y = graph.y+graph.hbar+30;
+var w = 220;
+
+var selected = graph.test;
+
+var text = THELP[selected]||"";
+
+ctx.fillStyle = "#000000";
+ctx.textAlign = "center";
+ctx.fillText(text,x,y+14);
+
+ctx.strokeStyle = "#000000";
+ctx.strokeRect(x-w/2,y,w,20);
+
+for(var i=0;i<7;i++)
+	ctx.fillRect(x+w/2-18+i,y+5+i,14-2*i,1);
+
+if(faction==SELECT_TEST)
 	{
+	ctx.fillStyle = "#FFFFFF";
+	ctx.fillRect(x-w/2,y+21,w,20*TNUM);
+
+	ctx.fillStyle = "#000000";
+	for(var i=0;i<TNUM;i++)		
+		ctx.fillText(THELP[i],x,y+20+20*i+14);
+
+	ctx.strokeStyle = "#000000";
+	ctx.beginPath();
+	ctx.moveTo(x-w/2,y+20);
+	ctx.lineTo(x-w/2,y+20+20*TNUM);
+	ctx.lineTo(x+w/2,y+20+20*TNUM);
+	ctx.lineTo(x+w/2,y+20);
+	ctx.stroke();
+
+	if(testindex>=0)
+		{
+		ctx.fillStyle = GRAY;
+		ctx.fillRect(x-w/2,y+20+20*testindex,w,20);
+		}
+	}
+
+}
+
+//***************************************************************************
+
+function selectTest(pt,graph)
+{
+var x = graph.x+graph.w/2;
+var y = graph.y+graph.hbar+30;
+var w = 220;
+
+for(var i=0;i<TNUM;i++)
+	if(inRect(pt,x-w/2,y+20+20*i,w,20))
+		{ testindex = i; return; }
+
+testindex = -1;
+}
+
+//***************************************************************************
+
+function drawFisherGraph(ctx,graph)
+{
 	ctx.fillStyle = "#000000";
 	ctx.strokeStyle = "#000000";
 	ctx.textAlign = "left"
 	ctx.lineWidth = 1
 
-	var y = graph.y+60;
+	var y = graph.y+graph.hbar+80;
 
 	ctx.fillText("Source",graph.x+30,y);
-	ctx.fillText("DDL",graph.x+140,y)
+	ctx.fillText("DoF",graph.x+140,y)
 	ctx.fillText("Variance",graph.x+190,y)
 	ctx.fillText("F",graph.x+290,y)
 	ctx.fillText("p-value",graph.x+390,y)
@@ -13549,63 +13695,101 @@ if((graph.ivalue1>=0)&&(graph.ilabel1>=0))
 
 	ctx.fillStyle = "#000000";
 
-	y += 50;
-	ctx.fillText("Group",graph.x+30,y)
-	ctx.fillText("Count",graph.x+190,y)
-	ctx.fillText("Average",graph.x+290,y)
-	ctx.fillText("Variance",graph.x+390,y)
 
-	ctx.fillRect(graph.x+30,y+10,450,2)
-	
-	y += 30
-	for(var x in graph._z.sums)
+	// draw fisher curve
+	ctx.strokeStyle = "#000000";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+
+	// max value along x
+	var max = F;
+	var pmax = pvalue;
+	while(pmax>0.001)
 		{
-		var txt = x
-		if(txt.length>20) txt = txt.substring(0,20)
-		ctx.fillText(txt,graph.x+30,y)
+		max *= 1.1;
+		pmax = Fspin(max,graph._z.ninter,graph._z.nintra);
+		}
+	
+	var dy = 200;
+	var dx = graph.w-40;
+	var x = graph.x+20;	
+	y += 220;
 
-		ctx.fillText(""+graph._z.counts[x],graph.x+190,y)
+	var dmax = 0;
+	for(var i=0;i<=100;i++)
+		{
+		var d = fisherdensity(max*i/100,graph._z.ninter,graph._z.nintra);
+		if(d>dmax) dmax = d;
+		}
 
-		var avg = graph._z.sums[x]/graph._z.counts[x]
-		ctx.fillText(trunc(avg,4),graph.x+290,y)
 
-		var v = (graph._z.sums2[x]-graph._z.sums[x]*graph._z.sums[x]/graph._z.counts[x])/(graph._z.counts[x]-1)
-		ctx.fillText(trunc(v,4),graph.x+390,y)
-		y += 20;
-		}	
-	}
+	for(var i=0;i<=100;i++)
+		{
+		var d = fisherdensity(max*i/100,graph._z.ninter,graph._z.nintra);
+		if(i==0)
+			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+		else
+			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+		}
+	ctx.stroke();
 
-ctx.textAlign = "center"
+	ctx.beginPath();
+	ctx.moveTo(x,y);
+	ctx.lineTo(x+dx,y);
+	ctx.stroke();
 
-var title1 = (graph.ivalue1<0) ? "" : values[graph.ivalue1]
-drawHValue(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,title1)
+	ctx.fillStyle = "#000000";
+	var cv = Finv(0.001,max,0.05,graph._z.ninter,graph._z.nintra);
+	var j = Math.round(cv*100/max);	
 
-var title2 = getGraphLabel1(graph)
-drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
+	ctx.beginPath();
+	for(var i=j;i<=100;i++)
+		{
+		var d = fisherdensity(max*i/100,graph._z.ninter,graph._z.nintra);
+		if(i==0)
+			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+		else
+			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+		}
+	ctx.lineTo(x+dx,y);
+	ctx.lineTo(x+dx*j/100,y);
+	ctx.fill();
 
+	ctx.textAlign = "center";
+	ctx.fillText("F",x+dx*F/max,y+25);	
+	ctx.beginPath();
+	ctx.moveTo(x+dx*F/max,y+2);
+	ctx.lineTo(x+dx*F/max,y+12);
+	ctx.stroke();
+
+	
 }
 
 //***************************************************************************
 
 function drawBartlettGraph(ctx,graph)
 {
-if((graph.ivalue1>=0)&&(graph.ilabel1>=0))
-	{
 	ctx.fillStyle = "#000000";
 	ctx.strokeStyle = "#000000";
 	ctx.textAlign = "left"
 	ctx.lineWidth = 1
 
-	var y = graph.y+40;
+	var y = graph.y+graph.hbar+60;
 	var z;
 
+	ctx.fillText("WARNING : this test is sensitive to departure from normality",
+		graph.x+40,y+=20);
+
+
+	y = graph.y+graph.hbar+100;
+
 	ctx.fillText("Number of groups",graph.x+40,y+=20);
-	ctx.fillText("Degrees of freedom",graph.x+40,y+=20)
-	ctx.fillText("Significance level",graph.x+40,y+=20)
+	ctx.fillText("Degrees of freedom",graph.x+40,y+=20)		
+	ctx.fillText("Significance level",graph.x+40,y+=20);
 	ctx.fillText("Critical value",graph.x+40,y+=20)
 	ctx.fillText("Test statistic",graph.x+40,y+=20);
 
-	y = graph.y+40;
+	y = graph.y+graph.hbar+100;
 
 	ctx.fillText(""+graph._z.ng,graph.x+240,y+=20);
 
@@ -13638,29 +13822,63 @@ if((graph.ivalue1>=0)&&(graph.ilabel1>=0))
 		ctx.fillText("All groups have the same variance",graph.x+40,y+=20);
 		}
 
-	ctx.fillStyle = "#000000";
-	y+=40;
-	ctx.fillText("Group",graph.x+40,y);
-	ctx.fillText("Count",graph.x+240,y);
-	ctx.fillText("Variance",graph.x+300,y);
-	y+=40;
-	for(var g in graph._z.stats)
-		{	
-		ctx.fillText(g,graph.x+40,y);
-		ctx.fillText(graph._z.stats[g].n+"",graph.x+240,y);
-		z = Math.round(graph._z.stats[g].var*10000)/10000;
-		ctx.fillText(z+"",graph.x+300,y);
-		y+=20;
+	// draw chi2 curve
+	ctx.strokeStyle = "#000000";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+
+	var max = Math.max(critchi(0.001,graph._z.ng),graph._z.t);
+	max = max*1.01;
+
+	var dy = 200;
+	var dx = graph.w-40;
+
+	var x = graph.x+20;	
+	y += 220;
+
+	var dmax = 0;
+	for(var i=0;i<=100;i++)
+		{
+		var d = chi2density(max*i/100,graph._z.ng);
+		if(d>dmax) dmax = d;
 		}
-	}
 
-ctx.textAlign = "center"
+	for(var i=0;i<=100;i++)
+		{
+		var d = chi2density(max*i/100,graph._z.ng);
+		if(i==0)
+			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+		else
+			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+		}
+	ctx.stroke();
 
-var title1 = (graph.ivalue1<0) ? "" : values[graph.ivalue1]
-drawHValue(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,title1)
+	ctx.beginPath();
+	ctx.moveTo(x,y);
+	ctx.lineTo(x+dx,y);
+	ctx.stroke();
 
-var title2 = getGraphLabel1(graph)
-drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
+	ctx.fillStyle = "#000000";
+	var j = Math.round(graph._z.cv*100/max);
+	ctx.beginPath();
+	for(var i=j;i<=100;i++)
+		{
+		var d = chi2density(max*i/100,graph._z.ng);
+		if(i==0)
+			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+		else
+			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+		}
+	ctx.lineTo(x+dx,y);
+	ctx.lineTo(x+dx*j/100,y);
+	ctx.fill();
+
+	ctx.textAlign = "center";
+	ctx.fillText("T",x+dx*graph._z.t/max,y+25);	
+	ctx.beginPath();
+	ctx.moveTo(x+dx*graph._z.t/max,y+2);
+	ctx.lineTo(x+dx*graph._z.t/max,y+12);
+	ctx.stroke();
 
 }
 
@@ -13708,7 +13926,7 @@ else if(graph._z.percent<1)
 	ctx.fillStyle = "#FFFFFF";
 	ctx.fillRect(x-w/2,y-h/2,w,h);
 
-	ctx.fillStyle = "#DEF7D6"
+	ctx.fillStyle = BG;
 	//ctx.fillStyle = BLUE;
 	ctx.fillRect(x-w/2,y-h/2,w*graph._z.percent,h);
 
@@ -14433,7 +14651,7 @@ ctx.font = "14px helvetica"
 ctx.textAlign = "center"
 
 // background
-ctx.fillStyle = "#DEF7D6";
+ctx.fillStyle = BG;
 ctx.fillStyle = "#EFF8E7";
 ctx.fillRect(0,0,mywidth,myheight)
 
@@ -15672,6 +15890,73 @@ while(k<=j) { zz=zz*q*k/(k-b); z=z+zz; k=k+2 }
     return z
 }<!--end.f.LJspin-->
 
+
+//***************************************************************************
+
+function Finv(min,max,value,d1,d2)
+{
+for(var i=0;i<20;i++)
+	{
+	var med = (min+max)/2;
+	var x = Fspin(med,d1,d2);
+	if(x>value)
+		min = med;
+	else
+		max = med;
+	}
+
+return med;
+}
+
+//***************************************************************************
+
+function gamma(x)
+{
+if(Math.round(x)==x)
+    {
+    var g = 1;
+    for(var i=2;i<x;i++)
+        g = i*g;
+    return g;
+    }
+else if(Math.round(2*x)==2*x)
+    {
+    var g = Math.sqrt(Math.PI);
+    for(var i=3;i<=2*x;i+=2)
+        g = (i/2-1)*g;
+    return g;
+    }
+else
+    return 0;
+}
+
+//***************************************************************************
+
+function beta(x,y)
+{
+return gamma(x)*gamma(y)/gamma(x+y);
+}
+
+//***************************************************************************
+
+function chi2density(x,k)
+{
+var a = Math.pow(x,k/2-1);
+var b = Math.exp(-x/2);
+var c = Math.pow(2,k/2);
+return a*b/c/gamma(k/2);
+}
+
+//***************************************************************************
+
+function fisherdensity(x,d1,d2)
+{
+var a = Math.pow(d1*x,d1);
+var b = Math.pow(d2,d2);
+var c = Math.pow(d1*x+d2,d1+d2);
+var d = x*beta(d1/2,d2/2);
+return Math.sqrt(a*b/c)/d;
+}
 
 //***************************************************************************
 
