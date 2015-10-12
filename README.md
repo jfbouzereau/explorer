@@ -27,6 +27,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Autocorrelation plot
 * Lag plot
 * General statistics
+* Bartlett's test
 * Principal components
 * K-means
 * K-medoids

@@ -288,6 +288,12 @@ function guess_field_separator(line) {
 	if(line.split("!").length>2) return "!";
 	if(line.split(",").length>2) return ",";
 	if(line.split(":").length>2) return ":";
+
+	if(line.split("\t").length>1) return "\t";
+	if(line.split(";").length>1) return ";";
+	if(line.split("!").length>1) return "!";
+	if(line.split(",").length>1) return ",";
+	if(line.split(":").length>1) return ":";
 	return null;
 }
 

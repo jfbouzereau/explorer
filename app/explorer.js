@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.54";
+var VERSION = "1.55";
 
 /***************************************************************************/
 
@@ -21,7 +21,7 @@ _action("DRAG_SLICE","Create graph from class");
 _action("DRAG_LABEL","");
 _action("SET_LABEL1","Define partition along axis 1");
 _action("DRAG_LABEL1","");
-_action("REMOVE_LABEL1","Remove partition along axis 1");
+_action("REMOVE_LABEL1","Remove partition");
 _action("DRAG_TYPE","Create new graph");
 _action("SET_TYPE","Change graph type");
 _action("DROP_SLICE","Remove class from partition");
@@ -30,9 +30,9 @@ _action("REMOVE_BIN","Put back class into partition");
 _action("RESERVE15","");
 _action("DOCK_GRAPH","Move graph into dock");
 _action("UNDOCK_GRAPH","Remove graph from dock");
-_action("SET_LABEL2","Define partition along axis 2");
+_action("SET_LABEL2","Define partition");
 _action("DRAG_LABEL2","");
-_action("REMOVE_LABEL2","Remove partition along axis 2");
+_action("REMOVE_LABEL2","Remove partition");
 _action("SET_SELECTION","Change selection");
 _action("PASTE_LABEL11","Map axis");
 _action("PASTE_LABEL12","Map axis");
@@ -46,8 +46,8 @@ _action("SET_VALUE1","Define field along axis 1");
 _action("SET_VALUE2","Define field along axis 2");
 _action("DRAG_VALUE1","");
 _action("DRAG_VALUE2","");
-_action("REMOVE_VALUE1","Remove definition along axis 1");
-_action("REMOVE_VALUE2","Remove definition along axis 2");
+_action("REMOVE_VALUE1","Remove definition");
+_action("REMOVE_VALUE2","Remove definition");
 _action("CREATE_LABEL","");
 _action("DRAG_CURSOR","");
 _action("DRAG_CURSORH","Partition into classes of same amplitude");
@@ -171,6 +171,7 @@ var NBTYPE2 = KNUM; 		//  max plot types
 
 _type("TYPE_DISCRI","Discriminant analysis",drawDiscriGraph);
 _type("TYPE_ANOVA","Variance analysis",drawAnovaGraph);
+_type("TYPE_BARTLETT","Bartlett's test",drawBartlettGraph);
 _type("TYPE_REGRES","Linear regression",drawRegresGraph);
 _type("TYPE_BOX","Box plot",drawBoxGraph);
 _type("TYPE_PARA","Parallel coordinates",drawParaGraph);
@@ -1224,19 +1225,7 @@ return inRect(pt,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20)
 
 function inGraphLabel2(pt,graph)
 {
-if(graph.type==TYPE_ANOVA)
-	return inRect(pt,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100)
-if(graph.type==TYPE_DISCRI)
-	return inRect(pt,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100)
-if(graph.type==TYPE_REPART)
-	return inRect(pt,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100)
-if(graph.type==TYPE_BOX)
-	return inRect(pt,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100)
-if(graph.type==TYPE_PARA)
-	return inRect(pt,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100)
-if(graph.type==TYPE_ACP)
-	return inRect(pt,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100)
-if(graph.type==TYPE_RADVIZ)
+if(hasLabel2(graph))
 	return inRect(pt,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100)
 
 if(graph.type>=NBTYPE1) return false
@@ -1289,6 +1278,20 @@ if(graph.type==TYPE_REGRES)
 	return inRect(pt,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100)
 
 return inRect(pt,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100)
+}
+
+//***************************************************************************
+
+function hasLabel2(graph)
+{
+if(graph.type==TYPE_ANOVA) return true;
+if(graph.type==TYPE_DISCRI) return true;
+if(graph.type==TYPE_REPART) return true;
+if(graph.type==TYPE_BOX) return true;
+if(graph.type==TYPE_PARA) return true;
+if(graph.type==TYPE_ACP) return true;
+if(graph.type==TYPE_RADVIZ) return true;
+if(graph.type==TYPE_BARTLETT) return true;
 }
 
 //***************************************************************************
@@ -2510,6 +2513,7 @@ switch(graph.type)
 	case TYPE_PARA: computeParaData(graph); break;
 	case TYPE_BOX: computeBoxData(graph); break;
 	case TYPE_ANOVA: computeAnovaData(graph); break;
+	case TYPE_BARTLETT: computeBartlettData(graph); break;
 	case TYPE_ACP: computeAcpData(graph); break;
 	case TYPE_CORR: computeCorrData(graph); break;
 	case TYPE_AUTOCORR: computeAutocorrData(graph); break;
@@ -2837,6 +2841,59 @@ graph._z.max = max;
 
 computeGraphData1(graph);
 
+}
+
+//***************************************************************************
+
+function computeBartlettData(graph)
+{
+if(graph.ilabel1<0) return;
+if(graph.ivalue1<0) return;
+
+var stats = {};
+var ng = 0;
+var nr = 0;
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue
+
+	nr++;
+	
+	var x = vrecords[i][graph.ivalue1];
+	var g = lrecords[i][graph.ilabel1];
+
+	if(!(g in stats))
+		{
+		stats[g] = {sum:0,sum2:0,n:0};
+		ng++;
+		}
+	
+	stats[g].sum += x;
+	stats[g].sum2 += x*x;
+	stats[g].n ++;
+	}
+
+for(var g in stats)
+	stats[g].var = stats[g].sum2/stats[g].n - (stats[g].sum)*(stats[g].sum)/stats[g].n/stats[g].n;
+
+
+var sp = 0;
+var sa = 0;
+var sb = 0;
+for(var g in stats)
+	{
+	sp += (stats[g].n-1)*stats[g].var/(nr-ng);
+	sa += (stats[g].n-1)*Math.log(stats[g].var);
+	sb += (1/(stats[g].n-1));
+	}
+
+var t = ((nr-ng)*Math.log(sp)-sa)/(1+(1/(3*(ng-1)))*(sb-1/(nr-ng)));
+
+graph._z.stats = stats;
+graph._z.t = t;
+graph._z.ng = ng;
+graph._z.cv = critchi(0.05,ng-1);
 }
 
 //***************************************************************************
@@ -5836,7 +5893,7 @@ else if(action==SET_LABEL1)
 else if(action==SET_LABEL2)
 	{	
 	graph = graphs[graphindex]
-	if((graph.type==TYPE_ANOVA)||(graph.type==TYPE_DISCRI)||(graph.type==TYPE_REPART)||(graph.type==TYPE_BOX)||(graph.type==TYPE_PARA)||(graph.type==TYPE_ACP)||(graph.type==TYPE_RADVIZ))
+	if(hasLabel2(graph))
 		{	
 		graph.ilabel1 = labelindex;
 		graph.use1 = null;
@@ -9702,6 +9759,16 @@ else if(index==TYPE_RADVIZ)
 	ctx.fillRect(x+12,y+12,2,2);
 	ctx.fillRect(x+11,y+9,2,2);
 	}
+else if(index==TYPE_BARTLETT)
+	{
+	var font = ctx.font;
+	ctx.font = "18px helvetica";
+	ctx.fillStyle = BLUE
+	ctx.fillRect(x,y,20,20)
+	ctx.fillStyle = "#000000";
+	ctx.fillText("B",x+10,y+17);
+	ctx.font = font;
+	}
 else if(index==TYPE_REGRES)
 	{
 	var font = ctx.font;
@@ -13506,6 +13573,85 @@ if((graph.ivalue1>=0)&&(graph.ilabel1>=0))
 		ctx.fillText(trunc(v,4),graph.x+390,y)
 		y += 20;
 		}	
+	}
+
+ctx.textAlign = "center"
+
+var title1 = (graph.ivalue1<0) ? "" : values[graph.ivalue1]
+drawHValue(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,title1)
+
+var title2 = getGraphLabel1(graph)
+drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
+
+}
+
+//***************************************************************************
+
+function drawBartlettGraph(ctx,graph)
+{
+if((graph.ivalue1>=0)&&(graph.ilabel1>=0))
+	{
+	ctx.fillStyle = "#000000";
+	ctx.strokeStyle = "#000000";
+	ctx.textAlign = "left"
+	ctx.lineWidth = 1
+
+	var y = graph.y+40;
+	var z;
+
+	ctx.fillText("Number of groups",graph.x+40,y+=20);
+	ctx.fillText("Degrees of freedom",graph.x+40,y+=20)
+	ctx.fillText("Significance level",graph.x+40,y+=20)
+	ctx.fillText("Critical value",graph.x+40,y+=20)
+	ctx.fillText("Test statistic",graph.x+40,y+=20);
+
+	y = graph.y+40;
+
+	ctx.fillText(""+graph._z.ng,graph.x+240,y+=20);
+
+	ctx.fillText(""+(graph._z.ng-1),graph.x+240,y+=20);
+
+	ctx.fillText("0.05",graph.x+240,y+=20);
+
+	z = Math.round(graph._z.cv*10000)/10000;
+	ctx.fillText(""+z,graph.x+240,y+=20);
+
+	z = Math.round(graph._z.t*10000)/10000;
+	ctx.fillText(""+z,graph.x+240,y+=20);
+
+	y += 20;
+	if(isNaN(graph._z.t))
+		{
+		y += 40;
+		}
+	else if(graph._z.t>graph._z.cv)
+		{
+		ctx.fillStyle= "#FF0000";	
+		ctx.fillText("T > critical value :",graph.x+40,y+=20);
+		ctx.fillText("At least one variance is different from the others",
+			graph.x+40,y+=20);
+		}
+	else	
+		{
+		ctx.fillStyle = "#008800";
+		ctx.fillText("T < critical value :",graph.x+40,y+=20);
+		ctx.fillText("All groups have the same variance",graph.x+40,y+=20);
+		}
+
+	ctx.fillStyle = "#000000";
+	y+=40;
+	ctx.fillText("Group",graph.x+40,y);
+	ctx.fillText("Count",graph.x+240,y);
+	ctx.fillText("Variance",graph.x+300,y);
+	y+=40;
+	for(var g in graph._z.stats)
+		{	
+		ctx.fillText(g,graph.x+40,y);
+		ctx.fillText(graph._z.stats[g].n+"",graph.x+240,y);
+		z = Math.round(graph._z.stats[g].var*10000)/10000;
+		ctx.fillText(z+"",graph.x+300,y);
+		y+=20;
+		}
 	}
 
 ctx.textAlign = "center"
