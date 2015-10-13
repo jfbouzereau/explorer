@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.58";
+var VERSION = "1.59";
 
 /***************************************************************************/
 
@@ -116,7 +116,8 @@ _action("SHOW_LABEL","Show values of ");
 _action("SHOW_VALUE","Show values of ");
 _action("DRAG_DUSTBIN","Remove ...");
 _action("SELECT_TEST","Select test");
-
+_action("SELECT_TYPE","Select graph type");
+_action("SELECT_LAW","Select distribution");
 
 // actions that gray the graph
 var GACTIONS = {}
@@ -156,6 +157,7 @@ var NBTYPE1 = KNUM;			// max graph types
 _type("TYPE_MOMENTS","Statistics",drawMomentGraph);
 _type("TYPE_HISTO","Histogram",drawHistoGraph);
 _type("TYPE_DISTRIB","Distribution curve",drawDistribGraph);
+_type("TYPE_PROBA","Probability plot",drawProbaGraph);
 _type("TYPE_SCATTER","Scatter plot",drawScatterGraph);
 _type("TYPE_LAG","Lag plot",drawLagPlot);
 _type("TYPE_CORR","Correlations",drawCorrGraph);
@@ -184,7 +186,6 @@ var TYPE_BAND = 99
 /***************************************************************************/
 
 var TNAME = {};
-var TTEST = {};
 var THELP = {};
 
 var TNUM = 0;
@@ -197,13 +198,27 @@ _test("TEST_BROWN","Brown-Forsythe test");
 
 /***************************************************************************/
 
+var LNAME = {};
+var LHELP = {};
+
+var LNUM = 0;
+
+_law("LAW_UNIFORM","Uniform");
+_law("LAW_NORMAL","Normal");
+_law("LAW_LOGNORMAL","Log-Normal");
+_law("LAW_EXPONENTIAL","Exponential");
+
+/***************************************************************************/
+
 var NIL = "\r"
 
 var BG = "#DEF7D6";
 var PINK = "#FFEEEE";
 var BLUE = "#EEEEFF";
 var GRAY = "rgba(64,64,64,0.5)";
-var YELLOW = "#FFFFDA"
+var YELLOW = "#FFFFDA";
+var GREEN = "#33AA33";
+
 var TINTS = []
 for(var k=0;k<25;k++)
 	{
@@ -303,11 +318,22 @@ function _test(name,help)
 window[name] = TNUM;
 
 TNAME[TNUM] = name;
-TTEST[name] = TNUM;
 THELP[TNUM] = help;
 
 TNUM++;
 
+}
+
+//***************************************************************************
+
+function _law(name,help)
+{
+window[name] = LNUM;
+
+LNAME[LNUM] = name;
+LHELP[LNUM] = help;
+
+LNUM++;
 }
 
 //***************************************************************************
@@ -357,6 +383,7 @@ this.omit = {};
 this.type = type;
 this.option = 0;
 this.test = -1;	
+this.law = -1;
 
 this._count = {};
 
@@ -781,6 +808,7 @@ var destvalueindex = -1
 var typeindex = -1
 var valueindex = -1
 var titleindex = -1
+var lawindex = -1;
 
 var animtimer = null
 
@@ -1359,6 +1387,17 @@ for(var k=0;k<=n;k++)
 		}
 
 return false
+}
+
+//***************************************************************************
+
+function inLawMenu(pt,graph)
+{
+if(graph.type!=TYPE_PROBA) return false;
+
+var x = graph.x+graph.w/2-220/2;
+var y = graph.y+graph.hbar+30;
+return inRect(pt,x,y,220,20);
 }
 
 //***************************************************************************
@@ -2551,6 +2590,7 @@ switch(graph.type)
 	case TYPE_MOMENTS: computeMomentData(graph); break;
 	case TYPE_HISTO: computeHistoData(graph); break;
 	case TYPE_DISCRI: computeDiscriData(graph); break;	
+	case TYPE_PROBA: computeProbaData(graph); break;
 	case TYPE_PARA: computeParaData(graph); break;
 	case TYPE_BOX: computeBoxData(graph); break;
 	case TYPE_TEST: computeTestData(graph); break;
@@ -4053,6 +4093,137 @@ for(var i=0;i<lrecords.length;i++)
 		graph._z.subhisto[k][key1] = 1;
 	else
 		graph._z.subhisto[k][key1]++;
+	}
+
+}
+
+//***************************************************************************
+
+function computeProbaData(graph)
+{
+if(graph.ivalue1<0) return;
+if(graph.law<0) graph.law = LAW_NORMAL;
+
+graph._z.y = [];
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	graph._z.y.push(vrecords[i][graph.ivalue1]);
+	}
+
+graph._z.y.sort( function(a,b) { return a-b });
+
+var n = graph._z.y.length;
+
+// uniform order statistic medians
+graph._z.m = new Array(n);
+for(var i=1;i<=n;i++)
+	{
+	if(i==1)
+		graph._z.m[i-1] = 1-Math.pow(0.5,1/n);			
+	else if(i==n)		
+		graph._z.m[i-1] = Math.pow(0.5,1/n);
+	else
+		graph._z.m[i-1] = (i-0.3175)/(n+0.365);
+	}
+
+var lcdf;
+var lmin;
+var lmax;
+switch(graph.law)
+	{
+	case LAW_UNIFORM:	
+		lmin = 0;
+		lmax = 1;
+		lcdf = function(x) { return x; }
+		break;
+
+	case LAW_NORMAL:
+		lmin = -3;
+		lmax = 3;
+		lcdf = function(x) { 
+			var y = Math.abs(x);
+			var d1 = 0.0498673470*y;
+			var d2 = 0.0211410061*y*y;
+			var d3 = 0.0032776263*y*y*y;
+			var d4 = 0.0000380036*y*y*y*y;
+			var d5 = 0.0000488906*y*y*y*y*y;
+			var d6 = 0.0000053830*y*y*y*y*y*y;
+			if(x<0) 
+				return 0.5*Math.pow(1+d1+d2+d3+d4+d5+d6,-16);
+			else
+				return 1-0.5*Math.pow(1+d1+d2+d3+d4+d5+d6,-16);
+		}
+		break;
+
+	case LAW_LOGNORMAL:
+		lmin = 0;		
+		lmax = 10;
+		lcdf = function(x) {
+			var y = Math.log(x);
+			var d1 = 0.0498673470*y;
+			var d2 = 0.0211410061*y*y;
+			var d3 = 0.0032776263*y*y*y;
+			var d4 = 0.0000380036*y*y*y*y;
+			var d5 = 0.0000488906*y*y*y*y*y;
+			var d6 = 0.0000053830*y*y*y*y*y*y;
+			return 1-0.5*Math.pow(1+d1+d2+d3+d4+d5+d6,-16);
+		}
+		break;
+
+	case LAW_EXPONENTIAL:
+		lmin = 0;
+		lmax = 6;
+		lcdf = function(x) {
+			return 1-Math.exp(-x);
+		}
+		break;
+	}
+
+
+graph._z.x = new Array(n);
+for(var i=0;i<n;i++)
+	graph._z.x[i] = inv(graph._z.m[i]);
+
+
+var sx = 0;
+var sy = 0;
+var sxy = 0;
+var sxx = 0;
+var syy = 0;
+for(var i=0;i<n;i++)
+	{
+	sx += graph._z.x[i];
+	sy += graph._z.y[i];
+	sxy += graph._z.x[i]*graph._z.y[i];
+	sxx += graph._z.x[i]*graph._z.x[i];
+	syy += graph._z.y[i]*graph._z.y[i];
+	}
+
+var a = sxy-sx*sy/n;
+var b = sxx-sx*sx/n;
+var c = syy-sy*sy/n;
+
+
+graph._z.slope = a/b;
+graph._z.intercept = sy/n - sx*graph._z.slope/n;
+graph._z.corr = a/Math.sqrt(b*c);
+
+
+	function inv(x) {
+		var min = lmin;		
+		var max = lmax;
+		for(var i=0;i<20;i++)
+			{		
+			var med = (min+max)/2;
+			var p = lcdf(med);
+			if(p<x)
+				min = med;
+			else
+				max = med;
+			}
+		return med;
 	}
 
 }
@@ -5694,6 +5865,7 @@ typeindex = -1
 titleindex = -1
 stickerindex = -1
 testindex = -1;
+lawindex = -1;
 
 var index = -1
 
@@ -5908,6 +6080,11 @@ if(i>=0)
 		faction = SELECT_TEST;
 		graphindex = i;
 		}
+	else if(inLawMenu(ptclick,graph))
+		{
+		faction = SELECT_LAW;
+		graphindex = i;
+		}
 	else if((index=inHistoCursor(ptclick,graph))>=0)
 		{
 		faction = DRAG_NSLOT;
@@ -5977,14 +6154,16 @@ if(i>=0)
 if(faction==0)
 	if(inRect(ptclick,mywidth-120,0,100,myheight))
 	{
-	faction = action = DRAG_SIDEBAR	
-	ptstart = ptclick
+	faction = action = DRAG_SIDEBAR	;
+	ptstart = ptclick;
 	return
 	}
 
-// check if undocking graph
 if(faction==0)
-	faction = SCROLL_DESKTOP
+	if(event.ctrlKey)
+		faction = SELECT_TYPE;
+	else
+		faction = SCROLL_DESKTOP;
 
 if(movetop)
 	{
@@ -6706,6 +6885,21 @@ else if(action==SELECT_TEST)
 		graph.test = testindex;
 		computeTestData(graph);
 		}	
+	}
+else if(action==SELECT_LAW)
+	{
+	if((lawindex>=0)&&(graphindex>=0))
+		{
+		graph = graphs[graphindex];
+		graph.law = lawindex;
+		computeProbaData(graph);
+		}
+	}
+else if((action==SELECT_TYPE)&&(typeindex>=0))
+	{
+	graph = new Graph(ptclick.x,ptclick.y,true,[],-1,0,typeindex)
+	graphs.push(graph)
+	computeGraphData(graph)
 	}
 
 
@@ -8859,6 +9053,18 @@ else if(faction==SELECT_TEST)
 	var graph = graphs[graphindex];
 	selectTest(ptmove,graph);
 	}
+else if(faction==SELECT_LAW)
+	{
+	var graph = graphs[graphindex];
+	selectLaw(ptmove,graph);
+	}
+else if(faction==SELECT_TYPE)
+	{
+	if(inRect(ptmove,ptclick.x,ptclick.y,200,14*KNUM))
+		typeindex = Math.floor((ptmove.y-ptclick.y)/14);
+	else
+		typeindex = -1;
+	}
 else if(faction==DRAG_NSLOT)
 	{
 	var graph = graphs[graphindex];
@@ -9505,9 +9711,18 @@ else if(index==TYPE_HISTO)
 	drawRect(ctx,x+10,y+2,4,20-2)
 	drawRect(ctx,x+14,y+10,4,20-10)
 	}
+else if(index==TYPE_PROBA)
+	{		
+	ctx.fillStyle = BLUE;
+	ctx.fillRect(x,y,20,20)
+
+	ctx.fillStyle = "#000000";
+	for(var i=2;i<=18;i++)
+		ctx.fillRect(x+i,y+20-i,1,1);
+	}
 else if(index==TYPE_DISTRIB)
 	{
-	ctx.fillStyle = BLUE
+	ctx.fillStyle = BLUE;
 	ctx.fillRect(x,y,20,20)
 
 	ctx.strokeStyle = "#000000"
@@ -12389,7 +12604,7 @@ if(graph.ivalue1>=0)
 
 	// draw normal curve
 	var scale = area*(xmax-xmin)/(x2-x1);
-	ctx.strokeStyle = "#33AA33";
+	ctx.strokeStyle = GREEN;
 	ctx.beginPath();
 	for(var i=0;i<=100;i++)
 		{
@@ -12436,6 +12651,87 @@ drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
 		var b = s*Math.sqrt(2*Math.PI);
 		return a/b;
 	}
+
+}
+
+//***************************************************************************
+
+function drawProbaGraph(ctx,graph)
+{
+
+
+if(graph.ivalue1>=0)
+	{
+	var x1 = graph.x+30;
+	var x2 = graph.x+graph.w-20;
+	var y1 = graph.y+graph.hbar+60;
+	var y2 = graph.y+graph.h-40;
+	var dx = x2-x1;
+	var dy = y2-y1;
+
+	var n = graph._z.x.length;
+	var xdif = graph._z.x[n-1] - graph._z.x[0];
+	var xmin = graph._z.x[0] - xdif*0.05;
+	var xmax = graph._z.x[n-1] + xdif*0.05;
+
+	var ydif = graph._z.y[n-1] - graph._z.y[0];
+	var ymin = graph._z.y[0] - ydif*0.05;
+	var ymax = graph._z.y[n-1] +ydif*0.05;
+
+	var x,y,xx,yy;
+
+	// draw regression line
+	ctx.save();
+	ctx.beginPath()
+	ctx.rect(x1,y1,x2-x1,y2-y1);
+	ctx.clip()
+	ctx.strokeStyle = GREEN;
+	xx = xmin;
+	yy = xx*graph._z.slope + graph._z.intercept;
+	x = x1;
+	y = Math.round(y2-(y2-y1)*(yy-ymin)/(ymax-ymin));
+	ctx.moveTo(x,y);
+	xx = xmax;
+	yy = xx*graph._z.slope + graph._z.intercept;
+	x = x2;
+	y = Math.round(y2-(y2-y1)*(yy-ymin)/(ymax-ymin));
+	ctx.lineTo(x,y);
+	ctx.stroke();
+	ctx.restore();
+
+	// draw points
+	ctx.fillStyle = "#000000";
+	for(var i=0;i<n;i++)
+		{
+		x = Math.round(x1 + (x2-x1)*(graph._z.x[i]-xmin)/(xmax-xmin));
+		y = Math.round(y2 - (y2-y1)*(graph._z.y[i]-ymin)/(ymax-ymin));
+		ctx.fillRect(x-2,y-2,4,4);
+		}
+
+	ctx.strokeStyle = "#000000";
+	ctx.strokeRect(x1,y1,dx,dy);
+	
+	ctx.fillStyle = "#000000";
+	ctx.textAlign = "center";
+	ctx.fillText("Theoretical",x1+(x2-x1)/2,y2+15);
+
+	var corr = Math.round(graph._z.corr*10000)/10000;
+	var intercept = Math.round(graph._z.intercept*10000)/10000;
+	var slope = Math.round(graph._z.slope*10000)/10000;
+	var t = "Corr="+corr+"  Intercept="+intercept+"  Slope="+slope;
+	ctx.fillText(t,x1+(x2-x1)/2,y2+35);
+	
+	ctx.save();
+	ctx.translate(x1-10,y1+(y2-y1)/2);
+	ctx.rotate(-Math.PI/2);
+	ctx.fillText("Data",0,0);
+	ctx.restore();
+	}
+
+drawLawMenu(ctx,graph);
+
+var title1 = (graph.ivalue1<0) ? "" : values[graph.ivalue1]
+drawHValue(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,title1)
 
 }
 
@@ -12501,7 +12797,7 @@ if((graph.ivalue1>=0)&&(graph.ivalue2>=0))
 	var yscale = (graph.h-graph.hbar-10)/(ymax-ymin)
 
 	// draw regression line
-	ctx.strokeStyle = "#008800";
+	ctx.strokeStyle = GREEN;
 	ctx.lineWidth = 1
 	ctx.beginPath()
 	var xx = graph._z.min;
@@ -13658,6 +13954,55 @@ drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
 
 //***************************************************************************
 
+function drawLawMenu(ctx,graph)
+{
+
+var x = graph.x+graph.w/2;
+var y = graph.y+graph.hbar+30;
+var w = 220;
+
+var selected = graph.law;
+
+var text = LHELP[selected]||"";
+
+ctx.fillStyle = "#000000";
+ctx.textAlign = "center";
+ctx.fillText(text,x,y+14);
+
+ctx.strokeStyle = "#000000";
+ctx.strokeRect(x-w/2,y,w,20);
+
+for(var i=0;i<7;i++)
+	ctx.fillRect(x+w/2-18+i,y+5+i,14-2*i,1);
+
+if((faction==SELECT_LAW)&&(graphs[graphindex]==graph))
+	{
+	ctx.fillStyle = "#FFFFFF";
+	ctx.fillRect(x-w/2,y+21,w,20*LNUM);
+
+	ctx.fillStyle = "#000000";
+	for(var i=0;i<LNUM;i++)		
+		ctx.fillText(LHELP[i],x,y+20+20*i+14);
+
+	ctx.strokeStyle = "#000000";
+	ctx.beginPath();
+	ctx.moveTo(x-w/2,y+20);
+	ctx.lineTo(x-w/2,y+20+20*LNUM);
+	ctx.lineTo(x+w/2,y+20+20*LNUM);
+	ctx.lineTo(x+w/2,y+20);
+	ctx.stroke();
+
+	if(lawindex>=0)
+		{
+		ctx.fillStyle = GRAY;
+		ctx.fillRect(x-w/2,y+20+20*lawindex,w,20);
+		}
+	}
+
+}
+
+//***************************************************************************
+
 function drawTestMenu(ctx,graph)
 {
 
@@ -13703,6 +14048,21 @@ if((faction==SELECT_TEST)&&(graphs[graphindex]==graph))
 		}
 	}
 
+}
+
+//***************************************************************************
+
+function selectLaw(pt,graph)
+{
+var x = graph.x+graph.w/2;
+var y = graph.y+graph.hbar+30;
+var w = 220;
+
+for(var i=0;i<LNUM;i++)
+	if(inRect(pt,x-w/2,y+20+20*i,w,20))
+		{ lawindex = i; return; }
+
+lawindex = -1;
 }
 
 //***************************************************************************
@@ -15336,6 +15696,10 @@ else if(action==ASSIGN_STICKER)
 	ctx.fillRect(x-sticker.w/2,y-sticker.h/2,sticker.w,sticker.h)
 	}
 
+// type menu if needed
+if(faction==SELECT_TYPE)
+	drawTypeMenu(ctx);
+
 // message
 ctx.fillStyle = "#FFFFFF"
 ctx.strokeStyle = "#000000"
@@ -15368,6 +15732,36 @@ else
 catch(e) {
 	alert("draw error "+e)
 	}
+}
+
+//***************************************************************************
+
+function drawTypeMenu(ctx)
+{
+var font = ctx.font;
+ctx.font = "12px helvetica";
+
+var x = ptclick.x;
+var y = ptclick.y;
+ctx.textAlign="center";
+
+for(var i=0;i<KNUM;i++)
+	{
+	ctx.fillStyle = i < NBTYPE1 ? PINK : BLUE;
+	ctx.fillRect(x,y+i*14,200,14);
+	ctx.fillStyle = "#000000";
+	ctx.fillText(GHELP[i],x+100,y+i*14+12);
+	}
+
+if(typeindex>=0)
+	{
+	ctx.fillStyle = GRAY;
+	ctx.fillRect(x,y+typeindex*14,200,14);
+	}
+
+ctx.strokeStyle = "#000000";
+ctx.strokeRect(x,y,200,14*KNUM);
+
 }
 
 //***************************************************************************
