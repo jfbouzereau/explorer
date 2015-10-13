@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.57";
+var VERSION = "1.58";
 
 /***************************************************************************/
 
@@ -154,7 +154,7 @@ _type("TYPE_ENTROPY","Entropy",drawEntropyGraph);
 var NBTYPE1 = KNUM;			// max graph types
 
 _type("TYPE_MOMENTS","Statistics",drawMomentGraph);
-_type("TYPE_REPART","Repartition",drawRepartGraph);
+_type("TYPE_HISTO","Histogram",drawHistoGraph);
 _type("TYPE_DISTRIB","Distribution curve",drawDistribGraph);
 _type("TYPE_SCATTER","Scatter plot",drawScatterGraph);
 _type("TYPE_LAG","Lag plot",drawLagPlot);
@@ -1076,7 +1076,7 @@ else if((graph.type==TYPE_KMEANS)||(graph.type==TYPE_KMEDOIDS))
 	if(graph.ivalues.length>0)
 		return inRect(pt,graph.x+245,graph.y+graph.hbar+5,30,30) ? 1 : -1
 	}
-else if(graph.type==TYPE_REPART)
+else if(graph.type==TYPE_HISTO)
 	{
 	return inRect(pt,graph.x+graph.w-20,graph.y+graph.h-70,20,20)? 1: -1;
 	}
@@ -1317,7 +1317,7 @@ function hasLabel2(graph)
 {
 if(graph.type==TYPE_TEST) return true;
 if(graph.type==TYPE_DISCRI) return true;
-if(graph.type==TYPE_REPART) return true;
+if(graph.type==TYPE_HISTO) return true;
 if(graph.type==TYPE_BOX) return true;
 if(graph.type==TYPE_PARA) return true;
 if(graph.type==TYPE_ACP) return true;
@@ -1374,9 +1374,9 @@ return inRect(pt,x,y,220,20);
 
 //***************************************************************************
 
-function inRepartCursor(pt,graph)
+function inHistoCursor(pt,graph)
 {
-if(graph.type!=TYPE_REPART) return -1;
+if(graph.type!=TYPE_HISTO) return -1;
 if(graph.ivalue1<0) return -1;
 
 var x1 = graph.x +20
@@ -2435,7 +2435,7 @@ graph.contour = null
 
 if(graph.type<NBTYPE1)
 	graph.ivalue1 = graph.ivalue2 = -1
-else  if((graph.type<NBTYPE2)&&(graph.type!=TYPE_SCATTER)&&(graph.type!=TYPE_REPART)&&(graph.type!=TYPE_ACP)&&(graph.type!=TYPE_RADVIZ))
+else  if((graph.type<NBTYPE2)&&(graph.type!=TYPE_SCATTER)&&(graph.type!=TYPE_HISTO)&&(graph.type!=TYPE_ACP)&&(graph.type!=TYPE_RADVIZ))
 	graph.ilabel1 = graph.ilabel2 = -1
 
 // pie chart has only one axis
@@ -2549,7 +2549,7 @@ switch(graph.type)
 	case TYPE_DISTRIB: computeDistribData(graph); break;
 	case TYPE_SCATTER: computeScatterData(graph); break;
 	case TYPE_MOMENTS: computeMomentData(graph); break;
-	case TYPE_REPART: computeRepartData(graph); break;
+	case TYPE_HISTO: computeHistoData(graph); break;
 	case TYPE_DISCRI: computeDiscriData(graph); break;	
 	case TYPE_PARA: computeParaData(graph); break;
 	case TYPE_BOX: computeBoxData(graph); break;
@@ -4015,14 +4015,46 @@ if(graph.ilabel1>=0)
 
 //***************************************************************************
 
-function computeRepartData(graph)
+function computeHistoData(graph)
 {
 if(graph.ivalue1<0) return;
 
 computeMomentData(graph)
 
+if(!graph.nslot)
+	graph.nslot = 10;
+
+graph._z.histo = new Array(graph.nslot);
+for(var i=0;i<graph.nslot;i++)
+	graph._z.histo[i] = 0;
+
 if(graph.ilabel1>=0)
-	computeGraphData1(graph)
+	{
+	computeGraphData1(graph);
+
+	graph._z.subhisto = new Array(graph.nslot);
+	for(var i=0;i<graph.nslot;i++)
+		graph._z.subhisto[i] = {};
+	}
+
+var xslot = (graph._z.xmax - graph._z.xmin)/(graph.nslot-1);
+var xmin = graph._z.xmin - xslot/2;
+
+for(var i=0;i<lrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue
+	var k = Math.floor((vrecords[i][graph.ivalue1]-xmin)/xslot);
+	graph._z.histo[k]++;
+
+	if(graph.ilabel1<0) continue;
+
+	var key1 = lrecords[i][graph.ilabel1];
+	if(!(key1 in graph._z.subhisto[k]))
+		graph._z.subhisto[k][key1] = 1;
+	else
+		graph._z.subhisto[k][key1]++;
+	}
+
 }
 
 //***************************************************************************
@@ -4083,6 +4115,7 @@ graph._z.stats.momentc3 = m3/n;
 graph._z.stats.momentc4 = m4/n;
 
 var stdev = Math.sqrt(graph._z.stats.momentc2);
+graph._z.stats.stdev = stdev;
 graph._z.stats.skewness = graph._z.stats.momentc3/(stdev*stdev*stdev);
 graph._z.stats.kurtosis = graph._z.stats.momentc4/(stdev*stdev*stdev*stdev);
 
@@ -5346,7 +5379,7 @@ labels.push("CLUST_"+(labels.length+1))
 
 //***************************************************************************
 
-function createLabelFromRepart(graph)
+function createLabelFromHisto(graph)
 {
 var i1 = graph.ivalue1 
 if(i1<0) return
@@ -5875,7 +5908,7 @@ if(i>=0)
 		faction = SELECT_TEST;
 		graphindex = i;
 		}
-	else if((index=inRepartCursor(ptclick,graph))>=0)
+	else if((index=inHistoCursor(ptclick,graph))>=0)
 		{
 		faction = DRAG_NSLOT;
 		graphindex = i;	
@@ -6295,7 +6328,7 @@ else if(action==REMOVE_LABEL1)
 else if(action==REMOVE_LABEL2)
 	{
 	graph = graphs[graphindex]
-	if((graph.type==TYPE_DISCRI)||(graph.type==TYPE_REPART)||
+	if((graph.type==TYPE_DISCRI)||(graph.type==TYPE_HISTO)||
 		(graph.type==TYPE_BOX)||(graph.type==TYPE_PARA)||(graph.type==TYPE_ACP))
 		{
 		graph.ilabel1 = -1
@@ -6553,8 +6586,8 @@ else if(action==CREATE_LABEL)
 	var graph = graphs[graphindex];
 	if(graph.type==TYPE_DISTRIB)
 		createLabelFromDistrib(graph);
-	else if(graph.type==TYPE_REPART)
-		createLabelFromRepart(graph);
+	else if(graph.type==TYPE_HISTO)
+		createLabelFromHisto(graph);
 	else if(graph.type==TYPE_DENDRO)
 		createLabelFromDendro(graph);
 	}
@@ -7465,7 +7498,7 @@ else if(overTernaryPlot(ptmove,graphs[i]))
 	return;
 else if(overDistribGraph(ptmove,graphs[i]))
 	return;
-else if(overRepartGraph(ptmove,graphs[i]))
+else if(overHistoGraph(ptmove,graphs[i]))
 	return;
 else if(overBoxGraph(ptmove,graphs[i]))
 	return;
@@ -7923,41 +7956,40 @@ else if(x.type==2)
 
 //***************************************************************************
 
-function overRepartGraph(ptmove,graph)
+function overHistoGraph(ptmove,graph)
 {
-if(graph.type!=TYPE_REPART) return false;
+if(graph.type!=TYPE_HISTO) return false;
 if(graph.ivalue1<0) return false;
+
 
 var x1 = graph.x+20
 var x2 = graph.x + graph.w - 20
 var y1 = graph.y + graph.h - 60
 var y2 = graph.y + 45
 
+var xslot = (graph._z.xmax - graph._z.xmin)/(graph.nslot-1);
+var xmin = graph._z.xmin - xslot/2;
+var xmax = graph._z.xmax + xslot/2;
+
+var dx = (x2-x1)/graph.nslot;
+
+var total = 0;
+var hmax = 0;
+for(var i=0;i<graph._z.histo.length;i++)
+	{
+	total += graph._z.histo[i]
+	if(graph._z.histo[i]>hmax)
+		hmax = graph._z.histo[i];
+	}
 
 if(graph.ilabel1<0)
 	{
-	var xslot = (graph._z.xmax - graph._z.xmin)/graph.nslot;
-	var xmin = graph._z.xmin;
-	var xmax = graph._z.xmax;
-
-	var ymax = 0;
-	var total = 0
-	for(var i=0;i<graph._z.histo.length;i++)
-		{
-		total += graph._z.histo[i]
-		if(graph._z.histo[i]>ymax)
-			ymax = graph._z.histo[i];
-		}
-	
-	var x = (x2-x1)/graph.nslot;
 
 	for(var i=0;i<graph._z.histo.length;i++)
 		{
 		if(graph._z.histo[i]==0) continue;
 
-		var y = (y1-y2)*graph._z.histo[i]/ymax;
-
-		if(inRect(ptmove,x1+i*x,y1-y,x,y))
+		if(inRect(ptmove,x1+i*dx,y2,dx,graph.h-20))
 			{
 			var xa = xmin + i*(xmax-xmin)/graph._z.histo.length
 			var xb = xmin + (i+1)*(xmax-xmin)/graph._z.histo.length
@@ -7972,39 +8004,25 @@ else
 	{
 	// with label
 
-	var xslot = (graph._z.xmax - graph._z.xmin)/graph.nslot;
-	var xmin = graph._z.xmin;
-	var xmax = graph._z.xmax;
-
-	var ymax = 0
-	var total = 0
-	for(var i=0;i<graph._z.histo.length;i++)
-		{
-		total += graph._z.histo[i]
-		if(graph._z.histo[i]>ymax)
-			ymax = graph._z.histo[i];
-		}
-	
 	for(var i=0;i<graph._z.histo.length;i++)
 		{
 		if(graph._z.histo[i]==0) continue;
 
-		var x = (x2-x1)/graph.nslot;
 		var y = y1;
 
 		for(var k=0;k<graph._keys1.length;k++)
 			{
-			var key = graph._keys1[k];
-			if(!(key in graph._z.histokey[i])) continue
-			dy = (y1-y2)*graph._z.histokey[i][key]/ymax
+			var key1 = graph._keys1[k];
+			if(!(key1 in graph._z.subhisto[i])) continue;
+			dy = (y1-y2)*graph._z.subhisto[i][key1]/hmax;
 
-			if(inRect(ptmove,x1+i*x,y-dy,x,dy))
+			if(inRect(ptmove,x1+i*dx,y-dy,dx,dy))
 				{		
 				var xa = xmin + i*(xmax-xmin)/graph._z.histo.length
 				var xb = xmin + (i+1)*(xmax-xmin)/graph._z.histo.length
-				pct = Math.round(graph._z.histokey[i][key]*1000/total)/10
+				pct = Math.round(graph._z.subhisto[i][key1]*1000/total)/10
 				message = "["+trunc(xa,4)+","+trunc(xb,4)+
-					"] \u2022 "+key+"   :  "+graph._z.histokey[i][key]+
+					"] \u2022 "+key1+"   :  "+graph._z.subhisto[i][key1]+
 					" / "+ total+" ("+pct+"%)"
 				return true;
 				}
@@ -8772,7 +8790,7 @@ else if(faction==DRAG_AXIS)
 	var graph = graphs[graphindex]	
 	if((graph.type==TYPE_ACP)||(graph.type==TYPE_DISCRI)||(graph.type==TYPE_REGRES))
 		action = (inValue(ptmove) >=0)  ? CREATE_PROJECTION : DRAG_AXIS
-	else if((graph.type==TYPE_DISTRIB)||(graph.type==TYPE_REPART)||(graph.type==TYPE_DENDRO))
+	else if((graph.type==TYPE_DISTRIB)||(graph.type==TYPE_HISTO)||(graph.type==TYPE_DENDRO))
 		action = (inLabel(ptmove) >=0) ?  CREATE_LABEL : DRAG_AXIS
 	else if((graph.type==TYPE_KMEANS)||(graph.type==TYPE_KMEDOIDS))
 		action = (inLabel(ptmove) >=0) ? CREATE_KGROUP : DRAG_AXIS
@@ -9475,7 +9493,7 @@ else if(index==TYPE_MULTI)
 	ctx.fillRect(x+14,y+12,6,1)
 	ctx.fillRect(x+14,y+16,6,1)
 	}
-else if(index==TYPE_REPART)
+else if(index==TYPE_HISTO)
 	{	
 	ctx.fillStyle = BLUE
 	ctx.fillRect(x,y,20,20)
@@ -12273,56 +12291,46 @@ else if(graph._z.cursor<0)
 
 //***************************************************************************
 
-function drawRepartGraph(ctx,graph)
+function drawHistoGraph(ctx,graph)
 {
 
 if(graph.ivalue1>=0)
 	{
-	if(typeof(graph.nslot)=="undefined")	
-		graph.nslot = 10
 
 	var x1 = graph.x+20
 	var x2 = graph.x + graph.w - 20
 	var y1 = graph.y + graph.h - 60
-	var y2 = graph.y + 45
+	var y2 = graph.y + graph.hbar + 25;
+	
+	var dx = (x2-x1)/graph.nslot;
 
+	var xslot = (graph._z.xmax - graph._z.xmin)/(graph.nslot-1);
+	var xmin = graph._z.xmin - xslot/2;
+	var xmax = graph._z.xmax + xslot/2;
+
+	var hmax = 0;
+	for(var i=0;i<graph._z.histo.length;i++)
+		if(graph._z.histo[i]>hmax)
+			hmax = graph._z.histo[i];
+
+	var area = 0;
 
 	if(graph.ilabel1<0)
 		{
-		graph._z.histo = []
-		for(var i=0;i<graph.nslot;i++)
-			graph._z.histo.push(0)
-
-		var xslot = (graph._z.xmax - graph._z.xmin)/graph.nslot;
-		var xmin = graph._z.xmin;
-		var xmax = graph._z.xmax;
-
-		for(var i=0;i<lrecords.length;i++)
-			{
-			if(!recordMatch(i,graph)) continue
-			var x = Math.floor((vrecords[i][graph.ivalue1]-xmin)/xslot)
-			if(x<0) x = 0;
-			if(x>=graph._z.histo.length) x = graph._z.histo.length-1;
-			graph._z.histo[x]++;
-			}
-
-		var ymax = 0
-		for(var i=0;i<graph._z.histo.length;i++)
-			if(graph._z.histo[i]>ymax)
-				ymax = graph._z.histo[i];
 
 		ctx.strokeStyle = "#000000"
 		ctx.fillStyle = BLUE;
-	
+			
 		for(var i=0;i<graph._z.histo.length;i++)
 			{
 			if(graph._z.histo[i]==0) continue;
 
-			var x = (x2-x1)/graph.nslot;
-			var y = (y1-y2)*graph._z.histo[i]/ymax;
+			var dy = (y1-y2)*graph._z.histo[i]/hmax;
 
-			ctx.fillRect( x1+i*x,y1-y,x,y)	
-			ctx.strokeRect( x1+i*x, y1-y,x,y)
+			ctx.fillRect( x1+i*dx,y1-dy,dx,dy)	
+			ctx.strokeRect( x1+i*dx, y1-dy,dx,dy)
+
+			area += dx*dy;
 			}
 
 		ctx.strokeRect(x1,y1,x2-x1,0)
@@ -12336,39 +12344,6 @@ if(graph.ivalue1>=0)
 	else
 		{
 		// with label
-		graph._z.histo = []
-		graph._z.histokey = []
-		for(var i=0;i<graph.nslot;i++)
-			{
-			graph._z.histo.push(0)
-			graph._z.histokey.push({})
-			}
-
-		var xslot = (graph._z.xmax - graph._z.xmin)/graph.nslot;
-		var xmin = graph._z.xmin;
-		var xmax = graph._z.xmax;
-
-		try {
-		for(var i=0;i<lrecords.length;i++)
-			{
-			if(!recordMatch(i,graph)) continue
-			var key = lrecords[i][graph.ilabel1]
-
-			var x = Math.floor((vrecords[i][graph.ivalue1]-xmin)/xslot)
-			if(x<0) x = 0;
-			if(x>=graph._z.histo.length) x = graph._z.histo.length-1;
-
-			graph._z.histo[x] ++;
-
-			if(!(key in graph._z.histokey[x])) graph._z.histokey[x][key] = 0
-			graph._z.histokey[x][key]++;
-			}
-		} catch(err) { console.log(err) }
-
-		var ymax = 0
-		for(var i=0;i<graph._z.histo.length;i++)
-			if(graph._z.histo[i]>ymax)
-				ymax = graph._z.histo[i];
 
 		ctx.strokeStyle = "#000000"
 	
@@ -12376,21 +12351,23 @@ if(graph.ivalue1>=0)
 			{
 			if(graph._z.histo[i]==0) continue;
 
-			var x = (x2-x1)/graph.nslot;
 			var y = y1;
 
 			for(var k=0;k<graph._keys1.length;k++)
 				{
-				var key = graph._keys1[k];
-				if(!(key in graph._z.histokey[i])) continue
-				dy = (y1-y2)*graph._z.histokey[i][key]/ymax
+				var key1 = graph._keys1[k];
+				if(!(key1 in graph._z.subhisto[i])) continue
+				dy = (y1-y2)*graph._z.subhisto[i][key1]/hmax;
 
-				if((overlabel1>=0)&&(overlabel1==graph.ilabel1)&&(key==overkey1))
-					ctx.fillStyle = graph._hilites1[key];
+				if((overlabel1>=0)&&(overlabel1==graph.ilabel1)&&(key1==overkey1))
+					ctx.fillStyle = graph._hilites1[key1];
 				else
-					ctx.fillStyle = graph._colors1[key];
-				ctx.fillRect(x1+i*x,y-dy,x,dy)
-				ctx.strokeRect(x1+i*x,y-dy,x,dy)
+					ctx.fillStyle = graph._colors1[key1];
+				ctx.fillRect(x1+i*dx,y-dy,dx,dy)
+				ctx.strokeRect(x1+i*dx,y-dy,dx,dy)
+				
+				area += dx*dy;
+
 				y -= dy;
 				}
 			}
@@ -12409,43 +12386,43 @@ if(graph.ivalue1>=0)
 	ctx.strokeStyle = "#000000";
 
 	drawRightArrow(ctx,x2+10,y1);
+
+	// draw normal curve
+	var scale = area*(xmax-xmin)/(x2-x1);
+	ctx.strokeStyle = "#33AA33";
+	ctx.beginPath();
+	for(var i=0;i<=100;i++)
+		{
+		var xx = xmin+i*(xmax-xmin)/100;
+		var dd = normal(xx,graph._z.stats.mean1,graph._z.stats.stdev);
+		var x = x1+i*(x2-x1)/100;
+		var y = y1-dd*scale;
+		if(i==0)
+			ctx.moveTo(x,y);
+		else
+			ctx.lineTo(x,y);
+		}
+	ctx.stroke();
 	
 	// draw cursor
+	ctx.strokeStyle = "#000000";
 	ctx.fillStyle = "#FFFFFF";
 	var x = x1+(x2-x1)*graph.nslot/50;
-	ctx.fillRect(x-5,y-10,10,20)
-	ctx.strokeRect(x-5,y-10,10,20)
+	ctx.fillRect(x-5,y1+20,10,20)
+	ctx.strokeRect(x-5,y1+20,10,20)
 
 	ctx.beginPath()
 	for(var i=0;i<=50;i+=10)
 		{
 		x = x1+(x2-x1)*i/50.0;
-		ctx.moveTo(x,y+15)
-		ctx.lineTo(x,y+25)
+		ctx.moveTo(x,y1+40)
+		ctx.lineTo(x,y1+50)
 		}
 	ctx.stroke()
 
-	// draw mean and standard deviation
-	var std = Math.sqrt(graph._z.stats.momentc2);
-
-	ctx.beginPath()
-
-	x = x1+(x2-x1)*(graph._z.stats.mean1-xmin)/(xmax-xmin);
-	ctx.moveTo(x,y1+5);
-	ctx.lineTo(x,y1+15);
-
-	x = x1+(x2-x1)*(graph._z.stats.mean1-std-xmin)/(xmax-xmin);
-	ctx.moveTo(x,y1+5);
-	ctx.lineTo(x,y1+15);
-
-	x = x1+(x2-x1)*(graph._z.stats.mean1+std-xmin)/(xmax-xmin);
-	ctx.moveTo(x,y1+5);
-	ctx.lineTo(x,y1+15);
-	ctx.stroke()
-	
 	ctx.fillStyle = "#000000"
 	ctx.textAlign = "center"
-	ctx.fillText(graph.nslot+" classes",graph.x+graph.w/2,graph.y+30)
+	ctx.fillText(graph.nslot+" classes",graph.x+graph.w/2,graph.y+graph.hbar+15);
 	}
 
 var title1 = (graph.ivalue1<0) ? "" : values[graph.ivalue1]
@@ -12453,6 +12430,12 @@ drawHValue(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,tit
 
 var title2 = getGraphLabel1(graph)
 drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
+
+	function normal(x,m,s) {
+		var a = Math.exp(-(x-m)*(x-m)/(2*s*s));
+		var b = s*Math.sqrt(2*Math.PI);
+		return a/b;
+	}
 
 }
 
