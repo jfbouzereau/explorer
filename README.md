@@ -25,6 +25,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Ternary plot
 * Correlations
 * Autocorrelation plot
+* Probability plot
 * Lag plot
 * General statistics
 * Analysis of variance
