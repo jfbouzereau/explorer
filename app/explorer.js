@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.59";
+var VERSION = "1.60";
 
 /***************************************************************************/
 
@@ -158,6 +158,7 @@ _type("TYPE_MOMENTS","Statistics",drawMomentGraph);
 _type("TYPE_HISTO","Histogram",drawHistoGraph);
 _type("TYPE_DISTRIB","Distribution curve",drawDistribGraph);
 _type("TYPE_PROBA","Probability plot",drawProbaGraph);
+_type("TYPE_TUKEY","Tukey lambda PPCC plot",drawTukeyGraph);
 _type("TYPE_SCATTER","Scatter plot",drawScatterGraph);
 _type("TYPE_LAG","Lag plot",drawLagPlot);
 _type("TYPE_CORR","Correlations",drawCorrGraph);
@@ -2591,6 +2592,7 @@ switch(graph.type)
 	case TYPE_HISTO: computeHistoData(graph); break;
 	case TYPE_DISCRI: computeDiscriData(graph); break;	
 	case TYPE_PROBA: computeProbaData(graph); break;
+	case TYPE_TUKEY: computeTukeyData(graph); break;
 	case TYPE_PARA: computeParaData(graph); break;
 	case TYPE_BOX: computeBoxData(graph); break;
 	case TYPE_TEST: computeTestData(graph); break;
@@ -4117,15 +4119,15 @@ graph._z.y.sort( function(a,b) { return a-b });
 var n = graph._z.y.length;
 
 // uniform order statistic medians
-graph._z.m = new Array(n);
+var m = new Array(n);
 for(var i=1;i<=n;i++)
 	{
 	if(i==1)
-		graph._z.m[i-1] = 1-Math.pow(0.5,1/n);			
+		m[i-1] = 1-Math.pow(0.5,1/n);			
 	else if(i==n)		
-		graph._z.m[i-1] = Math.pow(0.5,1/n);
+		m[i-1] = Math.pow(0.5,1/n);
 	else
-		graph._z.m[i-1] = (i-0.3175)/(n+0.365);
+		m[i-1] = (i-0.3175)/(n+0.365);
 	}
 
 var lcdf;
@@ -4184,7 +4186,7 @@ switch(graph.law)
 
 graph._z.x = new Array(n);
 for(var i=0;i<n;i++)
-	graph._z.x[i] = inv(graph._z.m[i]);
+	graph._z.x[i] = inv(m[i]);
 
 
 var sx = 0;
@@ -4226,6 +4228,82 @@ graph._z.corr = a/Math.sqrt(b*c);
 		return med;
 	}
 
+}
+
+//***************************************************************************
+
+function computeTukeyData(graph)
+{
+if(graph.ivalue1<0) return;
+
+// data
+var y = [];
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	y.push(vrecords[i][graph.ivalue1]);
+	}
+y.sort( function(a,b) { return a-b; });
+
+var n = y.length;
+
+
+// uniform order statistic medians
+var m = new Array(n);
+for(var i=1;i<=n;i++)
+	{
+	if(i==1)
+		m[i-1] = 1-Math.pow(0.5,1/n);			
+	else if(i==n)		
+		m[i-1] = Math.pow(0.5,1/n);
+	else
+		m[i-1] = (i-0.3175)/(n+0.365);
+	}
+
+
+
+// theoretical
+var x = new Array(n);
+
+// correlations for lambda between -1.1 and 1.1
+
+graph._z.corr = [];
+for(var il=-110;il<=110;il++)
+	{
+	var l = il/100;
+
+	for(var i=0;i<n;i++)
+		x[i] = inv(m[i],l);
+
+	var sx = 0;
+	var sy = 0;
+	var sxy = 0;
+	var sxx = 0;
+	var syy = 0;
+	for(var i=0;i<n;i++)
+		{
+		sx += x[i];
+		sy += y[i];
+		sxy += x[i]*y[i];
+		sxx += x[i]*x[i];
+		syy += y[i]*y[i];
+		}
+
+	var a = sxy-sx*sy/n;
+	var b = sxx-sx*sx/n;
+	var c = syy-sy*sy/n;
+
+	var corr = a/Math.sqrt(b*c);
+
+	graph._z.corr.push(corr);
+	}
+
+	function inv(p,lambda) {
+		if(lambda==0)
+			return Math.log(p/(1-p));
+		else
+			return (Math.pow(p,lambda)-Math.pow(1-p,lambda))/lambda;
+	}
 }
 
 //***************************************************************************
@@ -9719,6 +9797,16 @@ else if(index==TYPE_PROBA)
 	ctx.fillStyle = "#000000";
 	for(var i=2;i<=18;i++)
 		ctx.fillRect(x+i,y+20-i,1,1);
+
+	ctx.strokeStyle = "#000000";	
+	ctx.beginPath();
+	ctx.moveTo(x+2,y+20-3);
+	ctx.lineTo(x+3,y+20-6);
+	ctx.lineTo(x+4,y+20-8);
+	ctx.lineTo(x+17,y+20-12);
+	ctx.lineTo(x+18,y+20-14);
+	ctx.lineTo(x+19,y+20-16);
+	ctx.stroke();
 	}
 else if(index==TYPE_DISTRIB)
 	{
@@ -9949,13 +10037,19 @@ else if(index==TYPE_TEST)
     ctx.fillText("A",x+7,y+17);
     ctx.fillText("V",x+15,y+17);
     ctx.font = font;
-	/*
+	}
+else if(index==TYPE_TUKEY)
+	{	
+	ctx.fillStyle = BLUE;
+	ctx.fillRect(x,y,20,20);
+
 	var font = ctx.font;
-	ctx.font = "bold 20px times";
+	ctx.font = "18px helvetica";
 	ctx.fillStyle = "#000000";
-	ctx.fillText("?",x+10,y+17);
+	ctx.textAlign = "center";
+	ctx.fillText("T",x+6,y+17);
+	ctx.fillText("𝜆",x+14,y+17);
 	ctx.font = font;
-	*/
 	}
 else if(index==TYPE_ASSOC)
 	{
@@ -12652,6 +12746,118 @@ drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
 		return a/b;
 	}
 
+}
+
+//***************************************************************************
+
+function drawTukeyGraph(ctx,graph)
+{
+
+if(graph.ivalue1>=0)
+	{
+	var x1 = graph.x+30;
+	var x2 = graph.x+graph.w-20;
+	var y1 = graph.y+graph.hbar+100;
+	var y2 = graph.y+graph.h-20;
+	var dx = x2-x1;
+	var dy = y2-y1;
+
+	var n = graph._z.corr.length;
+	
+	var xmin = -1.1;
+	var xmax = 1.1;
+	var ymin = 0.5;
+	var ymax = 1;
+
+
+	ctx.strokeRect(x1,y1,dx,dy);
+
+	ctx.fillStyle = "#BBBBBB";
+	for(var i=1;i<=9;i++)
+		ctx.fillRect(x1,Math.round(y1+i*(y2-y1)/10),dx,1);
+
+	x = x1+dx*(-1-xmin)/(xmax-xmin);
+	ctx.fillRect(Math.round(x),y1,1,dy);
+
+	x = x1+dx*(0-xmin)/(xmax-xmin);
+	ctx.fillRect(Math.round(x),y1,1,dy);
+
+	x = x1+dx*(0.14-xmin)/(xmax-xmin);
+	ctx.fillRect(Math.round(x),y1,1,dy);
+
+	x = x1+dx*(0.5-xmin)/(xmax-xmin);
+	ctx.fillRect(Math.round(x),y1,1,dy);
+	
+	x = x1+dx*(1-xmin)/(xmax-xmin);
+	ctx.fillRect(Math.round(x),y1,1,dy);
+
+	// draw curve
+	ctx.save();
+
+	ctx.beginPath();
+	ctx.rect(x1,y1,dx,dy);
+	ctx.clip();
+
+	ctx.strokeStyle = "#000000";
+	ctx.beginPath();
+	for(var i=0;i<n;i++)
+		{
+		var x = x1+dx*i/n;
+		var y = y2-dy*(graph._z.corr[i]-ymin)/(ymax-ymin);
+		if(i==0)			
+			ctx.moveTo(x,y);
+		else
+			ctx.lineTo(x,y);	
+		}
+	ctx.stroke();
+
+	ctx.restore();
+
+	ctx.fillStyle = "#000000";
+	ctx.textAlign = "center";
+	ctx.fillText("𝜆",x1+(x2-x1)/2,y2+15);
+
+	x = x1+dx*(-1-xmin)/(xmax-xmin);
+	ctx.fillText("-1",x,y2+15);
+
+	x = x1+dx*(1-xmin)/(xmax-xmin);
+	ctx.fillText("1",x,y2+15);
+
+	ctx.textAlign = "center";
+	vert("Probability plot correlation",x1-10,y1+(y2-y1)/2);
+	vert("0.5",x1-10,y2);
+	vert("1",x1-10,y1);
+
+	ctx.textAlign = "left";
+
+	x = x1+dx*(-1-xmin)/(xmax-xmin);
+	vert("~Cauchy",x,y1-10);
+
+	x = x1+dx*(0-xmin)/(xmax-xmin);
+	vert("Logistic",x,y1-10);
+
+	x = x1+dx*(0.14-xmin)/(xmax-xmin);
+	vert("~Normal",x,y1-10);
+
+	x = x1+dx*(0.5-xmin)/(xmax-xmin);
+	vert("U shaped",x,y1-10);
+
+	x = x1+dx*(1-xmin)/(xmax-xmin);
+	vert("Uniform",x,y1-10);
+
+	ctx.textAlign = "center";
+	}
+
+var title1 = (graph.ivalue1<0) ? "" : values[graph.ivalue1]
+drawHValue(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,title1)
+
+	function vert(text,x,y) {
+		ctx.save();
+		ctx.translate(x,y);
+		ctx.rotate(-Math.PI/2);
+		ctx.fillText(text,0,0);
+		ctx.restore();
+	}
 }
 
 //***************************************************************************

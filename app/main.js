@@ -46,6 +46,9 @@ if(check(magic,'P','K',0x03,0x04))
 else if(check(magic,'m','y','s','q','l'))
 	read_mysql_file(filename,finish);
 
+else if(check(magic,'h','t','t','p'))
+	read_http_file(filename,finish);
+
 else
 	read_tabular_file(filename,finish);
 
@@ -178,6 +181,51 @@ catch(e)
 
 //****************************************************************************
 
+function read_http_file(filename,cb) {
+
+var req = null;
+var content = "";
+
+try	{
+	var text = fs.readFileSync(filename,"utf8");
+	var obj = require("url").parse(text);
+
+	if(obj.protocol=="http:")
+		req = require("http").request(obj, receive);
+	else if(obj.protocol=="https:")
+		req = require("https").request(obj,receive);
+	else
+		cb();
+
+	if(req)
+		{
+		req.on("error", function(err) {
+			console.log("REQ ERR "+err);
+			cb();
+		});
+		req.end();
+		}
+
+	}
+catch(e)
+	{
+	console.log(e);
+	}
+
+	function receive(res) {
+		res.on("data", function(chunk) {	
+			content += chunk;
+		});
+		res.on("end", function() {
+			read_tabular_content(content);
+			cb();
+		});
+	}
+
+}
+
+//****************************************************************************
+
 function read_mysql_file(filename,cb) {
 
 var mysql = require("mysql");
@@ -241,6 +289,20 @@ function read_tabular_file(filename,cb) {
 try	 {
 	var content = fs.readFileSync(filename,"utf8");
 
+	read_tabular_content(content);
+	}
+catch(e)
+	{
+	console.log(e);
+	}
+
+	cb();
+}
+
+//****************************************************************************
+
+function read_tabular_content(content)
+{
 	lines = content.split("\n");
 	if(lines.length<2)  {
 		lines = content.split("\r");	
@@ -253,13 +315,7 @@ try	 {
 	data = [];
 	for(var i=0;i<lines.length;i++)
 		data.push(lines[i].split(sep));
-	}
-catch(e)
-	{
-	console.log(e);
-	}
 
-	cb();
 }
 
 //****************************************************************************

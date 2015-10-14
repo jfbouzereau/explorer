@@ -26,6 +26,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Correlations
 * Autocorrelation plot
 * Probability plot
+* Tukey-lambda PPCC plot
 * Lag plot
 * General statistics
 * Analysis of variance
@@ -73,6 +74,12 @@ database:test
 query:select * from mytable
 ```
 
+#### Web file
+
+Launch the application, and drag a file containing the url of the data.
+The data must be in tabular form, with the names of the fields on the
+first line.
+
 ## Principles
 
 #### Fields
@@ -85,6 +92,8 @@ There are two kinds of fields :
 #### Basic gestures
 
 * Drag an icon to the workspace to create a new graph.
+
+* Click on the workspace with the control key to create a new graph.
 
 * Drag an icon to an existing graph to change its type.
 
@@ -116,5 +125,8 @@ The Explorer is written in javascript and built with [electron](http://electron.
 
 The Explorer can also be executed in any modern browser. Open app/index.html, 
 paste the data from the clipboard, and click OK.
-
 ![](http://88.162.232.107/explorer.jpg)
+
+## Contact
+
+jfbouzereau&#064;netcourrier.com
