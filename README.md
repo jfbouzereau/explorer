@@ -1,6 +1,6 @@
 # Presentation
 
-This Explorer allows to perform various statistical analyses and data mining operations in a very easy and intuitive way, just by dragging objects with the mouse. You can watch a demo [here](http://www.dailymotion.com/video/x39lwif_data-explorer-demo_tech)
+This Explorer allows to perform various statistical analyses and data mining operations in a very easy and intuitive way, just by dragging objects with the mouse. You can watch a demo on [dailymotion](http://www.dailymotion.com/video/x39lwif_data-explorer-demo_tech) or [youtube](https://youtu.be/S0pAdZcNnj4) .
 
 ![explorer screenshot](http://jfbouzereau.free.fr/explorer/explorer.png)
 
