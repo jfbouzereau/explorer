@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.60";
+var VERSION = "1.61";
 
 /***************************************************************************/
 
@@ -2874,6 +2874,61 @@ graph._z.yrow = yrow
 
 //***************************************************************************
 
+function computeChi2Data(graph)
+{
+if(graph.ilabel1<0) return;
+if(graph.ilabel2<0) return;
+
+var sum1 = new Array(graph._keys1.length);
+for(var i=0;i<sum1.length;i++)
+	sum1[i] = 0;
+
+var sum2 = new Array(graph._keys2.length);
+for(var i=0;i<sum2.length;i++)
+	sum2[i] = 0;
+
+var sum = 0;
+
+for(var i=0;i<graph._keys1.length;i++)
+	{
+	for(var j=0;j<graph._keys2.length;j++)
+		{
+		var key = graph._keys1[i]+"\t"+graph._keys2[j]
+		if(key in graph._count)
+			{
+			sum1[i] += graph._count[key];
+			sum2[j] += graph._count[key];
+			sum += graph._count[key];
+			}
+		}
+	}
+
+if(sum==0) sum=1;
+
+var chi2 = 0;
+for(var i=0;i<graph._keys1.length;i++)
+	{
+	for(var j=0;j<graph._keys2.length;j++)
+		{
+		var key = graph._keys1[i]+"\t"+graph._keys2[j]
+		if(key in graph._count)
+			{
+			var e =  sum1[i]*sum2[j]/sum;
+			chi2 +=	(graph._count[key]-e)*(graph._count[key]-e)/e;
+			}
+		}
+	}
+
+graph._z.level = 0.05;
+graph._z.dof = (graph._keys1.length-1)*(graph._keys2.length-1);
+graph._z.cv = critchi(graph._z.level,graph._z.dof);
+graph._z.chi2 = chi2;
+
+
+}
+
+//***************************************************************************
+
 function computeBoxData(graph)
 {
 if(graph.ilabel1<0) return;
@@ -4656,14 +4711,14 @@ for(var key in graph._count)
 if(graph.total==0)
 	graph.total = 1
 
-if(graph.type==TYPE_ARC)
-	computeArcData(graph)
-else if(graph.type==TYPE_FAC)
-	computeFacData(graph)
-else if(graph.type==TYPE_ASSOC)
-	computeAssocData(graph)
-else if(graph.type==TYPE_SOM)
-	computeSomData(graph)
+switch(graph.type)
+	{
+	case TYPE_ARC: computeArcData(graph); break;
+	case TYPE_FAC: computeFacData(graph); break;
+	case TYPE_ASSOC : computeAssocData(graph); break;
+	case TYPE_SOM: computeSomData(graph); break;
+	case TYPE_CHI2: computeChi2Data(graph); break;
+	}
 }
 
 //***************************************************************************
@@ -11470,123 +11525,128 @@ for(var i=0;i<graph._keys[index].length;i++)
 
 function drawChi2Graph(ctx,graph)
 {
-var title1 = getGraphLabel1(graph)
-var title2 = getGraphLabel2(graph)
-
-if(typeof(graph.error)=="undefined")
-	graph.error = 5;
-
-ctx.lineWidth = 1;
+var name1 = getGraphLabel1(graph);
+var name2 = getGraphLabel2(graph);
 
 if((graph.ilabel1>=0)&&(graph.ilabel2>=0))
 	{
-	var sum1 = []
-	for(var i=0;i<graph._keys1.length;i++)
-		sum1.push(0)
 
-	var sum2 = []
-	for(var i=0;i<graph._keys2.length;i++)
-		sum2.push(0)
+	var level = graph._z.level;
+	var dof = graph._z.dof;
+	var max = Math.max(graph._z.cv,graph._z.chi2);
+	max *= 1.1;
+	var pvalue = chi2inv(0.01,max,graph._z.chi2,dof);
+	pvalue = Math.round(pvalue*10000)/10000;
 
-	var sum = 0;
-
-    for(var i=0;i<graph._keys1.length;i++)
-        {
-        for(var j=0;j<graph._keys2.length;j++)
-            {
-            var key = graph._keys1[i]+"\t"+graph._keys2[j]
-            if(key in graph._count)
-                {
-				sum1[i] += graph._count[key];
-				sum2[j] += graph._count[key];
-				sum += graph._count[key];
-                }
-            }
-        }
-
-	if(sum==0) sum=1;
-
-	var chi2 = 0;
-	for(var i=0;i<graph._keys1.length;i++)
-		{
-		for(var j=0;j<graph._keys2.length;j++)
-			{
-			var key = graph._keys1[i]+"\t"+graph._keys2[j]
-			if(key in graph._count)
-				{
-				var e =  sum1[i]*sum2[j]/sum;
-				chi2 +=	(graph._count[key]-e)*(graph._count[key]-e)/e;
-				}
-			}
-		}
-
-	
 	ctx.fillStyle = "#000000";
-	ctx.textAlign = "left";
-	
-	var y = graph.y+60;
-	ctx.fillText(title1+" : "+graph._keys1.length+" classes",graph.x+40,y);
-
-	y += 20;
-	ctx.fillText(title2+" : "+graph._keys2.length+" classes",graph.x+40,y);
-
-	nd = (graph._keys1.length-1)*(graph._keys2.length-1)
-	y += 20;
-	ctx.fillText("Degrees of freedom : "+nd,graph.x+40,y);
-
-	y += 20;
-	ctx.fillText("Computed distance (chi-square) : "+trunc(chi2,4),graph.x+40,y)
-	
-	var dcrit = critchi(graph.error/100.0,nd)		
-	y += 20;
-	ctx.fillText("Critical distance : "+trunc(dcrit,4),graph.x+40,y);
-
-	if(chi2<dcrit)
-		{
-		y += 40;
-		ctx.fillStyle = "#008800";
-		ctx.fillText("Independance hypothesis is accepted", graph.x+40,y);
-		}
-	else
-		{
-		ctx.fillStyle = "#CC0000";
-		y += 20;
-		ctx.fillText("With error probability "+trunc(graph.error,1)+"%",graph.x+40,y);
-
-		y += 20;
-		ctx.fillText("independance hypothesis is rejected", graph.x+40,y);
-		}
-	
-	y += 30;
 	ctx.strokeStyle = "#000000";
-	ctx.strokeRect(graph.x+20,y-3,graph.w-40,6)
+	ctx.textAlign = "left"
+	ctx.lineWidth = 1
 
-	x = graph.x+20+(graph.w-40)*graph.error/10;
-	ctx.fillStyle = "#FFFFFF";
-	ctx.fillRect(x-5,y-10,10,20)
-	ctx.strokeRect(x-5,y-10,10,20)
+	var y = graph.y+graph.hbar+60;
+	var z;
+
+	ctx.fillText("Groups of "+name1,graph.x+40,y);
+	ctx.fillText(""+graph._keys1.length,graph.x+240,y);
+
+	y += 20;	
+	ctx.fillText("Groups of "+name2,graph.x+40,y);
+	ctx.fillText(""+graph._keys2.length,graph.x+240,y);
+
+	y += 20;
+	ctx.fillText("Degrees of freedom",graph.x+40,y);
+	ctx.fillText(""+dof,graph.x+240,y);
+
+	y += 20;
+	ctx.fillText("Critical value",graph.x+40,y);
+	z = Math.round(graph._z.cv*10000)/10000;
+	ctx.fillText(""+z,graph.x+240,y);
+	ctx.fillText("(\u03B1="+level+")",graph.x+360,y);
+
+	y += 20;	
+	ctx.fillText("Test statistic T",graph.x+40,y);
+	z = Math.round(graph._z.chi2*10000)/10000;
+	ctx.fillText(""+z,graph.x+240,y);
+	ctx.fillText("(p="+pvalue+")",graph.x+360,y);
+
+	y += 40;
+	ctx.fillStyle= "#FF0000";	
+	if(graph._z.chi2>graph._z.cv)
+		{
+		ctx.fillText("Independance hypotheses is rejected",graph.x+40,y);
+		}
+	else	
+		{
+		ctx.fillText("Independance hypotheses is accepted",graph.x+40,y);
+		}
+
+	y += 20;
+
+	// draw chi2 curve
+	ctx.strokeStyle = "#000000";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+
+	var max = Math.max(critchi(0.001,dof),graph._z.chi2);
+	max = max*1.01;
+
+	var dy = 200;
+	var dx = graph.w-40;
+
+	var x = graph.x+20;	
+	y += 220;
+
+	var dmax = 0;
+	for(var i=0;i<=100;i++)
+		{
+		var d = chi2density(max*i/100,dof);
+		if(d>dmax) dmax = d;
+		}
+
+	for(var i=0;i<=100;i++)
+		{
+		var d = chi2density(max*i/100,dof);
+		if(i==0)
+			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+		else
+			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+		}
+	ctx.stroke();
+
+	ctx.beginPath();
+	ctx.moveTo(x,y);
+	ctx.lineTo(x+dx,y);
+	ctx.stroke();
 
 	ctx.fillStyle = "#000000";
-	ctx.beginPath()
-	for(var i=0;i<=10;i++)
+	var j = Math.round(graph._z.cv*100/max);
+	ctx.beginPath();
+	for(var i=j;i<=100;i++)
 		{
-		x = graph.x+20+(graph.w-40)*i/10;
-		ctx.moveTo(x,y+15)
-		ctx.lineTo(x,y+25)
+		var d = chi2density(max*i/100,dof);
+		if(i==0)
+			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+		else
+			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
 		}
-	ctx.stroke()
+	ctx.lineTo(x+dx,y);
+	ctx.lineTo(x+dx*j/100,y);
+	ctx.fill();
 
-	x = graph.x+20+(graph.w-40)*5/10
-	ctx.textAlign = "center"
-	ctx.fillText("5%",x,y+40)
+	ctx.textAlign = "center";
+	ctx.fillText("T",x+dx*graph._z.chi2/max,y+25);	
+	ctx.beginPath();
+	ctx.moveTo(x+dx*graph._z.chi2/max,y+2);
+	ctx.lineTo(x+dx*graph._z.chi2/max,y+12);
+	ctx.stroke();
 	}
 
 ctx.fillStyle = "#FFFFFF"
 ctx.strokeStyle = "#000000"
 
-drawHLabel(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,title1)
+drawHLabel(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,name1);
 
-drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
+drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,name2);
 }
 
 //***************************************************************************
