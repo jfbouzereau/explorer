@@ -115,9 +115,7 @@ There are two kinds of fields :
 
 ## Binaries
 
-Pre-built binary for OSX can be downloaded [here](http://jfbouzereau.free.fr/explorer/explorer.zip)
-
-Pre-built binary for Windows can be downloaded [here](http://jfbouzereau.free.fr/explorer/explorer-ms.zip)
+Pre-built binaries for OSX and Windows can be downloaded from [the release page](https://github.com/jfbouzereau/explorer/releases)
 
 The Explorer is written in javascript and built with [electron](http://electron.atom.io)
 
