@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.61";
+var VERSION = "1.63";
 
 /***************************************************************************/
 
@@ -118,6 +118,7 @@ _action("DRAG_DUSTBIN","Remove ...");
 _action("SELECT_TEST","Select test");
 _action("SELECT_TYPE","Select graph type");
 _action("SELECT_LAW","Select distribution");
+_action("SELECT_CLUSTERING","Select clustering method");
 
 // actions that gray the graph
 var GACTIONS = {}
@@ -164,8 +165,7 @@ _type("TYPE_LAG","Lag plot",drawLagPlot);
 _type("TYPE_CORR","Correlations",drawCorrGraph);
 _type("TYPE_AUTOCORR","Autocorrelation plot",drawAutocorrGraph);
 _type("TYPE_ACP","Principal components",drawAcpGraph);
-_type("TYPE_KMEANS","K-means",drawKmeansGraph);
-_type("TYPE_KMEDOIDS","K-medoids",drawKmedoidsGraph);
+_type("TYPE_CLUSTERING","Clustering",drawClusteringGraph);
 _type("TYPE_HUEN","Huen diagram",drawHuenGraph);
 _type("TYPE_DENDRO","Dendrogram",drawDendroGraph);
 _type("TYPE_RADVIZ","Radviz",drawRadvizGraph);
@@ -181,8 +181,6 @@ _type("TYPE_PARA","Parallel coordinates",drawParaGraph);
 _type("TYPE_PALETTE","Palette",drawPaletteGraph);
 
 var NBTYPE3 = KNUM;			// max total types
-
-var TYPE_BAND = 99
 
 /***************************************************************************/
 
@@ -208,6 +206,17 @@ _law("LAW_UNIFORM","Uniform");
 _law("LAW_NORMAL","Normal");
 _law("LAW_LOGNORMAL","Log-Normal");
 _law("LAW_EXPONENTIAL","Exponential");
+
+/***************************************************************************/
+
+var CNAME = {};
+var CHELP = {};
+
+var CNUM = 0;
+
+_clust("CLUST_KMEANS","K-means");
+_clust("CLUST_KMEDOIDS","K-medoids");
+_clust("CLUST_FUZZY","FUzzy C-means");
 
 /***************************************************************************/
 
@@ -277,6 +286,7 @@ ipc.on("start",  function (message) {
 	window.addEventListener("mousemove", move);
 	window.addEventListener("mouseup", up);
 	window.addEventListener("resize", draw);
+	window.addEventListener("mousewheel", wheel);
 
 	loadData(remote.getGlobal("data"));
 	draw();
@@ -339,6 +349,18 @@ LNUM++;
 
 //***************************************************************************
 
+function _clust(name,help)
+{
+window[name] = CNUM;
+
+CNAME[CNUM] = name;
+CHELP[CNUM] = help;
+
+CNUM++;
+}
+
+//***************************************************************************
+
 function Graph(x,y,closeable,selection,index1,hue,type)
 {
 this.x = x;
@@ -384,7 +406,8 @@ this.omit = {};
 this.type = type;
 this.option = 0;
 this.test = -1;	
-this.law = -1;
+this.law = -1;			// for TYPE_PROBA
+this.clustering = -1;		// for TYPE_CLUSTER
 
 this._count = {};
 
@@ -809,7 +832,8 @@ var destvalueindex = -1
 var typeindex = -1
 var valueindex = -1
 var titleindex = -1
-var lawindex = -1;
+var lawindex = -1; 
+var clusteringindex = -1;
 
 var animtimer = null
 
@@ -1100,10 +1124,10 @@ else if(graph.type==TYPE_DISTRIB)
 	else if(graph._z.cursor<0)
 		return inRect(pt,graph.x+10,graph.y+graph.hbar,20,20) ? 1:-1
 	}
-else if((graph.type==TYPE_KMEANS)||(graph.type==TYPE_KMEDOIDS))
+else if(graph.type==TYPE_CLUSTERING)
 	{
 	if(graph.ivalues.length>0)
-		return inRect(pt,graph.x+245,graph.y+graph.hbar+5,30,30) ? 1 : -1
+		return inRect(pt,graph.x+245,graph.y+graph.hbar+25,30,30) ? 1 : -1
 	}
 else if(graph.type==TYPE_HISTO)
 	{
@@ -1360,8 +1384,7 @@ function hasValuen(graph)
 if(graph.type == TYPE_ACP) return true;
 if(graph.type == TYPE_TERNARY) return true;
 if(graph.type == TYPE_CORR) return true;
-if(graph.type == TYPE_KMEANS) return true;
-if(graph.type == TYPE_KMEDOIDS) return true;
+if(graph.type == TYPE_CLUSTERING) return true;
 if(graph.type == TYPE_DISCRI) return true;
 if(graph.type == TYPE_HUEN) return true;
 if(graph.type == TYPE_DENDRO) return true;
@@ -1396,9 +1419,10 @@ function inLawMenu(pt,graph)
 {
 if(graph.type!=TYPE_PROBA) return false;
 
-var x = graph.x+graph.w/2-220/2;
-var y = graph.y+graph.hbar+30;
-return inRect(pt,x,y,220,20);
+var w = 150;
+var x = graph.x+graph.w/2-w/2;
+var y = graph.y+graph.hbar+5;
+return inRect(pt,x,y,w,20);
 }
 
 //***************************************************************************
@@ -1407,12 +1431,26 @@ function inTestMenu(pt,graph)
 {
 if(graph.type!=TYPE_TEST) return false;
 
-var x = graph.x+graph.w/2-220/2;
-var y = graph.y+graph.hbar+30;
-return inRect(pt,x,y,220,20);
+var w = 150;
+var x = graph.x+graph.w/2-w/2;
+var y = graph.y+graph.hbar+5;
+return inRect(pt,x,y,w,20);
 }
 
 //***************************************************************************
+
+function inClusteringMenu(pt,graph)
+{
+if(graph.type!=TYPE_CLUSTERING) return false;
+
+var w = 150;
+var x = graph.x+graph.w/2-w/2;
+var y = graph.y+graph.hbar+5;
+return inRect(pt,x,y,w,20);
+}
+
+//***************************************************************************
+
 
 function inHistoCursor(pt,graph)
 {
@@ -1430,22 +1468,9 @@ return inRect(pt,x-10,y-15,20,30) ? 1 : -1;
 
 //***************************************************************************
 
-function inKmeansCursor(pt,graph)
+function inClusteringCursor(pt,graph)
 {
-if(graph.type!=TYPE_KMEANS) return -1
-if(graph.ivalues.length<=0) return -1
-
-x = graph.x+20+(graph.w-40)*graph.nslot/50
-y = graph.y + graph.h - 40
-
-return inRect(pt,x-10,y-15,20,30) ? 1 : -1;
-}
-
-//***************************************************************************
-
-function inKmedoidsCursor(pt,graph)
-{
-if(graph.type!=TYPE_KMEDOIDS) return -1
+if(graph.type!=TYPE_CLUSTERING) return -1
 if(graph.ivalues.length<=0) return -1
 
 x = graph.x+20+(graph.w-40)*graph.nslot/50
@@ -1561,8 +1586,6 @@ if(graph.type==TYPE_PIE)
 	return inPieSlice(pt,graph)
 else if(graph.type==TYPE_BAR)
 	return inBarSlice(pt,graph)
-else if(graph.type==TYPE_BAND)
-	return inBandSlice(pt,graph)
 else if(graph.type==TYPE_DOT)
 	return inDotSlice(pt,graph)
 else if(graph.type==TYPE_TAG)
@@ -2599,8 +2622,7 @@ switch(graph.type)
 	case TYPE_ACP: computeAcpData(graph); break;
 	case TYPE_CORR: computeCorrData(graph); break;
 	case TYPE_AUTOCORR: computeAutocorrData(graph); break;
-	case TYPE_KMEANS: computeKmeansData(graph); break;
-	case TYPE_KMEDOIDS: computeKmedoidsData(graph); break;
+	case TYPE_CLUSTERING: computeClusteringData(graph); break;
 	case TYPE_HUEN: computeHuenData(graph); break;
 	case TYPE_DENDRO: computeDendroData(graph); break;
 	case TYPE_REGRES: computeRegresData(graph); break;	
@@ -2775,16 +2797,9 @@ for(var j=0;j<n;j++)
 	for(var k=0;k<n;k++)
 		B[j][k] = (B[j][k]-count*sum[j]*sum[k])/count	
 
-//console.log("indices")
-//console.log(graph.ivalues)
-
-//console.log("B")
-//dumpM(B)
 
 // working matrix
 var W = mult(INV,B)
-//console.log("working matrix")
-//dumpM(W)
 
 // compute eigen values
 
@@ -2798,13 +2813,6 @@ calcEigSysReal(n,W,E,wr,wi,o)
 console.log("error="+o.outEr)
 
 var temp;
-
-/*
-console.log("wr/wi avant tri")
-dumpV(wr)
-console.log("E avant tri")
-dumpM(E)
-*/
 
 // sort eigenvalues
 for(var j=0;j<n-1;j++)
@@ -2824,12 +2832,6 @@ for(var j=0;j<n-1;j++)
 			}
 		}
 
-/*
-console.log("wr/wi apres tri")
-dumpV(wr)
-console.log("E apres tri")
-dumpM(E)
-*/
 
 // coefficients of projections
 var xcoef = []
@@ -3094,7 +3096,6 @@ if(graph.test==TEST_LEVENE)
 		stats[g].median = s/stats[g].values.length;
 		}
 
-console.log(stats);
 
 var zavg = 0;
 for(var i=0;i<vrecords.length;i++)
@@ -3263,13 +3264,6 @@ var e = new Array(n)
 tred(I,d,e,n)
 tql2(I,d,e,n)
 
-/*
-console.log(d)
-console.log("Corr")
-dumpM(graph._z.corr)
-console.log("I")
-dumpM(I)
-*/
 
 var verif = matrix(n,n)
 for(var i=0;i<n;i++)
@@ -3305,14 +3299,6 @@ for(var i=0;i<n;i++)
 		}
 	}
 
-console.log("verif")
-dumpM(verif)
-
-console.log("v2")
-dumpM(v2)
-
-console.log("v3")
-dumpM(v3)
 
 graph._z.lambda = d;
 
@@ -3448,10 +3434,6 @@ for(var j=0;j<n;j++)
 		M[j][k] = (M[j][k]-count*sums[j]*sums[k])/(sums2[j]*sums2[k]*count)
 
 
-/*
-console.log("corr")
-dumpM(M)
-*/
 
 graph._z.avg = sums
 graph._z.std = sums2
@@ -3460,15 +3442,27 @@ graph._z.corr = M
 
 //***************************************************************************
 
-function computeKmeansData(graph)
+function computeClusteringData(graph)
 {
-if(typeof(graph.ivalues)=="undefined")
+if(!graph.ivalues)
 	graph.ivalues = []
 
-if(graph.ivalues.length<1) return
-
-if(typeof(graph.nslot)=="undefined")
+if(!graph.nslot)
 	graph.nslot = 3
+
+switch(graph.clustering)
+	{
+	case CLUST_KMEANS: computeKmeansData(graph); break;	
+	case CLUST_KMEDOIDS: computeKmedoidsData(graph); break;
+	case CLUST_FUZZY: computeFuzzyData(graph); break;
+	}
+}
+
+//***************************************************************************
+
+function computeKmeansData(graph)
+{
+if(graph.ivalues.length<1) return
 
 // count valid record numbers
 var nv=0;
@@ -3583,13 +3577,9 @@ graph._z.cluster = cluster;
 
 function computeKmedoidsData(graph)
 {
-if(typeof(graph.ivalues)=="undefined")
-	graph.ivalues = []
 
 if(graph.ivalues.length<1) return
 
-if(typeof(graph.nslot)=="undefined")
-	graph.nslot = 3
 
 // count valid records
 var nv = 0;
@@ -3695,6 +3685,134 @@ for(var i=0;i<vrecords.length;i++)
 
 graph._z.counts = counts;
 graph._z.cluster = cluster;
+
+}
+
+//***************************************************************************
+
+function computeFuzzyData(graph)
+{
+
+if(graph.ivalues.length<1) return;
+
+
+	var nc = graph.nslot;		// number of clusters
+	var centers = new Array(nc);
+	for(var j=0;j<nc;j++)
+		centers[j] = new Array(nv);
+
+	var nv = graph.ivalues.length;
+
+	var nr = vrecords.length;
+	// if not enough records
+	if(nr<nc) return;	
+
+	var done = new Array(nr);
+	for(var i=0;i<vrecords.length;i++)
+		{	
+		done[i] = -1;	// dont match
+		if(!recordMatch(i,graph)) continue;
+		done[i] = 0    // not selected as center
+		}
+
+
+	// random membership values
+	var u = new Array(nr);
+	for(var i=0;i<nr;i++)
+		{	
+		if(!recordMatch(i,graph)) continue;
+		u[i] = new Array(nc);
+		for(var j=0;j<nc;j++)
+			u[i][j] = Math.random();
+		}
+
+	done = null;
+
+	for(var loop=0;loop<50;loop++)
+		{
+		// compute new centers
+		for(var j=0;j<nc;j++)
+			{
+			var den = 0;
+			for(var i=0;i<nr;i++)
+				if(u[i])
+					den += u[i][j]*u[i][j];
+
+			zero(centers[j]);
+			for(var i=0;i<nr;i++)
+				if(u[i])		
+					add(vrecords[i],u[i][j]*u[i][j]/den,centers[j]);
+			}	
+
+
+		// compute new memberships
+		var change = 0;
+		for(var i=0;i<nr;i++)
+			{
+			if(u[i])
+				for(var j=0;j<nc;j++)
+					{
+					var num = dist2(vrecords[i],centers[j]);
+					var newuij = 0;
+					for(var k=0;k<nc;k++)
+						newuij += num/dist2(vrecords[i],centers[k]);
+					newuij = 1/newuij;
+					change = Math.abs(u[i][j]-newuij);
+					u[i][j] = newuij;
+					}
+			}
+
+		if(change<1e-4) break;
+		}
+
+
+	// assign each record to the right cluster
+	var cluster = new Array(vrecords.length);
+	var counts = new Array(nc);
+	console.log(counts);
+	for(var j=0;j<nc;j++)
+		counts[j] = 0;
+
+	for(var i=0;i<vrecords.length;i++)
+		if(recordMatch(i,graph))
+		{
+		var jbest = -1;
+		var ubest = 0;
+		for(var j=0;j<nc;j++)
+			if(u[i][j]>ubest)
+				{
+				ubest = u[i][j];
+				jbest = j;	
+				}
+		cluster[i] = jbest;
+		counts[jbest] ++;
+		}
+
+
+	graph._z.cluster = cluster;
+	graph._z.counts = counts;
+
+	u = null;
+
+	// zero center
+	function zero(c) {
+		for(var k=0;k<nv;k++)
+			c[k] = 0;
+	}
+
+	// copy record r with with weight to center c
+	function add(r,w,c) {	
+		for(var k=0;k<nv;k++)
+			c[k] += w*r[graph.ivalues[k]];
+	}
+
+	// squared distance from record r to center c
+	function dist2(r,c) {
+		var d = 0;
+			for(var k=0;k<nv;k++)
+				d += (r[graph.ivalues[k]]-c[k])*(r[graph.ivalues[k]]-c[k]);
+		return d;
+	}
 
 }
 
@@ -4033,7 +4151,6 @@ for(var i=0;i<vrecords.length;i++)
 graph._z.min = min;
 graph._z.max = max;
 
-console.log("radviz ilabel1 = "+graph.ilabel1);
 if(graph.ilabel1>=0)
 	computeGraphData1(graph);
 }
@@ -5999,6 +6116,7 @@ titleindex = -1
 stickerindex = -1
 testindex = -1;
 lawindex = -1;
+clusteringindex = -1;
 
 var index = -1
 
@@ -6218,6 +6336,11 @@ if(i>=0)
 		faction = SELECT_LAW;
 		graphindex = i;
 		}
+	else if(inClusteringMenu(ptclick,graph))
+		{
+		faction = SELECT_CLUSTERING;
+		graphindex = i;
+		}
 	else if((index=inHistoCursor(ptclick,graph))>=0)
 		{
 		faction = DRAG_NSLOT;
@@ -6233,12 +6356,7 @@ if(i>=0)
 		faction = index
 		graphindex = i
 		}
-	else if((index=inKmeansCursor(ptclick,graph))>=0)
-		{
-		faction = DRAG_NSLOT
-		graphindex = i
-		}
-	else if((index=inKmedoidsCursor(ptclick,graph))>=0)
+	else if((index=inClusteringCursor(ptclick,graph))>=0)
 		{
 		faction = DRAG_NSLOT;
 		graphindex = i;
@@ -6625,7 +6743,6 @@ else if(action==DRAG_LABEL3)
 	}
 else if(action==CREATE_PROJECTION)
 	{	
-	console.log("create proj");
 	graph = graphs[graphindex];
 	createProjectionValue(graph,valueindex)
 	draw()
@@ -7028,6 +7145,15 @@ else if(action==SELECT_LAW)
 		computeProbaData(graph);
 		}
 	}
+else if(action==SELECT_CLUSTERING)
+	{	
+	if((clusteringindex>=0)&&(graphindex>=0))
+		{
+		graph = graphs[graphindex];
+		graph.clustering = clusteringindex;
+		computeClusteringData(graph);
+		}
+	}
 else if((action==SELECT_TYPE)&&(typeindex>=0))
 	{
 	graph = new Graph(ptclick.x,ptclick.y,true,[],-1,0,typeindex)
@@ -7044,6 +7170,20 @@ labelindex = -1;
 typeindex = -1;
 
 draw()
+}
+
+//***************************************************************************
+
+function wheel(event)
+{
+var index = inGraph(ptmove);
+if(index<0) return;
+
+var graph = graphs[index];
+graph.yshift -= Math.round(event.wheelDelta/10);
+if(graph.yshift<0) graph.yshift = 0;
+
+draw();
 }
 
 //***************************************************************************
@@ -7069,7 +7209,7 @@ t += "</tr>\n"
 for(var i=0;i<records.length;i++)
 	{
 	t += "<tr style='background-color:#EEEEEE;'>"
-	t += "<td>"+(k+1)+"</td>";
+	t += "<td>"+(i+1)+"</td>";
 	t += "<td>"+records[i][index]+"</td>";
 	t += "</tr>\n";
 	}
@@ -7094,8 +7234,10 @@ if(graph.type==TYPE_CORR)
 	t = getCorrTable(graph)
 else if(graph.type==TYPE_SCATTER)
 	t = getScatterTable(graph);
+/*
 else if(graph.type==TYPE_KMEANS)
 	t = getKmeansTable(graph);
+*/
 
 if(!t)
 	t = getDefaultTable(graph)
@@ -9119,7 +9261,7 @@ else if(faction==DRAG_AXIS)
 		action = (inValue(ptmove) >=0)  ? CREATE_PROJECTION : DRAG_AXIS
 	else if((graph.type==TYPE_DISTRIB)||(graph.type==TYPE_HISTO)||(graph.type==TYPE_DENDRO))
 		action = (inLabel(ptmove) >=0) ?  CREATE_LABEL : DRAG_AXIS
-	else if((graph.type==TYPE_KMEANS)||(graph.type==TYPE_KMEDOIDS))
+	else if(graph.type==TYPE_CLUSTERING)
 		action = (inLabel(ptmove) >=0) ? CREATE_KGROUP : DRAG_AXIS
 	}
 else if(faction==DRAG_SLICE)
@@ -9190,6 +9332,11 @@ else if(faction==SELECT_LAW)
 	{
 	var graph = graphs[graphindex];
 	selectLaw(ptmove,graph);
+	}
+else if(faction==SELECT_CLUSTERING)
+	{
+	var graph = graphs[graphindex];
+	selectClustering(ptmove,graph);
 	}
 else if(faction==SELECT_TYPE)
 	{
@@ -9332,7 +9479,7 @@ else if(faction==VSCROLL_GRAPH)
 	var graph = graphs[graphindex]
 	if(ptmove.y<ptclick.y)
 		{
-		var incr = Math.floor((ptclick.y-ptmove.y)/10)
+		var incr = Math.floor(ptclick.y-ptmove.y);
 		if(incr>0)
 			{
 			graph.yshift += incr	
@@ -9343,7 +9490,7 @@ else if(faction==VSCROLL_GRAPH)
 		}
 	else
 		{
-		var incr = Math.floor((ptmove.y-ptclick.y)/10)
+		var incr = Math.floor(ptmove.y-ptclick.y);
 		if(incr>0)
 			{
 			graph.yshift -= incr
@@ -9712,18 +9859,6 @@ else if(index==TYPE_THREE)
 			ctx.arc(x+i,y+j,4,0,Math.PI*2,true)
 			}
 	ctx.stroke()
-	}
-else if(index==TYPE_BAND)
-	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
-
-	ctx.strokeStyle = "#000000"
-	ctx.fillStyle = "#000000"
-	ctx.fillRect(x,y,20,1)
-	ctx.fillRect(x,y+8,20,1)
-	ctx.fillRect(x,y+13,20,1)
-	ctx.fillRect(x,y+16,20,1)
 	}
 else if(index==TYPE_DOT)
 	{
@@ -10137,7 +10272,7 @@ else if(index==TYPE_ACP)
 
 	drawCorner(ctx,x+20-4,y,4)
 	}
-else if(index==TYPE_KMEANS)
+else if(index==TYPE_CLUSTERING)
 	{
 	ctx.fillStyle = BLUE
 	ctx.fillRect(x,y,20,20)
@@ -10159,34 +10294,6 @@ else if(index==TYPE_KMEANS)
 	ctx.fillRect(x+16,y+12,2,2)
 	ctx.fillRect(x+5,y+14,2,2)
 	ctx.fillRect(x+9,y+17,2,2)
-	}
-else if(index==TYPE_KMEDOIDS)
-	{
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
-
-	ctx.strokeStyle = "#000000";
-
-	oval(x+7,y+13,3,5,Math.PI/4);
-	oval(x+15,y+6,3,5,3*Math.PI/4);
-	function oval(xc,yc,xr,yr,a) {
-		var ca = Math.cos(a);
-		var sa = Math.sin(a);
-		ctx.beginPath();
-		for(var i=0;i<Math.PI*2;i+=Math.PI/20)
-			{
-			var ci = Math.cos(i);
-			var si = Math.sin(i);
-			var x = xc-xr*si*sa+yr*ci*ca;
-			var y = yc+yr*ci*sa+xr*si*ca;
-			if(i==0)
-				ctx.moveTo(x,y);	
-			else 
-				ctx.lineTo(x,y);
-			}
-		ctx.stroke();
-		}	
-	
 	}
 else if(index==TYPE_DISCRI)
 	{	
@@ -12331,7 +12438,7 @@ for(var j=0;j<graph._keys1.length;j++)
 if(max==0) max = 1
 
 var x = graph.x + 5
-var y = graph.y + graph.hbar + 30 + 12 - 13*graph.yshift
+var y = graph.y + graph.hbar + 30 + 12 - graph.yshift;
 
 ctx.save()
 ctx.fillStyle = "#000000"
@@ -13780,17 +13887,40 @@ drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
 
 //***************************************************************************
 
-function drawKmeansGraph(ctx,graph)
+function drawClusteringGraph(ctx,graph)
 {
-try {
-if((graph.ivalues.length>0)&&(graph._z.counts))
+
+if(graph.ivalues.length>0)
+	if(graph.clustering>=0)
+		drawClusters(ctx,graph);
+
+drawClusteringMenu(ctx,graph);
+
+ctx.textAlign = "center"
+
+for(var k=0;k<graph.ivalues.length;k++)
 	{
-	ctx.textAlign = "right"
-	ctx.fillStyle = "#000000"
-	ctx.fillText("Cluster",graph.x+80,graph.y+graph.hbar+20)
-	ctx.fillText("Count",graph.x+150,graph.y+graph.hbar+20)
-	ctx.fillText("Pct", graph.x+220,graph.y+graph.hbar+20);
-	ctx.fillRect(graph.x+10,graph.y+graph.hbar+30,220,2)
+	var title = values[graph.ivalues[k]]
+	drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*k,100,20,title)
+	}
+
+drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*graph.ivalues.length,100,20,"")
+
+}
+
+//***************************************************************************
+
+function drawClusters(ctx,graph)
+{
+
+	var ytop = graph.y + graph.hbar + 40 ;
+
+	ctx.textAlign = "right";
+	ctx.fillStyle = "#000000";
+	ctx.fillText("Cluster",graph.x+80,ytop);
+	ctx.fillText("Count",graph.x+150,ytop);
+	ctx.fillText("Pct", graph.x+220,ytop);
+	ctx.fillRect(graph.x+10,ytop+10,220,2)
 
 
 	var sum = 0;
@@ -13799,9 +13929,15 @@ if((graph.ivalues.length>0)&&(graph._z.counts))
 
 	var x,y,pct;
 
-	for(var k=0;k<graph.nslot;k++)
+	var kfirst = Math.round(graph.yshift/100);
+	if(kfirst<0) kfirst = 0;
+	if(kfirst>=graph.nslot) kfirst = graph.nslot-1;
+
+	for(var k=kfirst;k<graph.nslot;k++)
 		{
-		y = graph.y + graph.hbar + 50 + 20*k
+		y = ytop + 30 + 20*(k-kfirst);
+		if(y>graph.y+graph.h-40) break;
+
 		ctx.fillText(""+(k+1),graph.x+80,y)
 		ctx.fillText(""+graph._z.counts[k],graph.x+150,y)
 		pct = Math.round(graph._z.counts[k]*100/sum);
@@ -13816,9 +13952,11 @@ if((graph.ivalues.length>0)&&(graph._z.counts))
 		{
 		ctx.fillStyle = getColor(graph.hue,1,1);
 		ctx.strokeStyle = "#000000";
-		for(var k=0;k<graph.nslot;k++)
+		for(var k=kfirst;k<graph.nslot;k++)
 			{
-			y = graph.y + graph.hbar + 37 + 20*k
+			y = ytop  + 17 + 20*(k-kfirst);
+			if(y+16>graph.y+graph.h-40) break;
+
 			x = dx*graph._z.counts[k]/sum;
 			ctx.fillRect(graph.x+230,y,x,16);
 			ctx.strokeRect(graph.x+230,y,x,16);
@@ -13843,99 +13981,7 @@ if((graph.ivalues.length>0)&&(graph._z.counts))
 	// draw arrow
 	ctx.fillStyle = PINK
 	ctx.strokeStyle = "#000000"
-	drawRightArrow(ctx,graph.x+250,graph.y+graph.hbar+15)
-	}
-} catch(e) { console.log("ERR IN DRAWKMEANS "+e) }
-
-ctx.textAlign = "center"
-
-for(var k=0;k<graph.ivalues.length;k++)
-	{
-	var title = values[graph.ivalues[k]]
-	drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*k,100,20,title)
-	}
-
-drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*graph.ivalues.length,100,20,"")
-
-}
-
-//***************************************************************************
-
-function drawKmedoidsGraph(ctx,graph)
-{
-
-if((graph.ivalues.length>0)&&(graph._z.counts))
-	{
-	ctx.textAlign = "right"
-	ctx.fillStyle = "#000000"
-	ctx.fillText("Cluster",graph.x+80,graph.y+graph.hbar+20)
-	ctx.fillText("Count",graph.x+150,graph.y+graph.hbar+20)
-	ctx.fillText("Pct", graph.x+220,graph.y+graph.hbar+20);
-	ctx.fillRect(graph.x+10,graph.y+graph.hbar+30,220,2)
-
-
-	var sum = 0;
-	for(var k=0;k<graph.nslot;k++)
-		sum += graph._z.counts[k];
-
-	var x,y,pct;
-
-	for(var k=0;k<graph.nslot;k++)
-		{
-		y = graph.y + graph.hbar + 50 + 20*k
-		ctx.fillText(""+(k+1),graph.x+80,y)
-		ctx.fillText(""+graph._z.counts[k],graph.x+150,y)
-		pct = Math.round(graph._z.counts[k]*100/sum);
-		ctx.fillText(""+pct+"%",graph.x+220,y);
-		}
-
-	ctx.textAlign = "center"
-
-	// draw histogram if enough room
-	var dx = graph.w-330;
-	if(dx>0)
-		{
-		ctx.fillStyle = getColor(graph.hue,1,1);
-		ctx.strokeStyle = "#000000";
-		for(var k=0;k<graph.nslot;k++)
-			{
-			y = graph.y + graph.hbar + 37 + 20*k
-			x = dx*graph._z.counts[k]/sum;
-			ctx.fillRect(graph.x+230,y,x,16);
-			ctx.strokeRect(graph.x+230,y,x,16);
-			}	
-		}
-
-	// draw cursor
-
-	y = graph.y + graph.h - 40
-	ctx.strokeStyle = "#000000";
-	ctx.strokeRect(graph.x+20,y-3,graph.w-40,6)
-
-	x = graph.x+20+(graph.w-40)*graph.nslot/50
-	ctx.fillStyle = "#FFFFFF";
-	ctx.fillRect(x-5,y-10,10,20)
-	ctx.strokeRect(x-5,y-10,10,20)
-
-	ctx.fillStyle = "#000000"
-	ctx.fillText(""+graph.nslot+" clusters",graph.x+graph.w/2,
-		graph.y+graph.h-10)
-
-	// draw arrow
-	ctx.fillStyle = PINK
-	ctx.strokeStyle = "#000000"
-	drawRightArrow(ctx,graph.x+250,graph.y+graph.hbar+15)
-	}
-
-ctx.textAlign = "center"
-
-for(var k=0;k<graph.ivalues.length;k++)
-	{
-	var title = values[graph.ivalues[k]]
-	drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*k,100,20,title)
-	}
-
-drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*graph.ivalues.length,100,20,"")
+	drawRightArrow(ctx,graph.x+250,ytop);
 
 }
 
@@ -14220,65 +14266,31 @@ drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
 
 //***************************************************************************
 
+function drawTestMenu(ctx,graph)
+{
+drawMenu(ctx,graph,THELP,TNUM,graph.test,SELECT_TEST,testindex);
+}
+
 function drawLawMenu(ctx,graph)
 {
+drawMenu(ctx,graph,LHELP,LNUM,graph.law,SELECT_LAW,lawindex);
+}
 
-var x = graph.x+graph.w/2;
-var y = graph.y+graph.hbar+30;
-var w = 220;
-
-var selected = graph.law;
-
-var text = LHELP[selected]||"";
-
-ctx.fillStyle = "#000000";
-ctx.textAlign = "center";
-ctx.fillText(text,x,y+14);
-
-ctx.strokeStyle = "#000000";
-ctx.strokeRect(x-w/2,y,w,20);
-
-for(var i=0;i<7;i++)
-	ctx.fillRect(x+w/2-18+i,y+5+i,14-2*i,1);
-
-if((faction==SELECT_LAW)&&(graphs[graphindex]==graph))
-	{
-	ctx.fillStyle = "#FFFFFF";
-	ctx.fillRect(x-w/2,y+21,w,20*LNUM);
-
-	ctx.fillStyle = "#000000";
-	for(var i=0;i<LNUM;i++)		
-		ctx.fillText(LHELP[i],x,y+20+20*i+14);
-
-	ctx.strokeStyle = "#000000";
-	ctx.beginPath();
-	ctx.moveTo(x-w/2,y+20);
-	ctx.lineTo(x-w/2,y+20+20*LNUM);
-	ctx.lineTo(x+w/2,y+20+20*LNUM);
-	ctx.lineTo(x+w/2,y+20);
-	ctx.stroke();
-
-	if(lawindex>=0)
-		{
-		ctx.fillStyle = GRAY;
-		ctx.fillRect(x-w/2,y+20+20*lawindex,w,20);
-		}
-	}
-
+function drawClusteringMenu(ctx,graph)
+{
+drawMenu(ctx,graph,CHELP,CNUM,graph.clustering,SELECT_CLUSTERING,clusteringindex);
 }
 
 //***************************************************************************
 
-function drawTestMenu(ctx,graph)
+function drawMenu(ctx,graph,menu,n,selected,action,index)
 {
 
 var x = graph.x+graph.w/2;
-var y = graph.y+graph.hbar+30;
-var w = 220;
+var y = graph.y+graph.hbar+5;
+var w = 150;
 
-var selected = graph.test;
-
-var text = THELP[selected]||"";
+var text = menu[selected]||"";
 
 ctx.fillStyle = "#000000";
 ctx.textAlign = "center";
@@ -14288,29 +14300,29 @@ ctx.strokeStyle = "#000000";
 ctx.strokeRect(x-w/2,y,w,20);
 
 for(var i=0;i<7;i++)
-	ctx.fillRect(x+w/2-18+i,y+5+i,14-2*i,1);
+	ctx.fillRect(x+w/2-18+i,y+6+i,14-2*i,1);
 
-if((faction==SELECT_TEST)&&(graphs[graphindex]==graph))
+if((faction==action)&&(graphs[graphindex]==graph))
 	{
 	ctx.fillStyle = "#FFFFFF";
-	ctx.fillRect(x-w/2,y+21,w,20*TNUM);
+	ctx.fillRect(x-w/2,y+21,w,20*n);
 
 	ctx.fillStyle = "#000000";
-	for(var i=0;i<TNUM;i++)		
-		ctx.fillText(THELP[i],x,y+20+20*i+14);
+	for(var i=0;i<n;i++)		
+		ctx.fillText(menu[i],x,y+20+20*i+14);
 
 	ctx.strokeStyle = "#000000";
 	ctx.beginPath();
 	ctx.moveTo(x-w/2,y+20);
-	ctx.lineTo(x-w/2,y+20+20*TNUM);
-	ctx.lineTo(x+w/2,y+20+20*TNUM);
+	ctx.lineTo(x-w/2,y+20+20*n);
+	ctx.lineTo(x+w/2,y+20+20*n);
 	ctx.lineTo(x+w/2,y+20);
 	ctx.stroke();
 
-	if(testindex>=0)
+	if(index>=0)
 		{
 		ctx.fillStyle = GRAY;
-		ctx.fillRect(x-w/2,y+20+20*testindex,w,20);
+		ctx.fillRect(x-w/2,y+20+20*index,w,20);
 		}
 	}
 
@@ -14321,8 +14333,8 @@ if((faction==SELECT_TEST)&&(graphs[graphindex]==graph))
 function selectLaw(pt,graph)
 {
 var x = graph.x+graph.w/2;
-var y = graph.y+graph.hbar+30;
-var w = 220;
+var y = graph.y+graph.hbar+5;
+var w = 150;
 
 for(var i=0;i<LNUM;i++)
 	if(inRect(pt,x-w/2,y+20+20*i,w,20))
@@ -14333,11 +14345,26 @@ lawindex = -1;
 
 //***************************************************************************
 
+function selectClustering(pt,graph)
+{
+var x = graph.x+graph.w/2;
+var y = graph.y+graph.hbar+5;
+var w = 150;
+
+for(var i=0;i<CNUM;i++)
+	if(inRect(pt,x-w/2,y+20+20*i,w,20))
+		{ clusteringindex=  i; return; }
+
+clusteringindex = -1;
+}
+
+//***************************************************************************
+
 function selectTest(pt,graph)
 {
 var x = graph.x+graph.w/2;
-var y = graph.y+graph.hbar+30;
-var w = 220;
+var y = graph.y+graph.hbar+5;
+var w = 150;
 
 for(var i=0;i<TNUM;i++)
 	if(inRect(pt,x-w/2,y+20+20*i,w,20))
@@ -16424,7 +16451,6 @@ subtitle += "<b>"+getGraphLabel1(graph)+"</b>"
 
 var div = $("#pie"+index);
 
-console.log("graph.h="+graph.h+" bottom="+bottom);
 div.css("top",(graph.y-30)+"px");
 div.css("height",(graph.h+bottom)+"px");
 
@@ -17859,4 +17885,3 @@ for (var i = 0; i < n-1; i++) {
 
 var gimg = new Image();
 gimg.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAAAXNSR0IArs4c6QAAAyFJREFUeJyUVGlPU1EQ7V/yk8oia4uRQMQYIh80GjURBVlKW2SJghE0RtGUVUxkaQvdKBSQnVIIBEGK7C0VTaMgMQghAtWyHOdepBSEgh8mL++9e8+cOXNmBKFiNTwjhOJMgsrjWzX2n/EWAs+X4ORqhEk0a49VAzkiqd4iktVAJDMccFFzNCBjdlaqcRYbRxTXn3V2EdBqaIoWoSn7LtO7UKKn0HkHPHW7cl1tsvXU9c0s+sRXITTZe6lCiRZClnA/IGMWnqpbERd1VpvH5heSC0zwjVPuapp8MGAIJfS/q4JIqtsi1ltuwNN3FNCabXnm0dl3rUMOxDw0IiChyg3GLoZ4MqMISqzier/QDSLzTS+CxLvlCy5kaCdm5xfkjQOODW3XFKIf1CGQLgRQxGTXo6JlfE/X2b9wmQ7KtglklfduJ/EoXRCbRzeAVkOPHRWt47iS20gAVWDMi40f8Nu1gcs5DRyUsRVSU5Rtk3ik6Me5VB1ny77tuEFw63nLEgHO9k/OIU/7HrJXZpyMrURUpgFWxwI6LQ6wZCyBX7ySJymotSDfYEFUhgHBSdtJRKm13LOCyPQal312ybnqdCGttBtlTWM4cbMclUTc2Gfnhz9/W8albCOu5r6FunOKA0am60lrFdeU+ZJZiTP0jVe6JCVm5+bmFlTtk8RyEGmvuzE68x25VBYlhKbLCp3ZBnnNEBSkXfzLds5WeIgPnX4J6mW5YRhrv9aRUmyCxmSFvtsGbZeNgKw4n1GD+R8raOz/ROyGyaNHjB7rEjFFrqof018XkVJkgrjQhBLSq9g4jGtPmlDaMAI7/UvM7yB2Ku+AHFSq58JTk1Df+xHdI1/INkZEZ9WhvHmcS7H004mIND1Z5/ApcgOGpRq2GFN/YiqSaHDjaTPvoE+cAoVU5tD0PLLKyMRJ3kdSsLOiaITcA8+mIOCvmZmRL96vxYB1jic6JuDuJjloXbGpSZB3IOKenic7PiDfIjquJ396rK5ANzPNvyvNG6AbmPQMI/cT8AYHZ3JItBtsbf0Xw73BWW0ypttsqze9n1fjDwAAAP//AwAN9/2dI5HCCQAAAABJRU5ErkJggg==";
-
