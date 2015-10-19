@@ -77,6 +77,10 @@ database:test
 query:select * from mytable
 ```
 
+#### JSON file
+
+Launch the application, and drag a file containing a JSON array of records.
+
 #### Web file
 
 Launch the application, and drag a file containing the url of the data.
