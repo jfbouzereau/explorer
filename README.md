@@ -10,9 +10,9 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Line chart
 * Association diagram
 * Word cloud
-* Arc graph
-* Checker graph
-* Factorial analysis
+* Arc diagram
+* Contingency table
+* Correspondence analysis
 * Self-organizing map
 * 3-variable graph
 * Treemap
@@ -113,6 +113,8 @@ There are two kinds of fields :
 * Drag a field to the table icon, or drag the table icon to a field, to display the values of this field.
 
 * Drag a field to the sort icon, or drag the sort icon to a field, to sort the data according to this field.
+
+* Drag the help icon (exclamation mark) to a graph to get info about this type of graph.
 
 ## Binaries
 

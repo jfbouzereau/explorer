@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>
+Tukey lambda PPCC plot
+</title>
+<link rel="stylesheet" type="text/css" href="help.css">
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=AM_HTMLorMML"></script>
+<body>
+
+<div class="header">Definition</div>
+Graphical technique for identifying the shape parameter for a distributional
+family that best describes the dataset.<br>
+
+The Tukey lambda distribution has for quantile `Q(p) = (p^lambda-(1-p)^lambda)/lambda`.<br>
+
+We do a series of probability plot of the data with the Tukey lambda distribution for &lambda; between -1 and 1, and we plot the correlations.
+The maximum of the curve gives the best value of the shape parameter:<br>
+<table border="0">
+<tr><td> &lambda; = -1</td><td>Approximately Cauchy C(0,&pi;)</td></tr>
+<tr><td> &lambda; = 0</td><td>Exactly logistic</td></tr>
+<tr><td> &lambda; = 0.14</td><td>Approximately normal N(0,2.142)</td></tr>
+<tr><td> &lambda; = 0.5</td><td>Strictly concave</td></tr>
+<tr><td> &lambda; = 1</td><td>Exactly uniform U(-1,1)</td></tr>
+</table>
+<br>
+
+<div class="header">Parameters</div>
+In the top slot, the qualitative field whose categories are to be represented.
+
+</body>
+</html>

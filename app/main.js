@@ -31,6 +31,11 @@ ipc.on("window", function(event,options)  {
 	});
 });
 
+ipc.on("help", function(event, name) {
+	var whelp = new BrowserWindow({});
+	whelp.loadUrl("file://"+__dirname+"/help/"+name+".html");
+});
+
 //****************************************************************************
 
 function read_file(filename) {
