@@ -23,6 +23,8 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Distribution curve
 * Scatter plot
 * Ternary plot
+* Andrew's curves
+* Survey plot
 * Correlations
 * Autocorrelation plot
 * Probability plot
@@ -115,6 +117,12 @@ There are two kinds of fields :
 * Drag a field to the sort icon, or drag the sort icon to a field, to sort the data according to this field.
 
 * Drag the help icon (exclamation mark) to a graph to get info about this type of graph.
+
+* Drag the background to scroll the workspace.
+
+* Use the mouse wheel to scroll the workspace vertically.
+
+* Use the mouse wheel in the right side of the window to scroll the tools.
 
 ## Binaries
 

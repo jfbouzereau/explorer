@@ -54,6 +54,9 @@ else if(check(magic,'m','y','s','q','l'))
 else if(check(magic,'h','t','t','p'))
 	read_http_file(filename,finish);
 
+else if(check(magic,'['))
+	read_json_file(filename,finish);
+
 else
 	read_tabular_file(filename,finish);
 
@@ -282,6 +285,72 @@ try	{
 	}
 catch(e)
 	{
+	console.log(e);
+	}
+
+}
+
+//****************************************************************************
+
+function read_json_file(filename,cb) {
+try	{
+	var content = fs.readFileSync(filename,"utf8");
+	var o = JSON.parse(content);	
+
+	if(!(o instanceof Array)) return;
+
+	// get list of fields
+
+	var nr = o.length;
+
+	var nf = 0;
+	var done = {};
+	var fields = [];
+
+	for(var i=0;i<nr;i++)
+		{	
+		var r = o[i];
+		if(r==null) continue;
+		if(typeof(r)!="object") continue;
+		for(var key in r)
+			{
+			if(!(key in done))
+				{
+				fields[nf++] = key;
+				done[key]=":n";
+				}		
+			if(typeof(r[key])!="number")
+				done[key] = "";
+			}
+		}
+
+	var line = [];
+	for(var k=0;k<nf;k++)
+		line.push(fields[k]+done[fields[k]]);
+	data.push(line);
+		
+	for(var i=0;i<nr;i++)
+		{		
+		var line = [];
+		var r = o[i];
+		if(r==null) continue;				
+		if(typeof(r)!="object") continue;
+		for(var k=0;k<nf;k++)
+			{
+			if(!(fields[k] in r))
+				line.push("");
+			else 
+				line.push(""+r[fields[k]]);		
+			}
+		data.push(line);
+		}
+
+	console.log(data);
+
+	cb();
+	}
+catch(e)
+	{	
 	console.log(e);
 	}
 

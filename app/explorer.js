@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.64";
+var VERSION = "1.65";
 
 /***************************************************************************/
 
@@ -17,7 +17,8 @@ _action("DRAG_GRAPH","");
 _action("RESIZE_GRAPH","Resize graph");
 _action("KEEP_GRAPH","");
 _action("CLOSE_GRAPH","Close graph");
-_action("DRAG_SLICE","Create graph from class");
+_action("DRAG_SLICE","Create graph from category");
+_action("CREATE_SLICE","Create graph from category");
 _action("DRAG_LABEL","");
 _action("SET_LABEL1","Define partition along axis 1");
 _action("DRAG_LABEL1","");
@@ -102,7 +103,8 @@ _action("CREATE_PROJECTION","Create field from projection");
 _action("SWAP_VALUE12","Swap fields");
 _action("SWAP_VALUE21","Swap fields");
 _action("CREATE_KGROUP","Create field from partition");
-_action("CREATE_BOOLEAN","Create boolean field from modality");
+_action("CREATE_VBOOLEAN","Create boolean field from category");
+_action("CREATE_LBOOLEAN","Create boolean field from category");
 _action("REMOVE_LABEL","Remove field");
 _action("REMOVE_VALUE","Remove field");
 _action("DONT_REMOVE","Some graphs use this field");
@@ -134,59 +136,70 @@ var GACTIONS = {}
 /***************************************************************************/
 
 var GNAME = {};
-var GTYPE = {};
 var GHELP = {};
-var GDRAW = {};
+var GINFO = {};
 
 var KNUM = 0;
-_type("TYPE_PIE","Pie chart",drawPieGraph);
-_type("TYPE_BAR","Bar chart",drawBarGraph);
-_type("TYPE_LINE","Line chart",drawLineGraph);
-_type("TYPE_TAG","Word cloud",drawTagGraph);
-_type("TYPE_SOL","Solidarity",drawSolGraph);
-_type("TYPE_ARC","Arc diagram",drawArcGraph);
-_type("TYPE_CROSS","Contingency table",drawCrossGraph);
-_type("TYPE_ASSOC","Associations", drawAssocGraph);
-_type("TYPE_FAC","Correspondence analysis",drawFacGraph);
-_type("TYPE_SOM","Self-organizing map",drawSomGraph);
-_type("TYPE_THREE","Graph 3",drawThreeGraph);
-_type("TYPE_TREE","Treemap",drawTreeGraph);
-_type("TYPE_CHI2","Chi square test",drawChi2Graph);
-_type("TYPE_GINI","Gini impurity",drawGiniGraph);
-_type("TYPE_ENTROPY","Entropy",drawEntropyGraph);
+_type("TYPE_PIE","Pie chart");
+_type("TYPE_BAR","Bar chart");
+_type("TYPE_LINE","Line chart");
+_type("TYPE_TAG","Word cloud");
+_type("TYPE_SOL","Solidarity");
+_type("TYPE_ARC","Arc diagram");
+_type("TYPE_CROSS","Contingency table");
+_type("TYPE_ASSOC","Associations");
+_type("TYPE_FAC","Correspondence analysis");
+_type("TYPE_SOM","Self-organizing map");
+_type("TYPE_THREE","Graph 3");
+_type("TYPE_TREE","Treemap");
+_type("TYPE_CHI2","Chi square test");
+_type("TYPE_GINI","Gini impurity");
+_type("TYPE_ENTROPY","Entropy");
 
 var NBTYPE1 = KNUM;			// max graph types
 
-_type("TYPE_MOMENTS","Statistics",drawMomentGraph);
-_type("TYPE_HISTO","Histogram",drawHistoGraph);
-_type("TYPE_DISTRIB","Distribution curve",drawDistribGraph);
-_type("TYPE_PROBA","Probability plot",drawProbaGraph);
-_type("TYPE_TUKEY","Tukey lambda PPCC plot",drawTukeyGraph);
-_type("TYPE_SCATTER","Scatter plot",drawScatterGraph);
-_type("TYPE_LAG","Lag plot",drawLagPlot);
-_type("TYPE_CORR","Correlations",drawCorrGraph);
-_type("TYPE_AUTOCORR","Autocorrelation plot",drawAutocorrGraph);
-_type("TYPE_ACP","Principal components",drawAcpGraph);
-_type("TYPE_CLUSTERING","Clustering",drawClusteringGraph);
-//_type("TYPE_HUEN","Huen diagram",drawHuenGraph);
-_type("TYPE_DENDRO","Dendrogram",drawDendroGraph);
-_type("TYPE_RADVIZ","Radviz",drawRadvizGraph);
-_type("TYPE_TERNARY","Ternary plot",drawTernaryGraph);
+_type("TYPE_MOMENTS","Statistics");
+_type("TYPE_HISTO","Histogram");
+_type("TYPE_DISTRIB","Distribution curve");
+_type("TYPE_PROBA","Probability plot");
+_type("TYPE_TUKEY","Tukey lambda PPCC plot");
+_type("TYPE_SCATTER","Scatter plot");
+_type("TYPE_LAG","Lag plot");
+_type("TYPE_CORR","Correlations");
+_type("TYPE_AUTOCORR","Autocorrelation plot");
+_type("TYPE_ACP","Principal components");
+_type("TYPE_CLUSTERING","Clustering");
+//_type("TYPE_HUEN","Huen diagram");
+_type("TYPE_DENDRO","Dendrogram");
+_type("TYPE_RADVIZ","Radviz");
+_type("TYPE_TERNARY","Ternary plot");
+_type("TYPE_SURVEY","Survey plot");
+_type("TYPE_ANDREW","Andrew's curves");
 
 var NBTYPE2 = KNUM; 		//  max plot types
 
-_type("TYPE_DISCRI","Discriminant analysis",drawDiscriGraph);
-_type("TYPE_TEST","Analysis of variance",drawTestGraph);
-_type("TYPE_REGRES","Linear regression",drawRegresGraph);
-_type("TYPE_BOX","Box plot",drawBoxGraph);
-_type("TYPE_PARA","Parallel coordinates",drawParaGraph);
-_type("TYPE_PALETTE","Palette",drawPaletteGraph);
+_type("TYPE_DISCRI","Discriminant analysis");
+_type("TYPE_TEST","Analysis of variance");
+_type("TYPE_REGRES","Linear regression");
+_type("TYPE_BOX","Box plot");
+_type("TYPE_PARA","Parallel coordinates");
+_type("TYPE_PALETTE","Palette");
 
 var NBTYPE3 = KNUM;			// max total types
 
 /***************************************************************************/
 
-var TNAME = {};
+var ZNUM = 0;
+
+_tool("TOOL_DUSTBIN");
+_tool("TOOL_SHOW");
+_tool("TOOL_HELP");
+_tool("TOOL_ADD");
+_tool("TOOL_CLONE");
+_tool("TOOL_SORT");
+
+/***************************************************************************/
+
 var THELP = {};
 
 var TNUM = 0;
@@ -196,10 +209,8 @@ _test("TEST_FISHER","Fisher's test");
 _test("TEST_LEVENE","Levene's test");
 _test("TEST_BROWN","Brown-Forsythe test");
 
-
 /***************************************************************************/
 
-var LNAME = {};
 var LHELP = {};
 
 var LNUM = 0;
@@ -211,7 +222,6 @@ _law("LAW_EXPONENTIAL","Exponential");
 
 /***************************************************************************/
 
-var CNAME = {};
 var CHELP = {};
 
 var CNUM = 0;
@@ -310,17 +320,51 @@ ANUM++;
 
 //***************************************************************************
 
-function _type(name,help,draw)
+/*
+	The names of the utility functions are derived from the type :
+	If type is TTPE_ABCD, 
+	the draw function is  drawAbcdGraph
+*/
+	
+function _type(name,help,options)
 {
 
 window[name] = KNUM;
 
+// derived name
+var rname = name.replace("TYPE_","");
+rname = rname.substring(0,1).toUpperCase()+rname.substring(1).toLowerCase();
+
 GNAME[KNUM] = name;	// name from type
-GTYPE[name] = KNUM;	// type from name
 GHELP[KNUM] = help;	// help message
-GDRAW[KNUM] = draw;	// drawing function
+
+GINFO[KNUM] = options || {};
+GINFO[KNUM].draw = pointer("draw"+rname+"Graph");
+GINFO[KNUM].comp = pointer("compute"+rname+"Data");
+GINFO[KNUM].icon = pointer("draw"+rname+"Icon");
 
 KNUM++;
+
+	function pointer(fname) {
+		if(eval("typeof("+fname+")")=="undefined")
+			return nothing;
+		else
+			return eval(fname);
+	}
+
+}
+
+//***************************************************************************
+
+function nothing() {}
+
+//***************************************************************************
+
+function _tool(name)
+{
+
+window[name] = ZNUM;
+ZNUM++;
 
 }
 
@@ -330,7 +374,6 @@ function _test(name,help)
 {
 window[name] = TNUM;
 
-TNAME[TNUM] = name;
 THELP[TNUM] = help;
 
 TNUM++;
@@ -343,7 +386,6 @@ function _law(name,help)
 {
 window[name] = LNUM;
 
-LNAME[LNUM] = name;
 LHELP[LNUM] = help;
 
 LNUM++;
@@ -355,7 +397,6 @@ function _clust(name,help)
 {
 window[name] = CNUM;
 
-CNAME[CNUM] = name;
 CHELP[CNUM] = help;
 
 CNUM++;
@@ -645,70 +686,7 @@ return text.indexOf("\xc3")>=0;
 
 //***************************************************************************
 
-function continueWithDataset(_data,_sts,config)
-{
-
-try { 
-	if(is_utf8(_data))
-		eval("_data = "+utf8_decode(_data));
-	else
-		eval("_data = "+_data);
-	}
-catch(err)
-	{
-	console.log("eval error "+err);
-	alert(err)
-	}
-
-hideClock()
-
-graphs = [];
-
-labels = _data.labels
-lrecords = _data.records
-
-
-for(var i=0;i<labels.length;i++)
-	if(labels[i].length>13)
-		labels[i] = labels[i].substring(0,6)+"\u2026"+
-			labels[i].substring(labels[i].length-6,labels[i].length)
-
-vrecords = []
-
-// dummy value
-values = ["1"]
-
-if(typeof(_data.values)=="undefined")
-	{
-	for(var i=0;i<lrecords.length;i++)
-		vrecords.push([1])
-	}
-else
-	{
-	for(var i=0;i<_data.values.length;i++)
-		values.push(_data.values[i])
-
-	for(var i=0;i<lrecords.length;i++)
-		{
-		var record = [1]
-
-		// convert the last elements to numerical values
-		k = labels.length
-		for(var j=0;j<_data.values.length;j++)
-			record.push(lrecords[i][k++])
-		vrecords.push(record);
-
-		// remove last elements from the lrecord
-		lrecords[i].splice(labels.length,lrecords[i].length-labels.length)
-		}
-	}
-
-//dumpDataset()
-openExplorerWindow(config)
-}
-
-//***************************************************************************
-
+/*
 function loadStorageConfig(config)
 {
 if(typeof(window.localStorage)=="undefined") return;
@@ -735,9 +713,9 @@ if(x)
 		}
 	}
 }
-
+*/
 //***************************************************************************
-
+/*
 function saveStorageConfig()
 {
 
@@ -762,7 +740,7 @@ catch(err)
 	console.log("localStorage err "+err);
 	}
 }
-
+*/
 //***************************************************************************
 
 function openExplorerWindow(config)
@@ -1063,7 +1041,7 @@ function inFullGraph(pt)
 {
 for(var i=graphs.length-1;i>=0;i--)
 	{
-	var graph = graphs[i]
+	var graph = graphs[i];
 	if(inRect(pt,graph.x,graph.y,graph.w,graph.h))
 		return i
 	}
@@ -1158,7 +1136,7 @@ return -1;
 function inDock(pt)
 {
 if(pt.x<20) return -1
-if(pt.x>20+20*dock.length) return -1
+if(pt.x>=20+20*dock.length) return -1
 if(pt.y<myheight-40) return -1
 if(pt.y>=myheight+20) return -1
 return Math.floor((pt.x-20)/20)
@@ -1361,6 +1339,21 @@ return inRect(pt,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100)
 
 //***************************************************************************
 
+function hasLeftLabel(graph)
+{
+if(graph.type==TYPE_DISCRI) return true;
+if(graph.type==TYPE_HISTO) return true;
+if(graph.type==TYPE_TERNARY) return true;
+if(graph.type==TYPE_BOX) return true;
+if(graph.type==TYPE_PARA) return true;
+if(graph.type==TYPE_ACP) return true;
+if(graph.type==TYPE_TEST) return true;
+if(graph.type==TYPE_RADVIZ) return true;
+if(graph.type==TYPE_SURVEY) return true;
+if(graph.type==TYPE_ANDREW) return true;
+return false;
+}
+
 function hasLabel2(graph)
 {
 if(graph.type==TYPE_TEST) return true;
@@ -1371,6 +1364,8 @@ if(graph.type==TYPE_PARA) return true;
 if(graph.type==TYPE_ACP) return true;
 if(graph.type==TYPE_RADVIZ) return true;
 if(graph.type==TYPE_TERNARY) return true;
+if(graph.type==TYPE_SURVEY) return true;
+if(graph.type==TYPE_ANDREW) return true;
 }
 
 //***************************************************************************
@@ -1386,6 +1381,8 @@ if(graph.type == TYPE_DENDRO) return true;
 if(graph.type == TYPE_PARA) return true;
 if(graph.type == TYPE_REGRES) return true;
 if(graph.type == TYPE_RADVIZ) return true;
+if(graph.type == TYPE_SURVEY) return true;
+if(graph.type == TYPE_ANDREW) return true;
 
 return false;
 }
@@ -2335,6 +2332,8 @@ return indices
 function inBoxSlice(pt,graph)
 {
 if(graph.ilabel1<0) return -1;
+if(!graph.ivalues) return;
+
 if(!inRect(pt,graph.x,graph.y+graph.hbar,graph.w,graph.h-graph.hbar)) return -1;
 
 var dv = (graph.h-graph.hbar-20)/graph._z.keys.length;
@@ -2491,10 +2490,17 @@ clearSpecific(graph)
 graph.ncontour = 0
 graph.contour = null
 
+
 if(graph.type<NBTYPE1)
 	graph.ivalue1 = graph.ivalue2 = -1
-else  if((graph.type<NBTYPE2)&&(graph.type!=TYPE_SCATTER)&&(graph.type!=TYPE_HISTO)&&(graph.type!=TYPE_ACP)&&(graph.type!=TYPE_RADVIZ)&&(graph.type!=TYPE_TERNARY))
+/*
+else  if((graph.type<NBTYPE2)&&(graph.type!=TYPE_SCATTER)&&(graph.type!=TYPE_HISTO)&&(graph.type!=TYPE_ACP)&&(graph.type!=TYPE_RADVIZ)&&(graph.type!=TYPE_TERNARY)&&(graph.type!=TYPE_SURVEY))
+*/
+else if(graph.type==TYPE_SCATTER)
+	{}
+else if((graph.type<NBTYPE2)&&(!hasLabel2(graph)))
 	graph.ilabel1 = graph.ilabel2 = -1
+
 
 // pie chart has only one axis
 if(((graph.type==TYPE_PIE)||(graph.type==TYPE_TAG))&&(graph.ilabel2>=0))	
@@ -2602,28 +2608,8 @@ for(var i=0;i<lrecords.length;i++)
 	}
 
 try	{
-switch(graph.type)
-	{
-	case TYPE_DISTRIB: computeDistribData(graph); break;
-	case TYPE_SCATTER: computeScatterData(graph); break;
-	case TYPE_MOMENTS: computeMomentData(graph); break;
-	case TYPE_HISTO: computeHistoData(graph); break;
-	case TYPE_DISCRI: computeDiscriData(graph); break;	
-	case TYPE_PROBA: computeProbaData(graph); break;
-	case TYPE_TUKEY: computeTukeyData(graph); break;
-	case TYPE_PARA: computeParaData(graph); break;
-	case TYPE_BOX: computeBoxData(graph); break;
-	case TYPE_TEST: computeTestData(graph); break;
-	case TYPE_ACP: computeAcpData(graph); break;
-	case TYPE_TERNARY: computeTernaryData(graph); break;
-	case TYPE_CORR: computeCorrData(graph); break;
-	case TYPE_AUTOCORR: computeAutocorrData(graph); break;
-	case TYPE_CLUSTERING: computeClusteringData(graph); break;
-	case TYPE_DENDRO: computeDendroData(graph); break;
-	case TYPE_REGRES: computeRegresData(graph); break;	
-	case TYPE_RADVIZ: computeRadvizData(graph); break;
-	}
-} catch(err) { console.log(err) }
+	GINFO[graph.type].comp(graph);
+	} catch(err) { console.log(err) }
 
 }
 
@@ -2660,6 +2646,46 @@ graph._z.max = max;
 
 if(graph.ilabel1>=0)
 	computeGraphData1(graph);
+}
+
+//***************************************************************************
+
+function computeSurveyData(graph)
+{
+
+	if(!graph.ivalues)
+		graph.ivalues = [];
+
+	var nv = graph.ivalues.length;
+	if(nv==0) return;
+
+	var min = new Array(nv);
+	var max = new Array(nv);
+	for(var j=0;j<nv;j++)
+		{
+		min[j] = Number.MAX_VALUE;
+		max[j] = -Number.MAX_VALUE;
+		}
+
+	var nr = 0;
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		for(var j=0;j<nv;j++)
+			{
+			var v = vrecords[i][graph.ivalues[j]];
+			if(v<min[j]) min[j] = v;
+			if(v>max[j]) max[j] = v;
+			}
+		nr++;
+		}
+
+	graph._z.nr = nr;
+	graph._z.min = min;
+	graph._z.max = max;
+
+	if(graph.ilabel1>=0)
+		computeGraphData1(graph)
 }
 
 //***************************************************************************
@@ -2898,8 +2924,6 @@ graph._z.xrow = xrow
 graph._z.yrow = yrow
 graph._z.eigenvalues = wr;
 graph._z.corr = corr;
-
-console.log(graph._z);
 
 }
 
@@ -4280,11 +4304,65 @@ if(graph.ilabel1>=0)
 
 //***************************************************************************
 
+function computeAndrewData(graph)
+{
+if(!graph.ivalues)
+	graph.ivalues = [];
+
+if(graph.ivalues.length==0) return;
+
+var min = Number.MAX_VALUE;
+var max = -Number.MAX_VALUE;
+
+var nv = graph.ivalues.length;
+var coef = new Array(nv);
+
+var r2 = Math.sqrt(2);
+
+var nt = 100;
+for(var j=1;j<nv;j++)
+	{
+	coef[j] = new Array(nt);
+	for(var k=0;k<nt;k++)
+		{
+		var t = -Math.PI+Math.PI*2*k/nt;
+		if(j%2)
+			coef[j][k] = Math.sin(t*(j+1)/2);
+		else
+			coef[j][k] = Math.cos(t*j/2);
+		}
+	}
+
+for(var i=0;i<lrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue
+
+	for(var k=0;k<nt;k++)
+		{
+		var f = vrecords[i][graph.ivalues[0]]/r2;
+		for(var j=1;j<nv;j++)
+			f += vrecords[i][graph.ivalues[j]]*coef[j][k];
+		if(f<min) min = f;
+		if(f>max) max = f;	
+		}
+	}
+
+	graph._z.min = min;
+	graph._z.max = max;
+	graph._z.coef = coef;	
+	graph._z.nt = nt;
+
+	if(graph.ilabel1>=0)
+		computeGraphData1(graph)
+}
+
+//***************************************************************************
+
 function computeHistoData(graph)
 {
 if(graph.ivalue1<0) return;
 
-computeMomentData(graph)
+computeMomentsData(graph)
 
 if(!graph.nslot)
 	graph.nslot = 10;
@@ -4531,7 +4609,7 @@ for(var il=-110;il<=110;il++)
 
 //***************************************************************************
 
-function computeMomentData(graph)
+function computeMomentsData(graph)
 {
 var i1 = graph.ivalue1
 var i2 = graph.ivalue2
@@ -4562,6 +4640,7 @@ for(var i=0;i<lrecords.length;i++)
 	n += 1;
 	}	
 
+graph._z.stats.n = n;
 graph._z.stats.min = min;
 graph._z.stats.max = max;
 graph._z.stats.mean1 = m1/n;
@@ -4879,15 +4958,9 @@ for(var key in graph._count)
 if(graph.total==0)
 	graph.total = 1
 
-switch(graph.type)
-	{
-	case TYPE_ARC: computeArcData(graph); break;
-	case TYPE_FAC: computeFacData(graph); break;
-	case TYPE_ASSOC : computeAssocData(graph); break;
-	case TYPE_SOL: computeSolData(graph); break;
-	case TYPE_SOM: computeSomData(graph); break;
-	case TYPE_CHI2: computeChi2Data(graph); break;
-	}
+// compute specific data
+GINFO[graph.type].comp(graph);
+
 }
 
 //***************************************************************************
@@ -5883,6 +5956,7 @@ function createValue(index)
 
 for(var i=0;i<lrecords.length;i++)
 	{
+	console.log(lrecords[i][index]+" "+typeof(lrecords[i][index]));
 	var x = Number(lrecords[i][index].replace(",","."))
 	if(isNaN(x)) x = 0
 	vrecords[i].push(x)
@@ -5933,7 +6007,7 @@ for(var i=0;i<graphs.length;i++)
 
 //***************************************************************************
 
-function createBoolean(graph,sliceindex)
+function createBoolean(graph,sliceindex,option)
 { 
 if(graph.ilabel3>=0)
 	{
@@ -5954,10 +6028,17 @@ if(graph.ilabel3>=0)
 		{
 		var k = ((lrecords[i][il1]==key1)&&(lrecords[i][il2]==key2)&&
 			(lrecords[i][il3]==key3)) ? 1 : 0;
-		vrecords[i].push(k);
+
+		if(option==0)
+			lrecords[i].push(""+k);
+		else
+			vrecords[i].push(k);
 		}
 
-	values.push(key1+"_"+key2+"_"+key3);
+	if(option==0)		
+		labels.push(key1+"-"+key2+"-"+key3);
+	else
+		values.push(key1+"_"+key2+"_"+key3);
 	}
 else if((graph.ilabel2>=0)&&(graph.type!=TYPE_FAC))
 	{
@@ -5972,9 +6053,16 @@ else if((graph.ilabel2>=0)&&(graph.type!=TYPE_FAC))
 	for(var i=0;i<lrecords.length;i++)
 		{
 		var k = ((lrecords[i][il1]==key1)&&(lrecords[i][il2]==key2))?1:0;
-		vrecords[i].push(k);
+		if(option==0)
+			lrecords[i].push(""+k);
+		else
+			vrecords[i].push(k);
 		}
-	values.push(key1+"_"+key2);
+
+	if(option==0)
+		labels.push(key1+"_"+key2);
+	else
+		values.push(key1+"_"+key2);
 	}
 else if(graph.ilabel1>=0)
 	{
@@ -5985,9 +6073,16 @@ else if(graph.ilabel1>=0)
 	for(var i=0;i<lrecords.length;i++)
 		{
 		var k = (lrecords[i][il1] == key1 ) ? 1 : 0;
-		vrecords[i].push(k);
+		if(option==0)
+			lrecords[i].push(""+k);
+		else
+			vrecords[i].push(k);
 		}
-	values.push(key1);
+
+	if(option==0)
+		labels.push(key1);
+	else
+		values.push(key1);
 	}
 
 }
@@ -6335,7 +6430,7 @@ clusteringindex = -1;
 
 var index = -1
 
-var movetop = false
+var movetotop = false
 
 if(inDustbinIcon(ptclick))
 	{
@@ -6428,44 +6523,45 @@ try	{
 // check if clicking in graph
 
 var i = inFullGraph(ptclick);
+
 if(i>=0)
 	{
 	var graph = graphs[i]
 
 	if(graph.closeable&&inRect(ptclick,graph.x+5,graph.y+4,10,10))
 		{
-		faction = CLOSE_GRAPH
-		graphindex = i
+		faction = CLOSE_GRAPH;
+		graphindex = i;
 		}
 	else if((index=inGraphHandle(ptclick,graph))>=0)
 		{
 		faction = DRAG_TITLE
 		graphindex = i
-		titleindex = index
+		titleindex = index;
 		}
 	else if(inRect(ptclick,graph.x+graph.w-10,graph.y+graph.h-10,10,10))
 		{
 		faction = RESIZE_GRAPH
 		graphindex = i
-		movetop = true
+		movetotop = true;
 		}
 	else if(graph.type==TYPE_PALETTE)
 		{
 		if(inRect(ptclick,graph.x+2,graph.y+graph.hbar+2,graph.w-4,
 			graph.h-graph.hbar-4))
 			{
-			faction = DRAG_HUE
-			var dx = (graph.w-2)/5
-			var dy = (graph.h-graph.hbar-2)/5
-			sliceindex = Math.floor((ptclick.x-graph.x)/dx)
-				+5*Math.floor((ptclick.y-graph.y-graph.hbar)/dy)
-			graphindex = -1
+			faction = DRAG_HUE;
+			var dx = (graph.w-2)/6;
+			var dy = (graph.h-graph.hbar-2)/6;
+			sliceindex = Math.floor((ptclick.x-graph.x-2)/dx)
+				+6*Math.floor((ptclick.y-graph.y-graph.hbar-2)/dy)
+			graphindex = -1;
 			}
 		else
 			{
 			faction = DRAG_GRAPH
 			graphindex = i
-			movetop = true
+			movetotop = true
 			}
 		}
 	else if(inGraphLabel1(ptclick,graph))
@@ -6531,7 +6627,7 @@ if(i>=0)
 		}
 	else if((graph.type==TYPE_TREE)&&((index=inTreeSlice(ptclick,graph)) instanceof Array))
 		{
-		faction = DRAG_SLICE
+		faction = DRAG_SLICE;
 		graphindex = i
 		sliceindex = index
 		}
@@ -6601,7 +6697,7 @@ if(i>=0)
 		// in graph title bar
 		faction = DRAG_GRAPH
 		graphindex = i
-		movetop = true
+		movetotop = true;
 		}
 	else if(inGraphBackground(ptclick,graph))
 		{	
@@ -6611,7 +6707,7 @@ if(i>=0)
 		{
 		faction = DRAG_GRAPH
 		graphindex = i
-		movetop = true
+		movetotop = true;
 		}
 	}
 
@@ -6631,12 +6727,12 @@ if(faction==0)
 	else
 		faction = SCROLL_DESKTOP;
 
-if(movetop)
+if(movetotop)
 	{
 	// move selected graph to top
-	var gtemp = graphs[graphs.length-1]
-	graphs[graphs.length-1] = graphs[graphindex]
-	graphs[graphindex] = gtemp	
+	var gtemp = graphs[graphindex];
+	graphs.splice(graphindex,1);
+	graphs.push(gtemp);
 	graphindex = graphs.length-1
 	}
 
@@ -6735,6 +6831,7 @@ else if(action==SET_LABEL2)
 else if(action==SET_LABEL3)
 	{
 	graph = graphs[graphindex]
+	console.log("SET LABEL3 "+graph.type);
 	if(graph.type==TYPE_THREE)
 		{
 		graph.ilabel3 = labelindex
@@ -6832,9 +6929,8 @@ else if(action==SET_GRAPH_UNIT)
 	graph.iunit = valueindex
 	computeGraphData(graph)
 	}
-else if(action==DRAG_SLICE)
+else if(action==CREATE_SLICE)
 	{
-	try {
 	graph = graphs[graphindex]
 	var selection = cloneArray(graph.selection)	
 	// new graph selection 
@@ -6888,8 +6984,6 @@ else if(action==DRAG_SLICE)
 	newgraph.iunit = graph.iunit
 	computeGraphData(newgraph)
 	graphs.push(newgraph)	
-		}
-	catch(e) { alert(e) }
 	}
 else if(action==DROP_SLICE)
 	{
@@ -6975,8 +7069,7 @@ else if(action==REMOVE_LABEL1)
 else if(action==REMOVE_LABEL2)
 	{
 	graph = graphs[graphindex]
-	if((graph.type==TYPE_DISCRI)||(graph.type==TYPE_HISTO)||(graph.type==TYPE_TERNARY)||
-		(graph.type==TYPE_BOX)||(graph.type==TYPE_PARA)||(graph.type==TYPE_ACP))
+	if(hasLeftLabel(graph))
 		{
 		graph.ilabel1 = -1
 		graph.use1 = null;
@@ -7242,10 +7335,15 @@ else if(action==CREATE_KGROUP)
 	{
 	createKgroup(graphs[graphindex])
 	}
-else if(action==CREATE_BOOLEAN)
+else if(action==CREATE_LBOOLEAN)
 	{
 	graph = graphs[graphindex];
-	createBoolean(graph,sliceindex);
+	createBoolean(graph,sliceindex,0);
+	}
+else if(action==CREATE_VBOOLEAN)
+	{
+	graph = graphs[graphindex];
+	createBoolean(graph,sliceindex,1);
 	}
 else if(action==REMOVE_TITLE)
 	{
@@ -7253,8 +7351,8 @@ else if(action==REMOVE_TITLE)
 	}
 else if(action==CHANGE_HUE)
 	{
-	graph = graphs[graphindex]	
-	graph.hue = sliceindex*5/25/6
+	graph = graphs[graphindex];
+	graph.hue = sliceindex/36;
 	computeGraphData(graph)
 	}
 else if(action==SELECT_SLICES)
@@ -7395,11 +7493,23 @@ draw()
 function wheel(event)
 {
 var index = inGraph(ptmove);
-if(index<0) return;
+if(index>=0)
+	{
+	var graph = graphs[index];
+	graph.yshift -= Math.round(event.wheelDelta/10);
+	if(graph.yshift<0) graph.yshift = 0;
+	}
+else if(ptmove.x>mywidth-100)
+	{
+	barshift -= Math.round(event.wheelDelta/10);
+	if(barshift<0)		
+		barshift = 0;
+	if(barshift>20*labels.length+20*values.length+140)
+		barshift = 20*labels.length+20*values.length+140;	
+	}
+else
+	scrollDesktop(0,Math.round(event.wheelDelta/10));
 
-var graph = graphs[index];
-graph.yshift -= Math.round(event.wheelDelta/10);
-if(graph.yshift<0) graph.yshift = 0;
 
 draw();
 }
@@ -8009,13 +8119,14 @@ if(gindex>=0)
 	message = ""
 	sep = ""
 	var graph = dock[gindex];
-	if(graph.selection)
-	for(var i=0;i<graph.selection.length;i+=2)
-		{
-		message += sep + graph.selection[i+1]
-		sep = " \u2022 "			
-		}
-	return		
+	if(graph)
+		if(graph.selection)
+			for(var i=0;i<graph.selection.length;i+=2)
+			{
+			message += sep + graph.selection[i+1]
+			sep = " \u2022 "			
+			}
+	return;
 	}
 
 // over a function icon
@@ -8125,6 +8236,8 @@ else if(overCorrGraph(ptmove,graphs[i]))
 else if(overScatterGraph(ptmove,graphs[i]))
 	return
 else if(overTernaryPlot(ptmove,graphs[i]))
+	return;
+else if(overSurveyGraph(ptmove,graphs[i]))
 	return;
 else if(overDistribGraph(ptmove,graphs[i]))
 	return;
@@ -8762,6 +8875,33 @@ return true;
 
 //***************************************************************************
 
+function overSurveyGraph(ptmove,graph)
+{
+if(!graph.ivalues) return false;
+
+
+	var min = graph._z.min;
+	var max = graph._z.max;
+
+	var xleft = graph.x+30;
+	var xright = graph.x+graph.w-100;
+
+	var nv = graph.ivalues.length;
+
+	var dx = (xright-xleft)/nv;
+	if(dx<4) dx = 4;
+
+	var i = Math.floor((ptmove.x-xleft)/dx);
+	if(i<0) return false;
+	if(i>=nv) return false;
+
+	message = values[graph.ivalues[i]];
+	return true;
+
+}
+
+//***************************************************************************
+
 function overGiniGraph(ptmove,graph)
 {
 if(graph.type!=TYPE_GINI) return false;
@@ -9381,9 +9521,13 @@ else if(faction==DRAG_SLICE)
 		graphindex2 = index
 		}
     else if(inValue(ptmove)>=0)
-        action = CREATE_BOOLEAN;
-	else
+        action = CREATE_VBOOLEAN;
+	else if(inLabel(ptmove)>=0)
+		action = CREATE_LBOOLEAN;
+	else if(inFullGraph(ptmove)>=0)
 		action = DRAG_SLICE;
+	else
+		action = CREATE_SLICE;
 	}
 else if(faction==DRAG_BIN)
 	{
@@ -9624,7 +9768,7 @@ else if(faction==DRAG_HUE)
 		if(graph.type==TYPE_PALETTE) continue
 		if(inRect(ptmove,graph.x,graph.y,graph.w,graph.h))
 			{
-			action = CHANGE_HUE
+			action = CHANGE_HUE;
 			graphindex = i
 			break
 			}
@@ -9654,12 +9798,7 @@ else if(faction==DRAG_STICKER)
 	}
 else if(faction==SCROLL_DESKTOP)
 	{
-	// move all the graphs
-	for(var i=0;i<graphs.length;i++)
-		{
-		graphs[i].x += ptmove.x - ptclick.x
-		graphs[i].y += ptmove.y - ptclick.y
-		}	
+	scrollDesktop(ptmove.x-ptclick.x,ptmove.y-ptclick.y);
 	ptclick = ptmove
 	}
 else if(faction==SAVE_CONFIG)
@@ -9678,6 +9817,18 @@ else
 	message = ""
 
 draw()
+}
+
+//***************************************************************************
+
+function scrollDesktop(dx,dy)
+{
+	// move all the graphs
+	for(var i=0;i<graphs.length;i++)
+		{
+		graphs[i].x += dx;
+		graphs[i].y += dy;
+		}	
 }
 
 //***************************************************************************
@@ -9885,14 +10036,96 @@ ctx.stroke()
 
 //***************************************************************************
 
-function drawIcon(ctx,index,x,y)
+function drawDustbinIcon(ctx,x,y)
 {
+ctx.fillStyle = "#000000";
+ctx.fillRect(x+4,y+5,1,13);
+ctx.fillRect(x+7,y+7,1,9);
+ctx.fillRect(x+10,y+7,1,9);
+ctx.fillRect(x+13,y+7,1,9);
+ctx.fillRect(x+16,y+5,1,13);
+ctx.fillRect(x+3,y+4,15,1);
+ctx.fillRect(x+4,y+17,13,1);
+ctx.fillRect(x+7,y+3,7,1);
+frameIcon(ctx,x,y);
+}
 
-if(index==TYPE_PIE)
+function drawTableIcon(ctx,x,y)
+{
+ctx.fillStyle = "#FFFFFF"
+ctx.fillRect(x,y,20,20);
+ctx.fillStyle = "#000000"
+for(var i=3;i<18;i+=3)
+	ctx.fillRect(x+4,y+i,13,1)
+for(var i=4;i<19;i+=4)
+	ctx.fillRect(x+i,y+3,1,13) 
+frameIcon(ctx,x,y);
+}
+
+function drawHelpIcon(ctx,x,y)
+{
+ctx.fillStyle = "#FFFFFF";
+ctx.fillRect(x,y,20,20);
+ctx.fillStyle = "#000000";
+ctx.save();
+ctx.font = "bold 22px Times";
+ctx.textAlign = "center";
+ctx.fillText("!",x+10,y+18);
+ctx.restore();
+ctx.strokeStyle = "#000000";
+frameIcon(ctx,x,y);
+}
+
+function drawAddIcon(ctx,x,y)
+{
+ctx.fillStyle = "#FFFFFF";
+ctx.fillRect(x,y,20,20);
+ctx.strokeStyle = "#000000";
+ctx.beginPath()
+ctx.moveTo(x+3,y+9);
+ctx.lineTo(x+17,y+9);
+ctx.moveTo(x+3,y+10);
+ctx.lineTo(x+17,y+10);
+ctx.moveTo(x+3,y+11);
+ctx.lineTo(x+17,y+11);
+ctx.moveTo(x+9,y+3);
+ctx.lineTo(x+9,y+17);
+ctx.moveTo(x+10,y+3);
+ctx.lineTo(x+10,y+17);
+ctx.moveTo(x+11,y+3);
+ctx.lineTo(x+11,y+17);
+ctx.stroke();
+frameIcon(ctx,x,y);
+}
+
+function drawCloneIcon(ctx,x,y)
+{
+ctx.fillStyle = "#FFFFFF";
+ctx.fillRect(x,y,20,20);
+ctx.fillStyle = "#000000";
+drawRect(ctx,x+3,y+3,9,9)
+drawRect(ctx,x+7,y+7,9,9)
+ctx.strokeStyle = "#000000";
+frameIcon(ctx,x,y);
+}
+
+function drawSortIcon(ctx,x,y)
+{
+ctx.fillStyle = "#FFFFFF";
+ctx.fillRect(x,y,20,20);
+ctx.fillStyle = "#000000";
+ctx.fillRect(x+3,y+16,2,2);
+ctx.fillRect(x+6,y+13,2,5);
+ctx.fillRect(x+9,y+10,2,8);
+ctx.fillRect(x+12,y+7,2,11);
+ctx.fillRect(x+15,y+4,2,14);
+ctx.strokeStyle = "#000000";
+frameIcon(ctx,x,y);
+}
+
+
+function drawPieIcon(ctx,x,y)
 	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
-
 	ctx.strokeStyle = "#000000"
 	ctx.beginPath()
 	var xc = x+10
@@ -9911,11 +10144,9 @@ if(index==TYPE_PIE)
 
 	drawCorner(ctx,x+20-4,y,4)
 	}
-else if(index==TYPE_BAR)
-	{	
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
 
+function drawBarIcon(ctx,x,y)
+	{	
 	ctx.strokeStyle= "#000000"
 	ctx.fillStyle = "#000000"
 	drawRect(ctx,x+2,y+5,4,20-5)
@@ -9925,11 +10156,9 @@ else if(index==TYPE_BAR)
 
 	drawCorner(ctx,x+20-4,y,4)
 	}
-else if(index==TYPE_LINE)
+
+function drawLineIcon(ctx,x,y)
 	{
-	ctx.fillStyle = PINK;
-	ctx.fillRect(x,y,20,20);
-	
 	ctx.strokeStyle = "#000000";
 	ctx.beginPath();
 	ctx.moveTo(x+2,y+17);
@@ -9946,11 +10175,9 @@ else if(index==TYPE_LINE)
 	ctx.lineTo(x+18,y+6);
 	ctx.stroke();
 	}
-else if(index==TYPE_THREE)
-	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
 
+function drawThreeIcon(ctx,x,y)
+	{
 	ctx.strokeStyle = "#000000"
 	ctx.beginPath()
 	for(var i=5;i<=15;i+=10)
@@ -9961,11 +10188,9 @@ else if(index==TYPE_THREE)
 			}
 	ctx.stroke()
 	}
-else if(index==TYPE_CROSS)
-	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
 
+function drawCrossIcon(ctx,x,y)
+	{
 	ctx.strokeStyle = "#000000"
 	ctx.fillStyle = "#000000"
 	drawRect(ctx,x+4,y+4,2,2)
@@ -9975,11 +10200,9 @@ else if(index==TYPE_CROSS)
 
 	drawCorner(ctx,x+20-4,y,4)
 	}
-else if(index==TYPE_TAG)
-	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
 
+function drawTagIcon(ctx,x,y)
+	{
 	ctx.fillStyle = "#000000"
 	ctx.fillRect(x+2,y+6,6,1)	
 	ctx.fillRect(x+10,y+5,7,2)
@@ -9990,11 +10213,9 @@ else if(index==TYPE_TAG)
 	ctx.fillRect(x+7,y+16,6,1)
 	ctx.fillRect(x+15,y+15,3,2)
 	}
-else if(index==TYPE_ARC)
-	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
 
+function drawArcIcon(ctx,x,y)
+	{
 	ctx.strokeStyle = "#000000"
 	ctx.beginPath()
 	ctx.arc(x+7,y+20,7,Math.PI,2*Math.PI,false)
@@ -10004,11 +10225,9 @@ else if(index==TYPE_ARC)
 	ctx.fillStyle = "#000000"
 	drawCorner(ctx,x+20-4,y,4)
 	}
-else if(index==TYPE_FAC)
-	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
 
+function drawFacIcon(ctx,x,y)
+	{
 	ctx.fillStyle = "#000000"
 	ctx.fillRect(x,y+10,20,1)
 	ctx.fillRect(x+10,y,1,20)
@@ -10018,11 +10237,9 @@ else if(index==TYPE_FAC)
 	ctx.fillRect(x+6,y+13,2,2)
 	ctx.fillRect(x+15,y+12,2,2)
 	}
-else if(index==TYPE_SOM)
-	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
 
+function drawSomIcon(ctx,x,y)
+	{
 	var xx = [[2,6,10,14,18],[3,6,11,14,18],[2,6,10,14,18],[2,6,9,14,17],[2,6,10,14,18]]
 	var yy = [[2,2,3,2,2],[6,6,6,6,6],[10,10,10,10,10],[14,14,13,14,14],[18,17,18,19,18]]
 
@@ -10050,11 +10267,8 @@ else if(index==TYPE_TABLE)
 		ctx.fillRect(x+i,y+3,1,13) 
 	}
 */
-else if(index==TYPE_TREE)
+function drawTreeIcon(ctx,x,y)
 	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
-
 	ctx.fillStyle = "#000000"
 	ctx.fillRect(x+8,y,1,20)
 	ctx.fillRect(x+14,y,1,20)
@@ -10068,11 +10282,9 @@ else if(index==TYPE_TREE)
 	ctx.fillRect(x+14,y+12,6,1)
 	ctx.fillRect(x+14,y+16,6,1)
 	}
-else if(index==TYPE_HISTO)
-	{	
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
 
+function drawHistoIcon(ctx,x,y)
+	{	
 	ctx.strokeStyle= "#000000"
 	ctx.fillStyle = "#000000"
 	drawRect(ctx,x+2,y+5,4,20-5)
@@ -10080,11 +10292,9 @@ else if(index==TYPE_HISTO)
 	drawRect(ctx,x+10,y+2,4,20-2)
 	drawRect(ctx,x+14,y+10,4,20-10)
 	}
-else if(index==TYPE_PROBA)
-	{		
-	ctx.fillStyle = BLUE;
-	ctx.fillRect(x,y,20,20)
 
+function drawProbaIcon(ctx,x,y)
+	{		
 	ctx.fillStyle = "#000000";
 	for(var i=2;i<=18;i++)
 		ctx.fillRect(x+i,y+20-i,1,1);
@@ -10099,11 +10309,9 @@ else if(index==TYPE_PROBA)
 	ctx.lineTo(x+19,y+20-16);
 	ctx.stroke();
 	}
-else if(index==TYPE_DISTRIB)
-	{
-	ctx.fillStyle = BLUE;
-	ctx.fillRect(x,y,20,20)
 
+function drawDistribIcon(ctx,x,y)
+	{
 	ctx.strokeStyle = "#000000"
 	ctx.beginPath()
 	ctx.moveTo(x,y+20)
@@ -10119,37 +10327,18 @@ else if(index==TYPE_DISTRIB)
 	ctx.lineTo(x+20,y)
 	ctx.stroke()
 	}
-else if(index==TYPE_SCATTER)
-	{
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
 
+function drawScatterIcon(ctx,x,y)
+	{
 	ctx.fillStyle = "#000000"
 	var xy = [2,4, 5,1, 3,12, 8,5, 10,7, 17,15, 3,5, 2,8, 5,15,
 			18,11, 11,17, 12,14, 18,3, 16,2, 12,11, 8,13, 16,7]
 	for(var i=0;i<xy.length;i+=2)
 		ctx.fillRect(x+xy[i],y+xy[i+1],2,2)
 	}
-else if(index==TYPE_LAG)
+
+function drawLagIcon(ctx,x,y)
 	{
-	ctx.fillStyle = BLUE;
-	ctx.fillRect(x,y,20,20);
-	
-	/*
-	ctx.fillStyle = "#AAAAAA";
-	ctx.fillRect(x+2,y+11,17,1);
-	ctx.fillRect(x+2,y+17,17,1);
-	ctx.fillRect(x+2,y+2,17,1);
-
-	ctx.fillStyle = "#000000";
-	ctx.fillRect(x+6,y+11,3,7);
-	ctx.fillRect(x+5,y+12,5,1);
-	ctx.fillRect(x+5,y+16,5,1);
-
-	ctx.fillRect(x+13,y+2,3,10);
-	ctx.fillRect(x+12,y+3,5,1);
-	ctx.fillRect(x+12,y+10,5,1);
-	*/
 	ctx.fillStyle = "#000000";
 
 	ctx.fillRect(x+3,y+16,2,2);
@@ -10168,49 +10357,28 @@ else if(index==TYPE_LAG)
 
 	drawCorner(ctx,x+20-4,y,4)
 	}
-else if(index==TYPE_CHI2)
+
+function drawChi2Icon(ctx,x,y)
 	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
 	var font = ctx.font;	
 	ctx.font = "18px helvetica";
 	ctx.fillStyle = "#000000";
 	ctx.fillText("\u03C7",x+10,y+13);
 	ctx.font = font;
-	/*
-	ctx.lineWidth = 3
-	ctx.strokeStyle = "#333333"
-	ctx.beginPath()
-	ctx.moveTo(x+2,y+3)
-	ctx.lineTo(x+7,y+3)
-	ctx.lineTo(x+20-7,y+20-2)
-	ctx.lineTo(x+20-2,y+20-2)
-	ctx.moveTo(x+2,y+20-2)
-	ctx.lineTo(x+20-2,y+2)
-	ctx.stroke()
-	ctx.lineWidth = 1
-	*/
-	/*
-	ctx.fillStyle = "#333333"
-	ctx.textAlign = "center"
-	ctx.strokeText("χ",x+10,y+14)
-	*/
 	}
-else if(index==TYPE_GINI)
+
+function drawGiniIcon(ctx,x,y)
 	{
 	var font = ctx.font;
-	ctx.fillStyle = PINK;
 	ctx.fillRect(x,y,20,20);
 	ctx.font = "18px times italic";
 	ctx.fillStyle = "#000000";
 	ctx.fillText("Ig",x+10,y+16);
 	ctx.font = font;
 	}
-else if(index==TYPE_ENTROPY)
-	{
-	ctx.fillStyle = PINK;
-	ctx.fillRect(x,y,20,20);
 
+function drawEntropyIcon(ctx,x,y)
+	{
 	ctx.fillStyle = "#9E9E9E";
 	ctx.fillRect(x+8,y+3,4,2);
 	ctx.fillRect(x+3,y+8,2,4);
@@ -10237,15 +10405,12 @@ else if(index==TYPE_ENTROPY)
 	ctx.fillRect(x+12,y+12,2,2);
 	ctx.fillRect(x+13,y+13,2,2);
 	ctx.fillRect(x+14,y+14,3,3);	
-
-	
 	}
-else if(index==TYPE_MOMENTS)
+
+function drawMomentsIcon(ctx,x,y)
 	{
 	var font = ctx.font;
 	ctx.font = "18px helvetica";
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
 	ctx.fillStyle = "#000000";
 	ctx.fillText("\u03A3",x+10,y+17);
 	ctx.font = font;
@@ -10267,10 +10432,9 @@ else if(index==TYPE_MOMENTS)
 	ctx.strokeText("∑",x+12,y+15)
 	*/
 	}
-else if(index==TYPE_BOX)
+
+function drawBoxIcon(ctx,x,y)
 	{
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
 	ctx.strokeStyle = "#000000";
 	ctx.fillStyle = "#000000";
 
@@ -10286,10 +10450,9 @@ else if(index==TYPE_BOX)
 	drawRect(ctx,x+10,y+14,4,4);
 	drawRect(ctx,x+14,y+16,3,0);
 	}
-else if(index==TYPE_PARA)
+
+function drawParaIcon(ctx,x,y)
 	{
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
 	ctx.strokeStyle = "#000000";
 	ctx.beginPath();
 
@@ -10316,11 +10479,9 @@ else if(index==TYPE_PARA)
 
 	ctx.stroke();
 	}
-else if(index==TYPE_TEST)
-	{
-	ctx.fillStyle = BLUE;
-	ctx.fillRect(x,y,20,20);
 
+function drawTestIcon(ctx,x,y)
+	{
     ctx.fillStyle = BLUE
     ctx.fillRect(x,y,20,20)
     var font = ctx.font;
@@ -10332,11 +10493,9 @@ else if(index==TYPE_TEST)
     ctx.fillText("V",x+15,y+17);
     ctx.font = font;
 	}
-else if(index==TYPE_TUKEY)
-	{	
-	ctx.fillStyle = BLUE;
-	ctx.fillRect(x,y,20,20);
 
+function drawTukeyIcon(ctx,x,y)
+	{	
 	var font = ctx.font;
 	ctx.font = "18px helvetica";
 	ctx.fillStyle = "#000000";
@@ -10345,11 +10504,9 @@ else if(index==TYPE_TUKEY)
 	ctx.fillText("𝜆",x+14,y+17);
 	ctx.font = font;
 	}
-else if(index==TYPE_SOL)
-	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
 
+function drawSolIcon(ctx,x,y)
+	{
 	ctx.fillStyle = "#000000"
 	for(i=3;i<20;i+=3)	
 		{
@@ -10360,11 +10517,9 @@ else if(index==TYPE_SOL)
 		ctx.fillRect(x+16,y+i,2,1)
 		}
 	}
-else if(index==TYPE_ASSOC)
-	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
 
+function drawAssocIcon(ctx,x,y)
+	{
 	ctx.save();	
 	ctx.fillStyle = "#333333";
 	ctx.font = "bold 24px Times";
@@ -10372,11 +10527,9 @@ else if(index==TYPE_ASSOC)
 	ctx.fillText("r",x+10,y+16);
 	ctx.restore();
 	}
-else if(index==TYPE_ACP)
-	{
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
 
+function drawAcpIcon(ctx,x,y)
+	{
 	ctx.fillStyle = "#000000"
 	ctx.fillRect(x,y+10,20,1)
 	ctx.fillRect(x+10,y,1,20)
@@ -10388,11 +10541,9 @@ else if(index==TYPE_ACP)
 
 	drawCorner(ctx,x+20-4,y,4)
 	}
-else if(index==TYPE_CLUSTERING)
-	{
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
 
+function drawClusteringIcon(ctx,x,y)
+	{
 	ctx.strokeStyle = "#000000"
 	ctx.beginPath()
 	ctx.moveTo(x+16,y)
@@ -10411,11 +10562,9 @@ else if(index==TYPE_CLUSTERING)
 	ctx.fillRect(x+5,y+14,2,2)
 	ctx.fillRect(x+9,y+17,2,2)
 	}
-else if(index==TYPE_DISCRI)
-	{	
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
 
+function drawDiscriIcon(ctx,x,y)
+	{	
 	ctx.strokeStyle = "#444444";
 	//ctx.strokeStyle = ctx.createPattern(checkboard,"repeat");
 	ctx.beginPath()
@@ -10427,11 +10576,9 @@ else if(index==TYPE_DISCRI)
 	ctx.arc(x+10,y+14,5,0,Math.PI*2,true)
 	ctx.stroke()
 	}
-else if(index==TYPE_CORR)
-	{
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
 
+function drawCorrIcon(ctx,x,y)
+	{
 	ctx.strokeStyle = "#000000"
 	ctx.fillStyle = "#000000"
 	drawRect(ctx,x+4,y+4,2,2)
@@ -10439,11 +10586,9 @@ else if(index==TYPE_CORR)
 	drawRect(ctx,x+10+3,y+10+3,4,4)	
 	drawRect(ctx,x+2,y+10,8,8)
 	}
-else if(index==TYPE_AUTOCORR)
-	{
-	ctx.fillStyle = BLUE;
-	ctx.fillRect(x,y,20,20);
 
+function drawAutocorrIcon(ctx,x,y)
+	{
 	ctx.strokeStyle = "#000000";
 	ctx.fillStyle = "#000000";
 	ctx.beginPath();
@@ -10478,10 +10623,9 @@ else if(index==TYPE_HUEN)
 	ctx.stroke()
 	}
 */
-else if(index==TYPE_DENDRO)
+
+function drawDendroIcon(ctx,x,y)
 	{
-	ctx.fillStyle = BLUE;
-	ctx.fillRect(x,y,20,20);
 	ctx.fillStyle = "#000000"
 	ctx.fillRect(x+2,y+17,1,3)	
 	ctx.fillRect(x+5,y+17,1,3)
@@ -10505,11 +10649,9 @@ else if(index==TYPE_DENDRO)
 
 	drawCorner(ctx,x+20-4,y,4)
 	}
-else if(index==TYPE_RADVIZ)
-	{
-	ctx.fillStyle = BLUE;
-	ctx.fillRect(x,y,20,20)
 
+function drawRadvizIcon(ctx,x,y)
+	{
 	ctx.strokeStyle = "#000000"
 	ctx.beginPath()
 	var xc = x+10
@@ -10525,21 +10667,18 @@ else if(index==TYPE_RADVIZ)
 	ctx.fillRect(x+12,y+12,2,2);
 	ctx.fillRect(x+11,y+9,2,2);
 	}
-else if(index==TYPE_REGRES)
+
+function drawRegresIcon(ctx,x,y)
 	{
 	var font = ctx.font;
 	ctx.font = "18px helvetica";
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
 	ctx.fillStyle = "#000000";
 	ctx.fillText("R",x+10,y+17);
 	ctx.font = font;
 	}
-else if(index==TYPE_TERNARY)
+
+function drawTernaryIcon(ctx,x,y)
 	{
-	ctx.fillStyle = BLUE;
-	ctx.fillRect(x,y,20,20);
-	
 	ctx.strokeStyle = "#000000";
 	ctx.beginPath();
 	ctx.moveTo(x+2,y+18);
@@ -10552,10 +10691,9 @@ else if(index==TYPE_TERNARY)
 	ctx.lineTo(x+10,y+18);
 	ctx.stroke();
 	}
-else if(index==TYPE_PALETTE)
+
+function drawPaletteIcon(ctx,x,y)
 	{
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
 	for(var k=0;k<25;k++)
 		{
 		var xx = x+3+(k%5)*3
@@ -10565,21 +10703,45 @@ else if(index==TYPE_PALETTE)
 		ctx.fillRect(xx,yy,2,2)
 		}
 	}
-else if(index<NBTYPE1)
-	{
-	ctx.fillStyle = PINK
-	ctx.fillRect(x,y,20,20)
-	}
-else if(index>=NBTYPE1)
-	{
-	ctx.fillStyle = BLUE
-	ctx.fillRect(x,y,20,20)
-	}
 
-ctx.strokeStyle = "#000000"
-ctx.fillStyle = "#000000"
-drawRect(ctx,x,y,20,20)
-//ctx.strokeRect(x,y,20,20)
+
+function drawSurveyIcon(ctx,x,y)
+{
+	var xx = [6,4,5,8,6,3,2,4,5,3,5,6,8,5,4];
+	ctx.fillStyle = "#333333";
+	for(var i=0;i<xx.length;i++)
+		ctx.fillRect(x+10-xx[i],y+3+i,2*xx[i],1);
+}
+
+function drawAndrewIcon(ctx,x,y)
+{
+	ctx.strokeStyle = "#000000";
+	ctx.beginPath();
+	for(var i=2;i<=18;i++)
+		{
+		var dy = y+11+Math.cos(i*Math.PI/5)*7;
+		if(i==2)
+			ctx.moveTo(x+i,dy);
+		else
+			ctx.lineTo(x+i,dy);
+		}
+	ctx.stroke();
+}
+
+
+function fillIcon(ctx,x,y)
+{
+ctx.fillStyle = BLUE;
+ctx.fillRect(x,y,20,20);
+}
+
+function frameIcon(ctx,x,y)
+{
+ctx.fillStyle = "#000000";
+ctx.fillRect(x,y,20,1);
+ctx.fillRect(x,y,1,20);
+ctx.fillRect(x+20,y,1,20);
+ctx.fillRect(x,y+20,20,1);
 }
 
 //***************************************************************************
@@ -10696,7 +10858,6 @@ for(var i=0;i<graph._keys1.length;i++)
 
 function drawDock(ctx,w,h)
 {
-// draw dock anchor
 ctx.strokeStyle = "#000000"
 ctx.fillStyle = "#FFFFFF"
 
@@ -10710,139 +10871,31 @@ for(var i=4;i<=16;i+=4)
 	ctx.lineTo(x+20-3,y+i)
 	}
 ctx.stroke()
-ctx.strokeRect(x,y,20,20)
+frameIcon(ctx,x,y);
 
-// draw dustbin icon
 x = w-20;
 y = h-40;
-ctx.fillRect(x,y,20,20);
-ctx.fillStyle = "#000000";
-ctx.fillRect(x+4,y+5,1,13);
-ctx.fillRect(x+7,y+7,1,9);
-ctx.fillRect(x+10,y+7,1,9);
-ctx.fillRect(x+13,y+7,1,9);
-ctx.fillRect(x+16,y+5,1,13);
-ctx.fillRect(x+3,y+4,15,1);
-ctx.fillRect(x+4,y+17,13,1);
-ctx.fillRect(x+7,y+3,7,1);
-ctx.strokeRect(x,y,20,20);
+drawDustbinIcon(ctx,x,y);
 
-// draw spreadsheet icon
 x = w-40;
 y = h-40;
-ctx.fillStyle = "#FFFFFF"
-ctx.fillRect(x,y,20,20);
-ctx.fillStyle = "#000000"
-for(var i=3;i<18;i+=3)
-	ctx.fillRect(x+4,y+i,13,1)
-for(var i=4;i<19;i+=4)
-	ctx.fillRect(x+i,y+3,1,13) 
-ctx.strokeRect(x,y,20,20);
+drawTableIcon(ctx,x,y);
 
-// draw help icon
 x = w-60;
 y = h-40;
-ctx.fillStyle = "#FFFFFF";
-ctx.fillRect(x,y,20,20);
-ctx.fillStyle = "#000000";
-ctx.save();
-ctx.font = "bold 22px Times";
-ctx.textAlign = "center";
-ctx.fillText("!",x+10,y+18);
-ctx.restore();
-ctx.strokeStyle = "#000000";
-ctx.strokeRect(x,y,20,20);
+drawHelpIcon(ctx,x,y);
 
-// draw add icon
 x = w-80;
 y = h-40;
-ctx.fillStyle = "#FFFFFF";
-ctx.fillRect(x,y,20,20);
-ctx.strokeStyle = "#000000";
-ctx.beginPath()
-ctx.moveTo(x+3,y+9);
-ctx.lineTo(x+17,y+9);
-ctx.moveTo(x+3,y+10);
-ctx.lineTo(x+17,y+10);
-ctx.moveTo(x+3,y+11);
-ctx.lineTo(x+17,y+11);
-ctx.moveTo(x+9,y+3);
-ctx.lineTo(x+9,y+17);
-ctx.moveTo(x+10,y+3);
-ctx.lineTo(x+10,y+17);
-ctx.moveTo(x+11,y+3);
-ctx.lineTo(x+11,y+17);
-ctx.stroke();
-ctx.strokeRect(x,y,20,20);
+drawAddIcon(ctx,x,y);
 
-// draw clone icon
 x = w - 100;
 y = h - 40;
-ctx.fillStyle = "#FFFFFF";
-ctx.fillRect(x,y,20,20);
-ctx.fillStyle = "#000000";
-drawRect(ctx,x+3,y+3,9,9)
-drawRect(ctx,x+7,y+7,9,9)
-ctx.strokeStyle = "#000000";
-ctx.strokeRect(x,y,20,20)
+drawCloneIcon(ctx,x,y);
 
-// draw sort icon
 x = w-120;
 y = h-40;
-ctx.fillStyle = "#FFFFFF";
-ctx.fillRect(x,y,20,20);
-ctx.fillStyle = "#000000";
-ctx.fillRect(x+3,y+16,2,2);
-ctx.fillRect(x+6,y+13,2,5);
-ctx.fillRect(x+9,y+10,2,8);
-ctx.fillRect(x+12,y+7,2,11);
-ctx.fillRect(x+15,y+4,2,14);
-ctx.strokeStyle = "#000000";
-ctx.strokeRect(x,y,20,20)
-
-/*
-// draw highcharts icon
-x = w -120;
-y = h-40;
-ctx.drawImage(gimg,x,y,20,20);
-if(action==EXPORT_CHART)
-	{
-	ctx.save();
-	ctx.globalAlpha = 0.5;
-	ctx.fillStyle = "#000000";
-	ctx.fillRect(x,y,20,20);
-	ctx.restore();
-	ctx.restore;
-	}
-ctx.strokeStyle = "#000000";
-ctx.strokeRect(x,y,20,20)
-
-// draw diskette icon
-x = w -140;
-y = h - 40;
-ctx.fillStyle = action == SAVE_CONFIG ? "#000000" : "#FFFFFF";
-ctx.fillRect(x,y,20,20);
-ctx.fillStyle = action == SAVE_CONFIG ? "#FFFFFF" : "#000000";
-ctx.fillRect(x+2,y+2,13,1);
-ctx.fillRect(x+2,y+2,1,16);
-ctx.fillRect(x+2,y+17,16,1);
-ctx.fillRect(x+17,y+6,1,11);
-
-ctx.fillRect(x+5,y+9,9,1);
-ctx.fillRect(x+5,y+9,1,8);
-ctx.fillRect(x+14,y+9,1,8);
-
-ctx.fillRect(x+15,y+3,1,1);
-ctx.fillRect(x+16,y+4,1,1);
-ctx.fillRect(x+17,y+5,1,1);
-
-ctx.fillRect(x+7,y+2,3,5);
-ctx.fillRect(x+12,y+2,1,5);
-ctx.fillRect(x+9,y+6,4,1);
-
-ctx.strokeStyle = "#000000";
-ctx.strokeRect(x,y,20,20)
-*/
+drawSortIcon(ctx,x,y);
 
 // draw dock 
 for(var i=0;i<dock.length;i++)
@@ -10850,7 +10903,7 @@ for(var i=0;i<dock.length;i++)
 	var graph = dock[i]
 	ctx.fillStyle = getColor(graph.hue,1,1)
 	ctx.fillRect(20+20*i,y,20,20)
-	ctx.strokeRect(20+20*i,y,20,20)		
+	frameIcon(ctx,20+20*i,y);
 	}
 
 }
@@ -13358,6 +13411,76 @@ drawHValue(ctx,graph.x+graph.w-100-graph.margin1,graph.y+graph.hbar+5,100,20,tit
 
 //***************************************************************************
 
+function drawAndrewGraph(ctx,graph)
+{
+if(graph.ivalues)
+if(graph.ivalues.length>0)
+	{
+	var min = graph._z.min;
+	var max = graph._z.max;
+
+	var nt = graph._z.nt;
+	var nv = graph.ivalues.length;
+
+	var xleft = graph.x+30;
+	var xright = graph.x+graph.w-100;	
+	var dx = (xright-xleft)/nt;
+
+	var ytop = graph.y+graph.hbar+10;
+	var ybottom = graph.y+graph.h-10;
+	var yscale = (ybottom-ytop)/(max-min);
+
+	var coef = graph._z.coef;
+	
+	var r2 = Math.sqrt(2);
+
+	ctx.fillStyle = "#CCCCCC";	
+	var y = ybottom-(0-min)*yscale;
+	ctx.fillRect(xleft,y,xright-xleft,1);
+
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+
+		if(graph.ilabel1<0)
+			ctx.strokeStyle = "#000000";
+		else
+			ctx.strokeStyle = graph._colors1[lrecords[i][graph.ilabel1]]
+
+		ctx.beginPath();
+		for(var k=0;k<nt;k++)
+			{
+			var x = xleft+k*dx;
+
+			var f = vrecords[i][graph.ivalues[0]]/r2;
+			for(var j=1;j<nv;j++)
+				f += coef[j][k]*vrecords[i][graph.ivalues[j]];
+			var y = ybottom - (f-min)*yscale;	
+
+			if(k==0)
+				ctx.moveTo(x,y);
+			else
+				ctx.lineTo(x,y);
+			}
+		ctx.stroke();
+		}	
+	}
+
+for(var k=0;k<graph.ivalues.length;k++)
+	{
+	var title = values[graph.ivalues[k]]
+	drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*k,100,20,title)
+	}
+
+drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*graph.ivalues.length,100,20,"")
+
+var title2 = getGraphLabel1(graph)
+drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
+
+}
+
+//***************************************************************************
+
 function drawScatterGraph(ctx,graph)
 {
 var oldfont = ctx.font;
@@ -13494,7 +13617,7 @@ drawHLabel(ctx,graph.x+graph.w-100-graph.margin3,graph.y+graph.h-25,100,20,title
 
 //***************************************************************************
 
-function drawLagPlot(ctx,graph)
+function drawLagGraph(ctx,graph)
 {
 
 if(graph.ivalue1>=0)
@@ -13642,74 +13765,80 @@ return ""+(Math.round(s*p)/p);
 
 //***************************************************************************
 
-function drawMomentGraph(ctx,graph)
+function drawMomentsGraph(ctx,graph)
 {
 if(graph.ivalue1>=0)
 	{
 	ctx.fillStyle = "#000000";
 	ctx.textAlign = "left"
 
+	var x1 = graph.x+10;
+	var x2 = graph.x+190;
 	var y = graph.y+40;
 
 	y += 20;
-	ctx.fillText("Average",graph.x+10,y);
-	ctx.fillText(trunc(graph._z.stats.mean1,4),graph.x+170,y)
+	ctx.fillText("Number of observations",x1,y);
+	ctx.fillText(""+graph._z.stats.n,x2,y);
 
 	y += 20;
-	ctx.fillText("Standard deviation",graph.x+10,y)
-	ctx.fillText(trunc(Math.sqrt(graph._z.stats.momentc2),4),graph.x+170,y)
+	ctx.fillText("Average",x1,y);
+	ctx.fillText(trunc(graph._z.stats.mean1,4),x2,y)
 
 	y += 20;
-	ctx.fillText("Variance",graph.x+10,y)
-	ctx.fillText(trunc(graph._z.stats.momentc2,4),graph.x+170,y)
+	ctx.fillText("Standard deviation",x1,y)
+	ctx.fillText(trunc(Math.sqrt(graph._z.stats.momentc2),4),x2,y)
+
+	y += 20;
+	ctx.fillText("Variance",x1,y)
+	ctx.fillText(trunc(graph._z.stats.momentc2,4),x2,y)
 
 	y += 20;	
-	ctx.fillText("Minimum",graph.x+10,y);
-	ctx.fillText(graph._z.stats.min+"",graph.x+170,y);
+	ctx.fillText("Minimum",x1,y);
+	ctx.fillText(graph._z.stats.min+"",x2,y);
 
 	y += 20;
-	ctx.fillText("Maximum",graph.x+10,y);
-	ctx.fillText(graph._z.stats.max+"",graph.x+170,y);
+	ctx.fillText("Maximum",x1,y);
+	ctx.fillText(graph._z.stats.max+"",x2,y);
 
 	y += 30;
-	ctx.fillText("First decile",graph.x+10,y);
-	ctx.fillText(trunc(graph._z.d1,4),graph.x+170,y);
+	ctx.fillText("First decile",x1,y);
+	ctx.fillText(trunc(graph._z.d1,4),x2,y);
 
 	y += 20;
-	ctx.fillText("First quartile",graph.x+10,y);
-	ctx.fillText(trunc(graph._z.q1,4),graph.x+170,y);
+	ctx.fillText("First quartile",x1,y);
+	ctx.fillText(trunc(graph._z.q1,4),x2,y);
 
 	y += 20;
-	ctx.fillText("Median",graph.x+10,y);
-	ctx.fillText(trunc(graph._z.q2,4),graph.x+170,y);
+	ctx.fillText("Median",x1,y);
+	ctx.fillText(trunc(graph._z.q2,4),x2,y);
 
 	y += 20;
-	ctx.fillText("Third quartile",graph.x+10,y);
-	ctx.fillText(trunc(graph._z.q3,4),graph.x+170,y);
+	ctx.fillText("Third quartile",x1,y);
+	ctx.fillText(trunc(graph._z.q3,4),x2,y);
 
 	y += 20;
-	ctx.fillText("Ninth decile",graph.x+10,y);
-	ctx.fillText(trunc(graph._z.d9,4),graph.x+170,y);
+	ctx.fillText("Ninth decile",x1,y);
+	ctx.fillText(trunc(graph._z.d9,4),x2,y);
 
 	y += 30;
-	ctx.fillText("2nd order average",graph.x+10,y)
-	ctx.fillText(trunc(graph._z.stats.mean2,4),graph.x+170,y)
+	ctx.fillText("2nd order average",x1,y)
+	ctx.fillText(trunc(graph._z.stats.mean2,4),x2,y)
 
 	y += 20;
-	ctx.fillText("3rd order average",graph.x+10,y);
-	ctx.fillText(trunc(graph._z.stats.mean3,4),graph.x+170,y);
+	ctx.fillText("3rd order average",x1,y);
+	ctx.fillText(trunc(graph._z.stats.mean3,4),x2,y);
 
 	y += 20;
-	ctx.fillText("4th order average",graph.x+10,y);
-	ctx.fillText(trunc(graph._z.stats.mean4,4),graph.x+170,y);
+	ctx.fillText("4th order average",x1,y);
+	ctx.fillText(trunc(graph._z.stats.mean4,4),x2,y);
 
 	y += 30;
-	ctx.fillText("Skewness",graph.x+10,y)
-	ctx.fillText(trunc(graph._z.stats.skewness,4),graph.x+170,y)
+	ctx.fillText("Skewness",x1,y)
+	ctx.fillText(trunc(graph._z.stats.skewness,4),x2,y)
 
 	y += 20;
-	ctx.fillText("Kurtosis",graph.x+10,y)
-	ctx.fillText(trunc(graph._z.stats.kurtosis,4),graph.x+170,y)
+	ctx.fillText("Kurtosis",x1,y)
+	ctx.fillText(trunc(graph._z.stats.kurtosis,4),x2,y)
 	}
 
 ctx.textAlign = "center"
@@ -15726,6 +15855,64 @@ drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
 
 //***************************************************************************
 
+function drawSurveyGraph(ctx,graph)
+{
+
+if(graph.ivalues)
+if(graph.ivalues.length>0)
+	{
+	var min = graph._z.min;
+	var max = graph._z.max;
+
+	var xleft = graph.x+30;
+	var xright = graph.x+graph.w-100;
+	var ytop = graph.y+graph.hbar+10;
+	var ybottom = graph.y+graph.h-10;
+
+	var nv = graph.ivalues.length;
+	var nr = graph._z.nr;
+
+	var dx = (xright-xleft)/nv;
+	if(dx<4) dx = 4;
+
+	var dy = (ybottom-ytop)/nr;
+	if(dy<1) dy = 1;
+
+
+	var k = 0;
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		for(var j=0;j<nv;j++)
+			{
+			var v =  dx*(vrecords[i][graph.ivalues[j]]-min[j])/(max[j]-min[j]);
+			if(graph.ilabel1<0)
+				ctx.fillStyle = "#000000";
+			else
+				ctx.fillStyle = graph._colors1[lrecords[i][graph.ilabel1]]
+			var x = Math.round(xleft+j*dx+dx/2-v/2);
+			var y = Math.round(ytop+k*dy);	
+			ctx.fillRect(x,y,v,dy);
+			}
+		k++;
+		}
+	}
+
+for(var k=0;k<graph.ivalues.length;k++)
+	{
+	var title = values[graph.ivalues[k]]
+	drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*k,100,20,title)
+	}
+
+drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*graph.ivalues.length,100,20,"")
+
+var title2 = getGraphLabel1(graph)
+drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
+
+}
+
+//***************************************************************************
+
 function drawAutocorrGraph(ctx,graph)
 {
 
@@ -15875,15 +16062,16 @@ drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
 
 function drawPaletteGraph(ctx,graph)
 {
-var dx = (graph.w-2)/5
-var dy = (graph.h-graph.hbar-2)/5
+var dx = (graph.w-2)/6;
+var dy = (graph.h-graph.hbar-2)/6;
 
-for(var i=0;i<5;i++)
-	for(var j=0;j<5;j++)
+for(var i=0;i<6;i++)
+	for(var j=0;j<6;j++)
 		{
 		var x = graph.x + 2 +i*dx
 		var y = graph.y + graph.hbar + 2 + j*dy
-		ctx.fillStyle = getColor((5*j+i)*5/25/6,1,1)
+		var hue = (6*j+i)/36;
+		ctx.fillStyle = getColor(hue,1,1)
 		ctx.fillRect(x,y,dx-2,dy-2)
 		ctx.strokeStyle = "#000000"
 		ctx.strokeRect(x,y,dx-2,dy-2)
@@ -15991,7 +16179,7 @@ for(var i=0;i<graphs.length;i++)
 		ctx.strokeRect(graph.x+5,graph.y+4,8,8)
 		}
 
-	GDRAW[graph.type](ctx,graph);
+	GINFO[graph.type].draw(ctx,graph);
 	//drawGraph(ctx,graph)
 
 	drawGraphStickers(ctx,graph)
@@ -16011,7 +16199,8 @@ for(var i=0;i<graphs.length;i++)
         }
 	}
 
-var y = -barshift
+var y = -barshift;
+
 // labels
 ctx.font = "14px helvetica"
 ctx.textAlign = "center"
@@ -16024,12 +16213,15 @@ y += 20
 // icons
 var ni = Math.ceil(NBTYPE3/5)*5
 for(var i=0;i<ni;i++)	
-	{
-	drawIcon(ctx,i,mywidth-100+20*(i%5),y)
-	if((i%5)==4)
-		y += 20
+	{	
+	var x = mywidth-100+20*(i%5);
+	ctx.fillStyle = i<NBTYPE1 ? PINK : BLUE;
+	ctx.fillRect(x,y,20,20);
+	if(i<NBTYPE3)
+		GINFO[i].icon(ctx,x,y);
+	frameIcon(ctx,x,y);
+	if((i%5)==4) y += 20
 	}
-
 y += 20
 
 // values
@@ -16165,7 +16357,7 @@ if(action==SET_GRAPH_UNIT)
 	ctx.fillRect(graph.x,graph.y,graph.w,graph.h)
 	}
 
-if(action==DRAG_SLICE)
+if(action==CREATE_SLICE)
 	{
 	ctx.strokeStyle = GRAY
 	ctx.strokeRect(ptmove.x-150,ptmove.y-20,300,300)
@@ -16307,7 +16499,7 @@ else if((action==CREATE_GRAPH1)||(action==CREATE_GRAPH2))
 	var j = Math.floor(typeindex/5)
 	ctx.fillRect(mywidth-100+i*20,labels.length*20+20+j*20,20,20)
 	}
-else if((action==CREATE_VALUE)||(action==ADD_VALUE)||(action==CREATE_PROJECTION)||(action==CREATE_BOOLEAN))
+else if((action==CREATE_VALUE)||(action==ADD_VALUE)||(action==CREATE_PROJECTION)||(action==CREATE_VBOOLEAN))
 	{	
 	var ni = Math.ceil(NBTYPE3/5)
 	ctx.fillStyle = GRAY
@@ -16321,7 +16513,7 @@ else if((action==SORT_DATA)&&(valueindex>=0))
 	ctx.fillRect(mywidth-100,
 		labels.length*20+20+ni*20+20+20*valueindex-barshift,100,20);
 	}
-else if((action==CREATE_LABEL)||(action==CREATE_KGROUP))
+else if((action==CREATE_LABEL)||(action==CREATE_KGROUP)||(action==CREATE_LBOOLEAN))
 	{
 	ctx.fillStyle = GRAY
 	ctx.fillRect(mywidth-100,0,100,labels.length*20)
@@ -16378,8 +16570,11 @@ if(faction==SELECT_TYPE)
 // message
 ctx.fillStyle = "#FFFFFF"
 ctx.strokeStyle = "#000000"
-ctx.fillRect(0,myheight-20,mywidth,20)
-ctx.strokeRect(0,myheight-20,mywidth,20)
+ctx.fillRect(0,myheight-20,mywidth,20);
+
+ctx.fillStyle = "#000000";
+ctx.fillRect(0,myheight-20,mywidth,1);
+//ctx.strokeRect(0,myheight-20,mywidth,20)
 
 ctx.fillStyle = "#CCCCCC"
 ctx.textAlign = "left"
