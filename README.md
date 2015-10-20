@@ -25,6 +25,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Ternary plot
 * Andrew's curves
 * Survey plot
+* 3D plot
 * Correlations
 * Autocorrelation plot
 * Probability plot
