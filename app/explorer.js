@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.65";
+var VERSION = "1.66";
 
 /***************************************************************************/
 
@@ -121,6 +121,7 @@ _action("SELECT_TEST","Select test");
 _action("SELECT_TYPE","Select graph type");
 _action("SELECT_LAW","Select distribution");
 _action("SELECT_CLUSTERING","Select clustering method");
+_action("ROTATE_VIEW","Rotate 3D view");
 
 // actions that gray the graph
 var GACTIONS = {}
@@ -175,6 +176,7 @@ _type("TYPE_RADVIZ","Radviz");
 _type("TYPE_TERNARY","Ternary plot");
 _type("TYPE_SURVEY","Survey plot");
 _type("TYPE_ANDREW","Andrew's curves");
+_type("TYPE_3D","3D plot");
 
 var NBTYPE2 = KNUM; 		//  max plot types
 
@@ -1351,6 +1353,7 @@ if(graph.type==TYPE_TEST) return true;
 if(graph.type==TYPE_RADVIZ) return true;
 if(graph.type==TYPE_SURVEY) return true;
 if(graph.type==TYPE_ANDREW) return true;
+if(graph.type==TYPE_3D) return true;
 return false;
 }
 
@@ -1366,6 +1369,7 @@ if(graph.type==TYPE_RADVIZ) return true;
 if(graph.type==TYPE_TERNARY) return true;
 if(graph.type==TYPE_SURVEY) return true;
 if(graph.type==TYPE_ANDREW) return true;
+if(graph.type==TYPE_3D) return true;
 }
 
 //***************************************************************************
@@ -1383,6 +1387,7 @@ if(graph.type == TYPE_REGRES) return true;
 if(graph.type == TYPE_RADVIZ) return true;
 if(graph.type == TYPE_SURVEY) return true;
 if(graph.type == TYPE_ANDREW) return true;
+if(graph.type == TYPE_3D) return true;
 
 return false;
 }
@@ -4358,6 +4363,95 @@ for(var i=0;i<lrecords.length;i++)
 
 //***************************************************************************
 
+function compute3dData(graph)
+{
+if(!graph.ivalues)
+	graph.ivalues = [];
+
+
+if(graph.ivalues.length<3) return;
+
+
+var r = 10;
+
+
+var ix = graph.ivalues[0];
+var iy = graph.ivalues[1];
+var iz = graph.ivalues[2];
+
+
+var xmin = Number.MAX_VALUE;
+var ymin = Number.MAX_VALUE;
+var zmin = Number.MAX_VALUE;
+var xmax = -Number.MAX_VALUE;
+var ymax = -Number.MAX_VALUE;
+var zmax = -Number.MAX_VALUE;
+
+var np = vrecords.length;
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+
+	var x = vrecords[i][ix];
+	if(x<xmin) xmin = x;
+	if(x>xmax) xmax = x;
+	
+	var y = vrecords[i][iy];
+	if(y<ymin) ymin = y;
+	if(y>ymax) ymax = y;
+
+	var z = vrecords[i][iz];
+	if(z<zmin) zmin = z;
+	if(z>zmax) zmax = z;
+
+	np++;
+	}
+
+
+var px = new Array(np+3);
+var py = new Array(np+3);
+var pz = new Array(np+3);
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+
+	var x = vrecords[i][ix];
+	px[i] = (x-xmin)/(xmax-xmin)*2*r-r;
+
+	var y = vrecords[i][iy];
+	py[i] = (y-ymin)/(ymax-ymin)*2*r-r;
+
+	var z = vrecords[i][iz];
+	pz[i] = (z-zmin)/(zmax-zmin)*2*r-r;
+	}
+
+// store axes at end of arrays
+px[np] = r;
+py[np] = 0;
+pz[np] = 0;
+
+px[np+1] = 0;
+py[np+1] = r;
+pz[np+1] = 0;
+
+px[np+2] = 0;
+py[np+2] = 0;
+pz[np+2] = r;
+
+
+graph._z.px = px;
+graph._z.py = py;
+graph._z.pz = pz;
+
+	if(graph.ilabel1>=0)
+		computeGraphData1(graph)
+}
+
+
+//***************************************************************************
+
 function computeHistoData(graph)
 {
 if(graph.ivalue1<0) return;
@@ -6703,6 +6797,11 @@ if(i>=0)
 		{	
 		graphindex = i
 		}
+	else if(graph.type==TYPE_3D)
+		{
+		faction = ROTATE_VIEW;
+		graphindex = i;
+		}
 	else 
 		{
 		faction = DRAG_GRAPH
@@ -6831,7 +6930,6 @@ else if(action==SET_LABEL2)
 else if(action==SET_LABEL3)
 	{
 	graph = graphs[graphindex]
-	console.log("SET LABEL3 "+graph.type);
 	if(graph.type==TYPE_THREE)
 		{
 		graph.ilabel3 = labelindex
@@ -9801,6 +9899,12 @@ else if(faction==SCROLL_DESKTOP)
 	scrollDesktop(ptmove.x-ptclick.x,ptmove.y-ptclick.y);
 	ptclick = ptmove
 	}
+else if(faction==ROTATE_VIEW)
+	{
+	var graph = graphs[graphindex];
+	rotate3d(graph,ptmove.x-ptclick.x,ptmove.y-ptclick.y);
+	ptclick = ptmove;
+	}
 else if(faction==SAVE_CONFIG)
 	{
 	if(inRect(ptmove,mywidth-140,myheight-40,20,20))
@@ -10726,6 +10830,24 @@ function drawAndrewIcon(ctx,x,y)
 			ctx.lineTo(x+i,dy);
 		}
 	ctx.stroke();
+}
+
+function draw3dIcon(ctx,x,y)
+{
+ctx.strokeStyle = "#666666";
+ctx.beginPath();
+ctx.moveTo(x+8,y+12);
+ctx.lineTo(x+18,y+12);
+ctx.moveTo(x+8,y+12);
+ctx.lineTo(x+8,y+2);
+ctx.moveTo(x+8,y+12);
+ctx.lineTo(x+2,y+18);
+ctx.stroke();
+
+ctx.fillStyle = "#000000";
+ctx.fillRect(x+4,y+6,2,2);
+ctx.fillRect(x+12,y+4,2,2);
+ctx.fillRect(x+14,y+15,2,2);
 }
 
 
@@ -13478,6 +13600,186 @@ var title2 = getGraphLabel1(graph)
 drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
 
 }
+
+//***************************************************************************
+
+function draw3dGraph(ctx,graph)
+{
+ctx.fillStyle = "#000000";
+ctx.fillRect(graph.x,graph.y+graph.hbar,graph.w,graph.h-graph.hbar);
+
+if(graph.ivalues.length>=3)
+	{
+	ctx.save();
+	ctx.rect(graph.x,graph.y+graph.hbar,graph.w,graph.h-graph.hbar);
+	ctx.clip();
+
+	var np = graph._z.px.length-3;
+	var px = graph._z.px;
+	var py = graph._z.py;
+	var pz = graph._z.pz;
+
+	var w = graph.w;
+	var h = graph.h-graph.hbar;
+
+	var m = Math.min(w,h);
+
+	var d = 1400*m/300;
+	var r = 10*Math.sqrt(2);
+
+	// draw axes
+	var x0 = xproj(0,0);
+	var y0 = yproj(0,0);
+	var x1 = xproj(px[np],pz[np]);
+	var y1 = yproj(py[np],pz[np]);
+	var x2 = xproj(px[np+1],pz[np+1]);	
+	var y2 = yproj(py[np+1],pz[np+1]);
+	var x3 = xproj(px[np+2],pz[np+2]);
+	var y3 = yproj(py[np+2],pz[np+2]);
+	ctx.strokeStyle = "rgb(200,200,200)";
+	ctx.beginPath();
+	ctx.moveTo(x0,y0);
+	ctx.lineTo(x1,y1);
+	ctx.moveTo(x0,y0);
+	ctx.lineTo(x2,y2);
+	ctx.moveTo(x0,y0);
+	ctx.lineTo(x3,y3);
+	ctx.stroke();
+
+	// draw from back to front
+	drawz(-2*r,-0.5*r);
+	drawz(-0.5*r,0);
+	drawz(0,0.5*r);
+	drawz(0.5*r,2*r);
+
+	ctx.restore();
+	}
+
+for(var k=0;k<graph.ivalues.length;k++)
+	{
+	var title = values[graph.ivalues[k]]
+	drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*k,100,20,title)
+	}
+
+drawHValue(ctx,graph.x+graph.w-105,graph.y+graph.hbar+5+25*graph.ivalues.length,100,20,"")
+
+var title2 = getGraphLabel1(graph)
+drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.margin2,20,100,title2)
+
+
+	function xproj(x,z) {
+		return -(d*x/(z-100))+w/2+graph.x;
+	}
+
+	function yproj(y,z) {
+		return (d*y/(z-100))+h/2+graph.y+graph.hbar;
+	}
+
+	function darker(c,alpha) {
+		if(c.charAt(0)=="#")
+			{
+			var r = parseInt(c.substring(1,3),16);
+			var g = parseInt(c.substring(3,5),16);
+			var b = parseInt(c.substring(5,7),16);
+			return "rgba("+r+","+g+","+b+","+alpha+")";
+			}
+		else
+			return c.replace("rgb(","rgba(").replace(")",","+alpha+"");
+	}
+
+	function drawz(zmin,zmax)
+	{	
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+
+		if(pz[i]<=zmin) continue;
+		if(pz[i]>zmax) continue;
+
+		var x = xproj(px[i],pz[i]);
+		var y = yproj(py[i],pz[i]);
+
+		if(graph.ilabel1<0)
+			ctx.fillStyle = "rgb(255,255,255)";
+		else
+			ctx.fillStyle = graph._colors1[lrecords[i][graph.ilabel1]]
+
+		var rad = Math.round((pz[i]/r+1)*3);
+
+		if(pz[i]<0)
+			{
+			/// in the back	
+			ctx.fillStyle = darker(ctx.fillStyle,(1+pz[i]/r)/2);
+			ctx.beginPath();
+			ctx.arc(x,y,rad,0,Math.PI*2,false);
+			ctx.fill();
+			}
+		else
+			{
+			// in the front
+			ctx.beginPath();
+			ctx.arc(x,y,rad,0,Math.PI*2,false);
+			ctx.fill();
+			ctx.fillStyle = "rgba(255,255,255,0.6)";
+			ctx.beginPath();
+			ctx.arc(x+rad*0.1,y+rad*0.1,rad*0.8,0,Math.PI*2,false);
+			ctx.fill();
+			}
+		}
+	}
+
+}
+
+//***************************************************************************
+
+function rotate3d(graph,dx,dy)
+{
+if(!graph._z) return;
+if(!graph._z.px) return;
+/*
+if(!graph._z.dir)
+	{
+	if(!graph._z.dx) graph._z.dx = 0;
+	if(!graph._z.dy) graph._z.dy = 0;
+	graph._z.dx += dx;
+	graph._z.dy += dy;
+
+	if((graph._z.dx>10)||(graph._z.dy>0)||(graph._z.dx<-10)||(graph._z.dy<-10))
+		graph._z.dir = Math.abs(graph._z.dx) < Math.abs(graph._z.dy) ? 1 : -1;
+	}
+
+if(!graph._z.dir) return;
+*/
+
+var np = graph._z.px.length;
+var px = graph._z.px;
+var py = graph._z.py;
+var pz = graph._z.pz;
+
+var angle = -dx/200;
+var cos = Math.cos(angle);
+var sin = Math.sin(angle);
+for(var i=0;i<np;i++)		
+	{
+	var x = (px[i]*cos)- (pz[i]*sin);
+	var z = (px[i]*sin)+ (pz[i]*cos);
+	px[i] = x;
+	pz[i] = z;
+	}		
+
+var angle =dy/200;
+var cos = Math.cos(angle);
+var sin = Math.sin(angle);
+for(var i=0;i<np;i++)
+	{
+	var y = (py[i]*cos)-(pz[i]*sin);
+	var z = (py[i]*sin)+(pz[i]*cos);
+	py[i] = y;
+	pz[i] = z;
+	}
+
+}
+
 
 //***************************************************************************
 
