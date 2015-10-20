@@ -545,6 +545,8 @@ for(var k=1;k<data.length;k++)
 	}
 
 
+if(labels.length==0)	
+	createDummyLabel();
 }
 
 //***************************************************************************
@@ -6050,7 +6052,6 @@ function createValue(index)
 
 for(var i=0;i<lrecords.length;i++)
 	{
-	console.log(lrecords[i][index]+" "+typeof(lrecords[i][index]));
 	var x = Number(lrecords[i][index].replace(",","."))
 	if(isNaN(x)) x = 0
 	vrecords[i].push(x)
@@ -6076,6 +6077,9 @@ for(var i=0;i<graphs.length;i++)
 	if(graphs[i].ilabel2>index) graphs[i].ilabel2 -=1;
 	if(graphs[i].ilabel3>index) graphs[i].ilabel3 -=1;
 	}
+
+if(labels.length==0)
+	createDummyLabel();
 }
 
 //***************************************************************************
@@ -6363,6 +6367,16 @@ for(var i=0;i<lrecords.length;i++)
 
 name = "D"+(labels.length+1);
 labels.push(name);
+}
+
+//***************************************************************************
+
+function createDummyLabel()
+{
+for(var i=0;i<lrecords.length;i++)
+	lrecords[i].push("");
+
+labels.push("DUMMY");
 }
 
 //***************************************************************************
@@ -8025,22 +8039,28 @@ t += "<head>";
 t += "<title>Help</title>";
 t += "<style>";;
 t += "td	{ font-family:Courier; font-size:12px; }";
+t += ".h    { background-color:#6C9464; color:#FFFFFF; }";
 t += "</style>";
 t += "</head>";
 t += "<body>";
 t += "<table border='0' width='100%'>";
 
-t += "<tr><td colspan='1' style='background-color:#000000;color:#FFFFFF'>Categorical fields</td></tr>";
+t += "<tr><td colspan='1' class='h'>Special values</td></tr>";
+
+	addLine("$I      :    record number, starting from 1");
+
+	addLine("");
 
 for(var i=0;i<labels.length;i++)
 	addLine("$C"+(i+1)+"  :   "+labels[i]);
 
-t += "<tr><td colspan='1' style='background-color:#000000;color:#FFFFFF'>Numerical fields</td></tr>";
+	addLine("");
 
 for(var i=1;i<values.length;i++)
 	addLine("$N"+i+"  :   "+values[i]);
 
-t += "<tr><td colspan='1' style='background-color:#000000;color:#FFFFFF'>String functions</td></tr>";;
+
+t += "<tr><td colspan='1' class='h'>String functions</td></tr>";;
 
 addLine("s.charAt(index)");
 addLine("s.charCodeAt(index)");
@@ -8064,7 +8084,7 @@ addLine("s.trim()");
 addLine("s.trimLeft()");
 addLine("s.trimRight()");
 
-t += "<tr><td colspan='1' style='background-color:#000000;color:#FFFFFF'>Numerical functions</td></tr>";
+t += "<tr><td colspan='1' class='h'>Numerical functions</td></tr>";
 
 addLine("Math.E: 2.718281828459045");
 addLine("Math.LN2: 0.6931471805599453");
@@ -8163,9 +8183,12 @@ if(action==1)
 	var C;
 	var N;
 	var x;
+	var $I;
+	var $i;	
 	labels.push(nom);
 	for(var i=0;i<lrecords.length;i++)
 		{	
+		$I = $i = i+1;	
 		C = lrecords[i];		
 		N = vrecords[i];
 		try  {	eval("x="+formula) ; x = ""+x; }

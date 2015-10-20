@@ -123,6 +123,8 @@ try	{
 			offset += lcompress;
 		}
 
+	check_data_type(data);
+
 	}
 catch(e)
 	{
@@ -163,8 +165,8 @@ catch(e)
 	var b = zlib.inflateRawSync(buffer);
 	b = b.toString("utf8",0,b.length);
 
-	var result;
-	var pattern = new RegExp("<v>([^<]*)</v>","g");
+	var value;
+	var pattern = new RegExp("<v>([^<]*)</v>");
 
 	var k = 0;
 	while(true)
@@ -175,10 +177,20 @@ catch(e)
 		if(j<0) break;
 		var c = b.substring(i,j);	
 		var row = [];
-		while((result=pattern.exec(c))!=null)
+		var kk = 0;
+		while(true)
 			{
-			var ind = Number(result[1]);
-			row.push(strings[ind]);
+			var ii = c.indexOf("<c",kk);
+			if(ii<0) break;
+			var jj = c.indexOf("</c",ii);
+			if(jj<0) break;
+			var d = c.substring(ii,jj);
+			var m = d.match("<v>([^<]*)</v>");
+			value = m ? m[1]:"";
+			if(d.indexOf('t="s"')>=0)
+				value = strings[parseInt(value)];
+			row.push(value);
+			kk = jj+4;
 			}
 		data.push(row);
 		k = j+6;	
@@ -345,8 +357,6 @@ try	{
 		data.push(line);
 		}
 
-	console.log(data);
-
 	cb();
 	}
 catch(e)
@@ -383,13 +393,53 @@ function read_tabular_content(content)
 		if(lines.length<2) return;
 		}
 
-	var sep = guess_field_separator(lines[0]);
+	var sep = guess_field_separator(lines[0]);	
 	if(sep==null) return;
+	
+	var nv = lines[0].split(sep).length;
 
-	data = [];
 	for(var i=0;i<lines.length;i++)
-		data.push(lines[i].split(sep));
+		{
+		var record = lines[i].split(sep);
+		if(record.length!=nv) continue;
+		data.push(record);
+		}
 
+	check_data_type(data);	
+}
+
+//****************************************************************************
+
+function check_data_type(data)
+{
+if(data.length<1) return;
+
+var nv = data[0].length;
+var isnum = new Array(nv);
+for(var j=0;j<nv;j++)
+	isnum[j] = true;
+
+for(var i=1;i<data.length;i++)
+	{
+	for(var j=0;j<nv;j++)
+		if(isnum[j])
+			if(isNaN(parseFloat(data[i][j])))
+				isnum[j] = false;
+	}
+
+for(var j=0;j<nv;j++)
+	{
+	var m = unquote(data[0][j]).replace(":n","").replace("/n","");
+	data[0][j] = isnum[j] ? m+":n" : m;
+	}
+}
+
+//****************************************************************************
+
+function unquote(s)
+{
+var m = s.match(/^"(.*)"$/);
+return m==null ? s : m[1];
 }
 
 //****************************************************************************
@@ -422,6 +472,9 @@ function guess_field_separator(line) {
 	if(line.split(";").length>1) return ";";
 	if(line.split("!").length>1) return "!";
 	if(line.split(",").length>1) return ",";
+
+	line = line.replace(/  */g,"\u0001");
+	if(line.split("\u0001").length>1) return "\u0001";
 
 	return null;
 }
