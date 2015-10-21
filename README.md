@@ -103,7 +103,9 @@ There are two kinds of fields :
 
 * Click on the workspace with the control key to create a new graph.
 
-* Drag an icon to an existing graph to change its type.
+* Drag a type icon to an existing graph to change its type.
+
+* Drag a type icon to a graph of same type to change its option.
 
 * Drag a qualitative (pink) field or a quantitative (blue) field to the corresponding slot of a graph to change its definition.
 
@@ -129,11 +131,14 @@ There are two kinds of fields :
 
 * Use the mouse wheel in the right side of the window to scroll the tools.
 
-## Binaries
+## Installation
 
-Pre-built binaries for OSX and Windows can be downloaded from [the release page](https://github.com/jfbouzereau/explorer/releases)
+The Explorer is written in javascript and built with [electron](http://electron.atom.io),
 
-The Explorer is written in javascript and built with [electron](http://electron.atom.io)
+Pre-built binaries for OSX and Windows can be downloaded from [the release page](https://github.com/jfbouzereau/explorer/releases).
+
+For Linux, download [electron](https://github.com/atom/electron/releases), 
+download the source of the Data Explorer from [the release page](https://github.com/jfbouzereau/explorer/releases) and copy the app folder into electron/resources.
 
 ## In the browser
 
