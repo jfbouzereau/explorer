@@ -38,6 +38,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Levene test
 * Brown Forsythe test
 * Principal components
+* Canonical correlation analysis
 * K-means
 * K-medoids
 * Fuzzy C-means
