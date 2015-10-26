@@ -54,19 +54,19 @@ This Explorer allows to perform various statistical analyses and data mining ope
 
 Data can be loaded from various sources :
 
-#### Clipboard
+##### Clipboard
 
 Launch the application, and click the "Clipboard" button. The data must be in tabular form, with the names of the fields on the first line.
 
-#### Tabular file
+##### Tabular file
 
 Launch the application, and drag the tabular file to the window. The names of the fields are expected to be on the first line.
 
-#### Excel spreadsheet
+##### Excel spreadsheet
 
 Launch the application, and drag the excel file to the window. The names of the fields are expected to be at the top of the columns.
 
-#### Mysql database
+##### Mysql database
 
 Launch the application, and drag a configuration file with a content like this:
 
@@ -79,11 +79,11 @@ database:test
 query:select * from mytable
 ```
 
-#### JSON file
+##### JSON file
 
 Launch the application, and drag a file containing a JSON array of records.
 
-#### Web file
+##### Web file
 
 Launch the application, and drag a file containing the url of the data.
 The data must be in tabular form, with the names of the fields on the
@@ -91,22 +91,24 @@ first line.
 
 ## Principles
 
-#### Fields
+##### Fields
 
 There are two kinds of fields :
 
 * Categorical (or qualitative) fields represended in pink
 * Numerical (or quantitative) fields represented in pale blue. A field with name terminated by ":n" or "/n" is regarded as numerical.
 
-#### Basic gestures
+##### Basic gestures
 
 * Drag an icon to the workspace to create a new graph.
 
-* Click on the workspace with the control key to create a new graph.
+* Comtrol-Click on the workspace to create a new graph.
 
-* Drag a type icon to an existing graph to change its type.
+* Drag a icon to an existing graph to change its type.
 
-* Drag a type icon to a graph of same type to change its option.
+* Drag a icon to a graph of same type to change its option.
+
+* Control-click on a graph to change its option.
 
 * Drag a qualitative (pink) field or a quantitative (blue) field to the corresponding slot of a graph to change its definition.
 
