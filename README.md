@@ -83,6 +83,10 @@ query:select * from mytable
 
 Launch the application, and drag a file containing a JSON array of records.
 
+##### R file
+
+Launch the application, and drag a file containing a dataframe saved by R in binary format.
+
 ##### Web file
 
 Launch the application, and drag a file containing the url of the data.
