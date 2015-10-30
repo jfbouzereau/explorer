@@ -1,76 +1,45 @@
-var app = require("app");
-var BrowserWindow = require("browser-window");
-var ipc = require("ipc");
 var fs = require("fs");
-var clipboard = require("clipboard");
 
 
-wreader = null;
-wexplorer = null;
+exports.load = load;
 
-//****************************************************************************
+var data = [];
 
 
-app.on("ready", function() {
-	wreader = new BrowserWindow({width:600,height:300});
-	wreader.loadUrl("file://"+__dirname+"/reader.html");
-})
-
-ipc.on("reader", function() {
-	console.log("received reader message");
-	// reopen reader window
-	wreader = new BrowserWindow({width:600,height:300});
-	wreader.loadUrl("file://"+__dirname+"/reader.html");
-});
-
-ipc.on("filename", function(event,filename) {
-	wreader.close();
-	wreader = null;
-	read_file(filename);
-});
-
-ipc.on("clipboard",function() {
-	read_clipboard();
-});
-
-ipc.on("window", function(event,options)  {
-	var www = new BrowserWindow({title:options.title});
-	www.loadUrl("file://"+__dirname+"/window.html");
-	www.webContents.on("did-finish-load", function() {
-		www.webContents.send("content", options.source);
-	});
-});
-
-ipc.on("help", function(event, name) {
-	var whelp = new BrowserWindow({});
-	whelp.loadUrl("file://"+__dirname+"/help/"+name+".html");
-});
-
-//****************************************************************************
-
-function process_content(content)
+function load(filename,callback)
 {
+console.log("load "+filename);
+var content = fs.readFileSync(filename);
+console.log("content "+content.length);
+process_content(content,callback);
+}
+
+//****************************************************************************
+
+function process_content(content,callback)
+{
+console.log("process_content "+content.length);
 
 if(check(content,'P','K',0x03,0x04))
-	process_xlsx_content(content);
+	process_xlsx_content(content,callback);
 
 else if(check(content,'m','y','s','q','l'))
-	process_mysql_content(content);
+	process_mysql_content(content,callback);
 
 else if(check(content,'h','t','t','p'))
-	process_http_content(content);
+	process_http_content(content,callback);
 
 else if(check(content,'['))
-	process_json_content(content);
+	process_json_content(content,callback);
 
 else if(check(content,0x1F,0x8B))
-	process_gzip_content(content);
+	process_gzip_content(content,callback);
 
 else if(check(content,'R','D','X','2'))
-	process_xdr_content(content);
+	process_xdr_content(content,callback);
 
 else
-	process_tabular_content(content);
+	process_tabular_content(content,callback);
 
 }
 
@@ -101,7 +70,7 @@ return true;
 
 //****************************************************************************
 
-function process_xlsx_content(content)
+function process_xlsx_content(content,callback)
 {
 
 var zlib = require("zlib");
@@ -139,12 +108,13 @@ try	{
 			offset += lcompress;
 		}
 
-	check_data_type();
+	check_data_type(callback);
 
 	}
 catch(e)
 	{
 	console.log(e);
+	callback(null);
 	}
 
 	
@@ -206,7 +176,7 @@ catch(e)
 
 //****************************************************************************
 
-function process_http_content(content)
+function process_http_content(content,callback)
 {
 
 content = content+"";
@@ -227,6 +197,7 @@ try	{
 		{
 		req.on("error", function(err) {
 			console.log("REQ ERR "+err);
+			callback(null);
 		});
 		req.end();
 		}
@@ -235,6 +206,7 @@ try	{
 catch(e)
 	{
 	console.log(e);
+	callback(null);
 	}
 
 	function receive(res) {
@@ -242,7 +214,7 @@ catch(e)
 			remote = Buffer.concat([remote,chunk]);
 		});
 		res.on("end", function() {
-			process_content(remote);
+			process_content(remote,callback);
 		});
 	}
 
@@ -250,8 +222,9 @@ catch(e)
 
 //****************************************************************************
 
-function process_mysql_content(content)
+function process_mysql_content(content,callback)
 {
+console.log("process mysql "+content.length);
 
 content = content+"";
 
@@ -297,28 +270,28 @@ try	{
 			}
 
 		cnx.end();
+		callback(data);
 		});
 
-
-	finish();	
 	}
 catch(e)
 	{
 	console.log(e);
+	callback(null);
 	}
 
 }
 
 //****************************************************************************
 
-function process_gzip_content(content) 
+function process_gzip_content(content,callback)
 {
 console.log("process gzip content");
 
 try {			
 	var zlib = require("zlib");
 	var uncompressed = zlib.gunzipSync(content);
-	process_content(uncompressed);
+	process_content(uncompressed,callback);
 	}
 catch(e)
 	{
@@ -329,7 +302,7 @@ catch(e)
 
 //****************************************************************************
 
-function process_json_content(content)
+function process_json_content(content,callback)
 {
 
 content = content+"";
@@ -385,7 +358,7 @@ try {
 		data.push(line);
 		}
 
-	finish();
+	callback(data);
 	}
 catch(e)
 	{	
@@ -396,7 +369,7 @@ catch(e)
 
 //****************************************************************************
 
-function process_tabular_content(content)
+function process_tabular_content(content,callback)
 {
 console.log("process tabular");
 
@@ -405,11 +378,11 @@ console.log("process tabular");
 	lines = content.split("\n");
 	if(lines.length<2)  {
 		lines = content.split("\r");	
-		if(lines.length<2) return;
+		if(lines.length<2) { callback(null); return; }
 		}
 
 	var sep = guess_field_separator(lines[0]);	
-	if(sep==null) return;
+	if(sep==null)  { callback(null); return; }
 	
 	var nv = lines[0].split(sep).length;
 
@@ -420,13 +393,14 @@ console.log("process tabular");
 		data.push(record);
 		}
 
-	check_data_type();
+	check_data_type(callback);
 }
 
 //****************************************************************************
 
-function process_xdr_content(content)
+function process_xdr_content(content,callback)
 {
+console.log("process xdr "+content.length);
 
 var offset = 19;
 var indent = "";
@@ -444,13 +418,15 @@ for(var x in obj)
 if(main==null) 
 	{
 	console.log("NO MAIN OBJECT");
+	callback(null);
 	return;
 	}
 
 var mainid = get_id(main);
 if(!(main instanceof Array) )
-	{
+	{	
 	console.log("MAIN OBJECT NOT AN ARRAY");
+	callback(null);
 	return;
 	}
 
@@ -458,6 +434,7 @@ var mainattr = attrs[mainid];
 if((mainattr==null)||(typeof(mainattr)!="object"))
 	{
 	console.log("NO ATTRIBUTES FOR MAIN OBJECT");
+	callback(null);
 	return;
 	}
 
@@ -482,6 +459,7 @@ for(var j=0;j<nfield;j++)
 	if(!(sub instanceof Array))
 		{		
 		console.log("  ITEM NOT AN ARRAY");
+		callback(null);
 		return;
 		}
 	if(nrecord<0)
@@ -489,6 +467,7 @@ for(var j=0;j<nfield;j++)
 	else if(sub.length!=nrecord)
 		{
 		console.log("  VECTORS OF DIFFERENT LENGTH");
+		callback(null);
 		return;
 		}
 
@@ -527,7 +506,7 @@ for(var i=0;i<nrecord;i++)
 	data.push(record);
 	}
 
-finish();
+callback(data);
 return;
 
 	function read_string(len)
@@ -674,11 +653,13 @@ function guess_field_separator(line) {
 	if(line.split("\t").length>2) return "\t";
 	if(line.split(";").length>2) return ";";
 	if(line.split("!").length>2) return "!";
+	if(line.split("|").length>2) return "|";
 	if(line.split(",").length>2) return ",";
 
 	if(line.split("\t").length>1) return "\t";
 	if(line.split(";").length>1) return ";";
 	if(line.split("!").length>1) return "!";
+	if(line.split("|").length>1) return "|";
 	if(line.split(",").length>1) return ",";
 
 	line = line.replace(/  */g,"\u0001");
@@ -689,9 +670,13 @@ function guess_field_separator(line) {
 
 //****************************************************************************
 
-function check_data_type()
+function check_data_type(callback)
 {
-if(data.length<1) return;
+if(data.length<2)
+	{
+	callback(null);
+	return;
+	}
 
 var nv = data[0].length;
 var isnum = new Array(nv);
@@ -712,9 +697,7 @@ for(var j=0;j<nv;j++)
 	data[0][j] = isnum[j] ? m+":n" : m;
 	}
 
-if(wreader)
-	wreader.close();
-explore();
+callback(data);
 }
 
 //****************************************************************************
@@ -723,35 +706,6 @@ function unquote(s)
 {
 var m = s.match(/^"(.*)"$/);
 return m==null ? s : m[1];
-}
-
-//****************************************************************************
-
-function finish()
-{
-if(data.length<2) return;
-if(wreader)
-	wreader.close();
-explore();
-}
-
-//****************************************************************************
-
-function read_file(filename)
-{
-
-wexplorer = new BrowserWindow({width:800,height:800});
-wexplorer.loadUrl("file://"+__dirname+"/explorer.html");
-
-wexplorer.on("closed", function() {
-	wexplorer = null;
-	});
-
-wexplorer.webContents.on("did-finish-load", function() {
-	console.log("did-finish-load");
-	wexplorer.webContents.send("start",filename);
-	console.log("start sent");
-	});
 }
 
 //****************************************************************************
