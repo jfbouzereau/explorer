@@ -91,8 +91,7 @@ Launch the application, and drag a file containing a dataframe saved by R in bin
 ##### Web file
 
 Launch the application, and drag a file containing the url of the data.
-The data must be in tabular form, with the names of the fields on the
-first line.
+The remote file must be in one of the previous formats.
 
 ## Principles
 
