@@ -1,6 +1,6 @@
 # Presentation
 
-This Explorer allows to perform various statistical analyses and data mining operations in a very easy and intuitive way. As the name implies, this software aims at exploring data and getting quick insight of the order of magnitude of the observed objects. That why it does focus on graphical representation and mouse driven operations, unlike the traditional statistical tools cluttered with numerous dialog boxes and lists with five decimal figures.  
+This Explorer allows to perform various statistical analyses and data mining operations in a very easy and intuitive way. As the name implies, this software aims at exploring data and getting quick insight of the order of magnitude of the observed objects. That why it does focus on graphical representation and mouse driven operations, unlike the traditional statistical tools cluttered with numerous dialog boxes and lists with five decimal figures. You can, however, have the detailed numbers once your analyses are completed.<br>
 You can watch a demo on [dailymotion](http://www.dailymotion.com/video/x39lwif_data-explorer-demo_tech) or [youtube](https://youtu.be/S0pAdZcNnj4) .
 
 ![explorer screenshot](http://jfbouzereau.free.fr/explorer/explorer2.png)
