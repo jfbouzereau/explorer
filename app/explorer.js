@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.70";
+var VERSION = "1.71";
 
 /***************************************************************************/
 
@@ -687,7 +687,7 @@ debug(s)
 
 function dumpV(vec)
 {
-var n = vec.length
+var n = vec.length;
 var s = ""
 for(var i=0;i<n;i++)
 	{
@@ -3589,16 +3589,23 @@ for(var i=0;i<lrecords.length;i++)
 		}
 	}
 
+var nk = 0;
+
 // convert sets to list
 for(var j=0;j<nl;j++)
 	{
 	var list = [];
 	for(var k in keys[j])
 		list.push(k);
+	nk += list.length;
 	list.sort(function(a,b) { return a.localeCompare(b) });
 	keys[j] = list;
 	}
 
+
+// if too many categories
+graph._z.nk = nk;
+if(nk>100) return;
 
 
 if(nl==2)
@@ -3609,7 +3616,7 @@ if(nl==2)
 	}
 else
 	{
-	var Z = computeN();			// Burt's table			
+	var Z = computeN();			// Burt table			
 	var name1 = keys;
 	}
 
@@ -4063,168 +4070,186 @@ function drawFacGraph(ctx,graph)
 
 var nl = graph.ilabels.length;
 
-if(nl>=2)
+if(nl<2) 
 	{
-	var xleft = graph.x+5;
-	var xright = graph.x+graph.w-110;
-	var ytop = graph.y+graph.hbar+5;
-	var ybottom = graph.y+graph.h-5;
+	ctx.fillStyle = "#000000";
+	ctx.textAlign = "center";
+	var xc = graph.x+graph.w/2;
+	var yc = graph.y+graph.h/2;
+	ctx.fillText("Not enough fields",xc,yc);
+	return;
+	}
+
+if(graph._z.nk>100)
+	{
+	ctx.fillStyle = "#000000";
+	ctx.textAlign = "center";
+	var xc = graph.x+graph.w/2;
+	var yc = graph.y+graph.h/2;
+	ctx.fillText("Too many categories",xc,yc);
+	return;
+	}
+
 	
-	var option = getGraphOption(graph);
+var xleft = graph.x+5;
+var xright = graph.x+graph.w-110;
+var ytop = graph.y+graph.hbar+5;
+var ybottom = graph.y+graph.h-5;
+	
+var dx = (xright-xleft)/2;
+var dy = (ybottom-ytop)/2;
+
+var xc = xleft+dx;
+var yc = ytop+dy;
+
+var option = getGraphOption(graph);
 
 
-	if(option==0)
+if(option==0)
+	{
+	// factorial plane
+	var over = [];
+
+	var xmax = graph._z.xmax;
+	var ymax = graph._z.ymax;
+
+	var xscale = (dx-5)/xmax;
+	var yscale = (dy-5)/ymax;
+	var scale = (xscale<yscale) ? xscale : yscale;
+
+	ctx.font = "12px helvetica";
+	ctx.textAlign = "center";
+
+	// draw axes
+	ctx.fillStyle = GRAY;
+	ctx.fillRect(xleft,yc,xright-xleft,1);
+	ctx.fillRect(xc,ytop,1,ybottom-ytop);
+
+	if(nl==2)
+		{	
+		// draw legend
+		ctx.fillStyle = graph._z.colors[0];
+		ctx.fillRect(graph.x+graph.w-130,graph.y+graph.hbar+5,20,20);
+		ctx.fillStyle = graph._z.colors[1];
+		ctx.fillRect(graph.x+graph.w-130,graph.y+graph.hbar+30,20,20);
+
+		ctx.fillStyle = graph._z.colors[0];
+		for(var i=0;i<graph._z.xrow.length;i++)
+			{
+			var x = xc + scale*graph._z.xrow[i];
+			var y = yc - scale*graph._z.yrow[i];
+			ctx.fillText(graph._z.name1[i],x,y+3);
+			}
+
+		ctx.fillStyle = graph._z.colors[1];
+		for(var i=0;i<graph._z.xcol.length;i++)
+			{
+			var x = xc + scale*graph._z.xcol[i];
+			var y = yc - scale*graph._z.ycol[i];
+			ctx.fillText(graph._z.name2[i],x,y+3);
+			/*
+			if(hiliteMatch1(graph.ilabel2,key2))
+				over = [key2,x,y];
+			*/
+			}
+		}
+
+	else
 		{
-		// factorial plane
-		var over = [];
-
-		var dx = (xright-xleft)/2;
-		var dy = (ybottom-ytop)/2;
-
-		var xc = xleft+dx;
-		var yc = ytop+dy;
-
-		var xmax = graph._z.xmax;
-		var ymax = graph._z.ymax;
-
-		var xscale = (dx-5)/xmax;
-		var yscale = (dy-5)/ymax;
-		var scale = (xscale<yscale) ? xscale : yscale;
-
-		ctx.font = "12px helvetica";
-		ctx.textAlign = "center";
-
-		// draw axes
-		ctx.fillStyle = GRAY;
-		ctx.fillRect(xleft,yc,xright-xleft,1);
-		ctx.fillRect(xc,ytop,1,ybottom-ytop);
-
-		if(nl==2)
-			{	
-			// draw legend
-			ctx.fillStyle = graph._z.colors[0];
-			ctx.fillRect(graph.x+graph.w-130,graph.y+graph.hbar+5,20,20);
-			ctx.fillStyle = graph._z.colors[1];
-			ctx.fillRect(graph.x+graph.w-130,graph.y+graph.hbar+30,20,20);
-
-			ctx.fillStyle = graph._z.colors[0];
-			for(var i=0;i<graph._z.xrow.length;i++)
+		// multi
+		var i = 0;
+		for(var j=0;j<nl;j++)
+			{
+			ctx.fillStyle = graph._z.colors[j];
+			ctx.fillRect(graph.x+graph.w-130,graph.y+graph.hbar+5+25*j,20,20);
+			for(var k=0;k<graph._z.name1[j].length;k++)
 				{
 				var x = xc + scale*graph._z.xrow[i];
 				var y = yc - scale*graph._z.yrow[i];
-				ctx.fillText(graph._z.name1[i],x,y+3);
-				}
-
-			ctx.fillStyle = graph._z.colors[1];
-			for(var i=0;i<graph._z.xcol.length;i++)
-				{
-				var x = xc + scale*graph._z.xcol[i];
-				var y = yc - scale*graph._z.ycol[i];
-				ctx.fillText(graph._z.name2[i],x,y+3);
-				/*
-				if(hiliteMatch1(graph.ilabel2,key2))
-					over = [key2,x,y];
-				*/
+				ctx.fillText(graph._z.name1[j][k],x,y+3);
+				i++;
 				}
 			}
-
-		else
-			{
-			// multi
-			var i = 0;
-			for(var j=0;j<nl;j++)
-				{
-				ctx.fillStyle = graph._z.colors[j];
-				ctx.fillRect(graph.x+graph.w-130,graph.y+graph.hbar+5+25*j,20,20);
-				for(var k=0;k<graph._z.name1[j].length;k++)
-					{
-					var x = xc + scale*graph._z.xrow[i];
-					var y = yc - scale*graph._z.yrow[i];
-					ctx.fillText(graph._z.name1[j][k],x,y+3);
-					i++;
-					}
-				}
-			}
-
-
-		if(action==CHANGE_ORIENTATION)
-			{		
-			ctx.fillStyle = GRAY;
-			if((ptmove.x<xc)&&(ptmove.y<yc))	
-				{
-				ctx.fillRect(xleft,ytop,xc-xleft,yc-ytop);
-				graph._z.xto = "W";
-				graph._z.yto = "N";
-				}
-			else if((ptmove.x<xc)&&(ptmove.y>yc))
-				{
-				ctx.fillRect(xleft,yc,xc-xleft,ybottom-yc);
-				graph._z.xto = "W";
-				graph._z.yto = "S";
-				}
-			else if((ptmove.x>xc)&&(ptmove.y<yc))
-				{
-				ctx.fillRect(xc,ytop,xright-xc,yc-ytop);
-				graph._z.xto = "E";		
-				graph._z.yto = "N";
-				}
-			else if((ptmove.x>xc)&&(ptmove.y>yc))
-				{
-				ctx.fillRect(xc,yc,xright-xc,ybottom-yc);
-				graph._z.xto = "E";
-				graph._z.yto = "S";
-				}
-			}
-		// hilite the selected point if any
-		/*
-		if(over)
-			{
-			var l = ctx.measureText(over[0]).width;
-			ctx.fillStyle = "#000000";
-			ctx.fillRect(over[1]-l/2-4,over[2]-9,l+8,15);
-			ctx.fillStyle = "#FFFFFF";
-			ctx.fillText(over[0],over[1],over[2]+3);	
-			}
-		*/
 		}
 
-	if(option==1)
+
+	if(action==CHANGE_ORIENTATION)
+		{		
+		ctx.fillStyle = GRAY;
+		if((ptmove.x<xc)&&(ptmove.y<yc))	
+			{
+			ctx.fillRect(xleft,ytop,xc-xleft,yc-ytop);
+			graph._z.xto = "W";
+			graph._z.yto = "N";
+			}
+		else if((ptmove.x<xc)&&(ptmove.y>yc))
+			{
+			ctx.fillRect(xleft,yc,xc-xleft,ybottom-yc);
+			graph._z.xto = "W";
+			graph._z.yto = "S";
+			}
+		else if((ptmove.x>xc)&&(ptmove.y<yc))
+			{
+			ctx.fillRect(xc,ytop,xright-xc,yc-ytop);
+			graph._z.xto = "E";		
+			graph._z.yto = "N";
+			}
+		else if((ptmove.x>xc)&&(ptmove.y>yc))
+			{
+			ctx.fillRect(xc,yc,xright-xc,ybottom-yc);
+			graph._z.xto = "E";
+			graph._z.yto = "S";
+			}
+		}
+	// hilite the selected point if any
+	/*
+	if(over)
 		{
-		var xleft = graph.x+30;
-		var xright = graph.x+graph.w-10;
-		var ytop = graph.y+graph.hbar+10;
-		var ybottom = graph.y+graph.h-30;
+		var l = ctx.measureText(over[0]).width;
+		ctx.fillStyle = "#000000";
+		ctx.fillRect(over[1]-l/2-4,over[2]-9,l+8,15);
+		ctx.fillStyle = "#FFFFFF";
+		ctx.fillText(over[0],over[1],over[2]+3);	
+		}
+	*/
+	}
 
-		ctx.textAlign = "right";
-		for(var i=0;i<=10;i++)
-			{
-			var y = ybottom-(ybottom-ytop)*i/10;
-			ctx.fillStyle = "#000000";
-			ctx.fillText((i/10)+"",xleft-5,y+3);
-			ctx.fillStyle = "#CCCCCC";
-			ctx.fillRect(xleft,y,xright-xleft,1);
-			}
+if(option==1)
+	{
+	var xleft = graph.x+30;
+	var xright = graph.x+graph.w-10;
+	var ytop = graph.y+graph.hbar+10;
+	var ybottom = graph.y+graph.h-30;
 
-		var lambda = graph._z.lambda;
-		var nlambda = lambda.length;
+	ctx.textAlign = "right";
+	for(var i=0;i<=10;i++)
+		{
+		var y = ybottom-(ybottom-ytop)*i/10;
+		ctx.fillStyle = "#000000";
+		ctx.fillText((i/10)+"",xleft-5,y+3);
+		ctx.fillStyle = "#CCCCCC";
+		ctx.fillRect(xleft,y,xright-xleft,1);
+		}
 
-		var suml = 0;	
-		for(var i=0;i<nlambda;i++)
-			suml += lambda[i];
-		var dx = (xright-xleft)/nlambda;
+	var lambda = graph._z.lambda;
+	var nlambda = lambda.length;
 
-		ctx.fillStyle = "#00FF00";
-		ctx.strokeStyle = "#000000";
-		for(var i=0;i<nlambda;i++)
-			{
-			var dy = (ybottom-ytop)*lambda[i]/suml;
-			ctx.fillRect(xleft+i*dx,ybottom-dy,dx-3,dy);
-			ctx.strokeRect(xleft+i*dx,ybottom-dy,dx-3,dy);
-			}
+	var suml = 0;	
+	for(var i=0;i<nlambda;i++)
+		suml += lambda[i];
+	var dx = (xright-xleft)/nlambda;
 
+	ctx.fillStyle = "#00FF00";
+	ctx.strokeStyle = "#000000";
+	for(var i=0;i<nlambda;i++)
+		{
+		var dy = (ybottom-ytop)*lambda[i]/suml;
+		ctx.fillRect(xleft+i*dx,ybottom-dy,dx-3,dy);
+		ctx.strokeRect(xleft+i*dx,ybottom-dy,dx-3,dy);
 		}
 
 	}
+
 
 /*
 if(graph.ncontour>0)
@@ -10623,119 +10648,60 @@ function drawDiscriIcon(ctx,x,y)
 function computeDiscriData(graph)
 {
 
-
 if(graph.ilabel1<0) return;
 if(graph.ivalues.length<2) return
 
 
 computeGraphData1(graph)
 
-var n = graph.ivalues.length;
 
-// global stats
+var nv = graph.ivalues.length;
 
-var count = 0;
-var sum = vector(n);
-
-// group stats
-var gcount = {}
-var gsum = {}
 
 // global variance matrix
-
-var V = matrix(n,n)
-
-for(var i=0;i<lrecords.length;i++)
-	{
-	if(!recordMatch(i,graph)) continue
-	count += 1;
-
-	var key = lrecords[i][graph.ilabel1]
-
-	if(!(key in gsum))
-		{
-		gcount[key] = 0
-		gsum[key] = vector(n);
-		}
-	gcount[key] += 1
-
-	for(var j=0;j<n;j++)
-		{
-		var xj = vrecords[i][graph.ivalues[j]] 
-
-		sum[j] += xj
-
-		gsum[key][j] += xj
-
-		for(var k=0;k<n;k++)
-			{
-			var xk = vrecords[i][graph.ivalues[k]]
-			V[j][k] += xj*xk;
-			}
-		}	
-	}
-
-
-if(count==0) count = 1;
-
-for(var j=0;j<n;j++)
-	sum[j] = sum[j]/count;
-
-
-for(var j=0;j<n;j++)
-	for(var k=0;k<n;k++)
-		V[j][k] = (V[j][k]-count*sum[j]*sum[k])/count
-
-
+var V = compute_global_variance();
 
 // compute inverse of variance
 var VINV = powerM(V,-1);
 
+var weight = 0;
+var center = vector(nv);
 
-// center of gravity of each group
-for(var x in gcount)
-	for(var j=0;j<n;j++)
-		gsum[x][j] = gsum[x][j]/gcount[x]
+// centers of groups
+var gweight = {};
+var gcenter = {};
+compute_centers();
 
 
 // intergroup variance
-var B = matrix(n,n)
-
-for(var x in gcount)
-	{
-	for(var j=0;j<n;j++)
-		for(var k=0;k<n;k++)
-			B[j][k] += gsum[x][j]*gsum[x][k]*gcount[x]
-	}
-
-for(var j=0;j<n;j++)
-	for(var k=0;k<n;k++)
-		B[j][k] = (B[j][k]-count*sum[j]*sum[k])/count	
+var B = compute_intergroup_variance();
 
 
 // matrix to process
 var W = multMM(VINV,B)
 
-var E = matrix(n,n)
-var wr = vector(n)
-var wi = vector(n)
+
+var E = matrix(nv,nv);
+var wr = vector(nv)
+var wi = vector(nv)
 var o = {}
 	o.outmsgstr = ""
 
-calcEigSysReal(n,W,E,wr,wi,o)
+calcEigSysReal(nv,W,E,wr,wi,o)
+
 
 var temp;
 
 // sort eigenvalues
-for(var j=0;j<n-1;j++)
-	for(var k=j+1;k<n;k++)
+for(var j=0;j<nv-1;j++)
+	for(var k=j+1;k<nv;k++)
 		{
 		if(wr[k]>wr[j])
 			{
 			temp = wr[k]
 			wr[k] = wr[j]
 			wr[j] = temp
-			for(var l=0;l<n;l++)
+			for(var l=0;l<nv;l++)
 				{
 				temp = E[l][j]
 				E[l][j] = E[l][k]
@@ -10744,38 +10710,54 @@ for(var j=0;j<n-1;j++)
 			}
 		}
 
-dumpV(wr);
 
 // coefficients of projections
 var xcoef = []
 var ycoef = []
-for(var j=0;j<n;j++)
+for(var j=0;j<nv;j++)
 	{
 	xcoef[j] = E[j][0]
 	ycoef[j] = E[j][1]
 	}
 
-graph._z.xcoef = xcoef
-graph._z.ycoef = ycoef
-graph._z.avg = sum
+graph._z.xcoef = xcoef;
+graph._z.ycoef = ycoef;
+graph._z.avg = center;
 
 //  projections  on the first two factors
-
 var xrow = new Array(lrecords.length);
 var yrow = new Array(lrecords.length);
-
 for(var i=0;i<lrecords.length;i++)
 	{
 	xrow[i] = yrow[i] = 0
-	for(var j=0;j<n;j++)
+	for(var j=0;j<nv;j++)
 		{
-		var y = vrecords[i][graph.ivalues[j]]-sum[j]
+		var y = vrecords[i][graph.ivalues[j]]-center[j];
 		xrow[i] += y*E[j][0]
 		yrow[i] += y*E[j][1]
 		}
 	}
 
-// correlations of data with first two factors
+var u = colM(E,0);
+var v = colM(E,1);
+
+
+// projection of centers on the first two factors
+var xcenter = {};
+var ycenter = {};
+for(var key in gcenter)
+	{	
+	xcenter[key] = 0;
+	ycenter[key] = 0;
+	for(var j=0;j<nv;j++)
+		{
+		var y = gcenter[key][j]-center[j];
+		xcenter[key] += y*E[j][0];
+		ycenter[key] += y*E[j][1];
+		}
+	}
+
+// correlations of variables with first two factors
 var corr = new Array(graph.ivalues.length);
 var temp = new Array(vrecords.length);
 
@@ -10788,11 +10770,194 @@ for(var j=0;j<graph.ivalues.length;j++)
 	corr[j] = [xcorr,ycorr];
 	}
 
+// 
+var GV = {};
+compute_intragroup_variances();
+
+var ellipse = {};
+for(var key in GV)
+	ellipse[key] = compute_ellipse(GV[key],u,v);
 
 graph._z.xrow = xrow
 graph._z.yrow = yrow
-graph._z.eigenvalues = wr;
+graph._z.xcenter = xcenter;
+graph._z.ycenter = ycenter;
+graph._z.lambda = wr;
 graph._z.corr = corr;
+graph._z.ellipse = ellipse;
+
+	// ------------------------------------------------------------------------
+
+	function compute_centers()
+	{
+	for(var i=0;i<lrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var key = lrecords[i][graph.ilabel1];
+		
+		if(!(key in gweight))
+			{
+			gweight[key] = 0;
+			gcenter[key] = vector(nv);
+			}
+
+		weight++;
+		gweight[key]++;
+		for(var j=0;j<nv;j++)
+			{
+			center[j] += vrecords[i][graph.ivalues[j]];
+			gcenter[key][j] += vrecords[i][graph.ivalues[j]];
+			}
+		}
+
+	for(var j=0;j<nv;j++)
+		{
+		center[j] = center[j]/weight;
+		for(var key in gweight)
+			gcenter[key][j] = gcenter[key][j]/gweight[key];
+		}
+	}
+
+	// ----------------------------------------------------------------
+	
+	function compute_global_variance()
+	{
+	var count = 0;
+	var sum = vector(nv);
+	var V = matrix(nv,nv);
+
+	for(var i=0;i<lrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue
+		var key = lrecords[i][graph.ilabel1];
+
+		count += 1;
+
+		for(var j=0;j<nv;j++)
+			{
+			var xj = vrecords[i][graph.ivalues[j]] 
+			sum[j] += xj
+
+			for(var k=0;k<nv;k++)
+				{
+				var xk = vrecords[i][graph.ivalues[k]]
+				V[j][k] += xj*xk;
+				}
+			}	
+		}
+
+	if(count==0) count = 1;
+
+	for(var j=0;j<nv;j++)
+		sum[j] = sum[j]/count;
+
+
+	for(var j=0;j<nv;j++)
+		for(var k=0;k<nv;k++)
+			V[j][k] = (V[j][k]-count*sum[j]*sum[k])/count
+	
+	return V;
+	}
+
+	// ----------------------------------------------------------------
+
+	function compute_intergroup_variance()
+	{
+	var B = matrix(nv,nv);
+
+	for(var key in gcenter)
+		for(var j=0;j<nv;j++)
+			for(var k=0;k<nv;k++)
+				B[j][k] += gcenter[key][j]*gcenter[key][k]*gweight[key];
+
+
+	for(var j=0;j<nv;j++)
+		for(var k=0;k<nv;k++)
+			B[j][k] = (B[j][k]-weight*center[j]*center[k])/weight;
+
+	return B;
+	}
+
+	// ----------------------------------------------------------------
+
+	function compute_intragroup_variances()
+	{
+	var count = {};
+	var sum = {};
+
+	for(var i=0;i<lrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue
+		var key = lrecords[i][graph.ilabel1];
+
+		if(!(key in count))
+			{
+			count[key] = 0;
+			sum[key] = vector(nv,nv);
+			GV[key] = matrix(nv,nv);
+			}
+
+		count[key]++;
+
+		for(var j=0;j<nv;j++)
+			{
+			var xj = vrecords[i][graph.ivalues[j]] 
+			sum[key][j] += xj
+
+			for(var k=0;k<nv;k++)
+				{
+				var xk = vrecords[i][graph.ivalues[k]]
+				GV[key][j][k] += xj*xk;
+				}
+			}	
+		}
+
+	for(key in count)
+		{
+		for(var j=0;j<nv;j++)
+			sum[key][j] = sum[key][j]/count[key];
+
+		for(var j=0;j<nv;j++)
+			for(var k=0;k<nv;k++)
+				GV[key][j][k] = (GV[key][j][k]-count[key]*sum[key][j]*sum[key][k])/count[key];
+		}
+	}
+
+	// ----------------------------------------------------------------
+
+	function compute_ellipse(V,u,v)
+	{	
+	// We look for points at Mahalanobis distance 1 to origin :
+	// t' V^-1 t = 1
+	// The points are on the first plane, therefore they are
+	// linear combination of the first two factors:
+	// t = xu + yv
+	// It comes :
+	// equation of ellipse is ax^2+bxy+cy^2=1
+	var VINV = powerM(V,-1);
+	var a = multVV(u,multMV(VINV,u));
+	var b = 2*multVV(u,multMV(VINV,v));
+	var c = multVV(v,multMV(VINV,v));
+
+	// variable change to eliminate the b term
+	var rotation = Math.atan(b,c-a)/2;
+	var sin = Math.sin(rotation);
+	var cos = Math.cos(rotation);
+	var p = Math.sqrt(a*cos*cos-b*cos*sin+c*sin*sin);
+	var q = Math.sqrt(a*sin*sin+b*cos*sin+c*cos*cos);
+	var xellipse = new Array(100);
+	var yellipse = new Array(100);
+	for(var i=0;i<100;i++)
+		{
+		var x = Math.cos(Math.PI*2*i/100)/p;
+		var y = Math.sin(Math.PI*2*i/100)/q;
+		xellipse[i] = x*cos+y*sin;
+		yellipse[i] = -x*sin+y*cos;
+		}
+	return {x:xellipse,y:yellipse}
+	}
+
+	// ----------------------------------------------------------------
 
 }
 
@@ -10864,6 +11029,14 @@ if((graph.ilabel1>=0)&&(graph.ivalues.length>=2))
 		graph._z.xaxis = {x:x2,y:y}
 		graph._z.yaxis = {x:x,y:y1}
 
+		for(var key in graph._z.xcenter)
+			{
+			draw_ellipse(key,x1,y2,0.5);
+			draw_ellipse(key,x1,y2,1);
+			draw_ellipse(key,x1,y2,1.5);
+			draw_ellipse(key,x1,y2,2);
+			}
+
 		for(var i=0;i<lrecords.length;i++)
 			{
 			if(!recordMatch(i,graph)) continue	
@@ -10871,8 +11044,8 @@ if((graph.ilabel1>=0)&&(graph.ivalues.length>=2))
 			var key = lrecords[i][graph.ilabel1]
 			ctx.fillStyle = graph._colors1[key]
 
-			x = x1 + scale*(graph._z.xrow[i]-xmin)
-			y = y2 - scale*(graph._z.yrow[i]-ymin)
+			x = Math.round(x1 + scale*(graph._z.xrow[i]-xmin));
+			y = Math.round(y2 - scale*(graph._z.yrow[i]-ymin));
 			if(display<0)
 				ctx.fillRect(x-1,y-1,3,3)
 			else
@@ -10887,8 +11060,8 @@ if((graph.ilabel1>=0)&&(graph.ivalues.length>=2))
 			
 				var key = lrecords[i][graph.ilabel1]
 
-				x = x1 + scale*(graph._z.xrow[i]-xmin)
-				y = y2 - scale*(graph._z.yrow[i]-ymin)
+				x = Math.round(x1 + scale*(graph._z.xrow[i]-xmin));
+				y = Math.round(y2 - scale*(graph._z.yrow[i]-ymin));
 				if(display<0)
 					{
 					ctx.fillStyle = "#000000";
@@ -10994,6 +11167,24 @@ if((graph.ilabel1>=0)&&(graph.ivalues.length>=2))
 ctx.textAlign = "center";
 ctx.font = font
 
+	function draw_ellipse(key,x1,y,ratio)
+	{	
+	ctx.strokeStyle = graph._colors1[key];
+	var xe = x1 + scale*(graph._z.xcenter[key]-xmin)	
+	var ye = y2 - scale*(graph._z.ycenter[key]-ymin);
+	ctx.beginPath();
+	for(var i=0;i<graph._z.ellipse[key].x.length;i++)
+		{
+		var x = ratio*scale*graph._z.ellipse[key].x[i];
+		var y = ratio*scale*graph._z.ellipse[key].y[i];
+		if(i==0)
+			ctx.moveTo(xe+x,ye-y);
+		else
+			ctx.lineTo(xe+x,ye-y);
+		}
+	ctx.closePath();
+	ctx.stroke();
+	}
 
 }
 
@@ -13566,6 +13757,16 @@ return M;
 
 //*********************************************************************
 
+function normV(V)
+{
+var s = 0;
+for(var i=0;i<V.length;i++)
+	s += V[i]*V[i];
+return Math.sqrt(s);
+}
+
+//*********************************************************************
+
 function transpM(M)
 {
 var n1 = M.length;
@@ -13575,6 +13776,17 @@ for(var i=0;i<n1;i++)
 	for(var j=0;j<n2;j++)
 		R[j][i] = M[i][j];
 return R;
+}
+
+//*********************************************************************
+
+function colM(M,col)
+{
+var n = M.length;
+var V = new Array(n);
+for(var i=0;i<n;i++)
+	V[i] = M[i][col];
+return V;
 }
 
 //*********************************************************************
@@ -13597,6 +13809,19 @@ for(var i=0;i<n;i++)
 	D[i][i] = Math.pow(D[i][i],p);
 
 return  multMM(multMM(M,D),transpM(M));
+}
+
+//*********************************************************************
+
+function multVV(A,B)
+{
+var na = A.length;
+var nb = B.length;
+if(na!=nb) return null;
+var r = 0;
+for(var i=0;i<na;i++)
+	r += A[i]*B[i];
+return r;
 }
 
 //*********************************************************************
