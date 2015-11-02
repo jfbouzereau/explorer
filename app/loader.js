@@ -36,6 +36,9 @@ else if(check(content,0x1F,0x8B))
 else if(check(content,'R','D','X','2'))
 	process_xdr_content(content,callback);
 
+else if(check(content,'$','F','L','2'))
+	process_spss_content(content,callback);
+
 else if((content[0]>=0x69)&&(content[0]<=0x72)&&(content[1]>=0x01)&&(content[1]<=0x02))
 	process_stata_content(content,callback);
 
@@ -881,6 +884,237 @@ check_data_type(callback);
 	{
 	return content[offset++];
 	}
+}
+
+//****************************************************************************
+
+function process_spss_content(content,callback)
+{
+
+if(content[64]!=0)
+	{
+	var read_int32 = function() { var r = content.readInt32LE(offset); offset+=4; return r; }
+	var read_int16 = function() { var r = content.readInt16LE(offset); offset+=2; return r; }
+	var read_double = function() { var r = content.readDoubleLE(offset); offset+=8; return Math.round(r*10000)/10000; }
+	}
+else
+	{
+	var read_int32 = function() { var r = content.readInt32BE(offset); offset+=4; return r; }
+	var read_int16 = function() { var r = content.readInt16BE(offset); offset+=2; return r; }
+	var read_double = function() { var r = content.readDoubleBE(offset); offset+=8; return Math.round(r*10000)/10000; }
+	}
+
+offset = 68;
+
+var nsize = read_int32();
+var compression = read_int32();
+var weight = read_int32();
+var ncases = read_int32();
+var bias = read_double();
+var date = read_string(9);
+var time = read_string(8);
+var filelabel = read_string(64);
+var padding = read_string(3);
+
+console.log(nsize,compression,weight,ncases,bias,date,time,filelabel);
+
+var variables = [];
+
+while(true)
+	{
+	if(offset>=content.length) break;
+
+	var rectype = read_int32();
+
+	if(rectype==2)
+		{
+		// VARIABLE RECORD
+		var type = read_int32();
+		var haslabel = read_int32();
+		var nmissing = read_int32();
+		var print = read_int32();
+		var write = read_int32();
+		var name = read_string(8).trim();
+		if(haslabel==1)
+			{
+			var labellen = read_int32();
+			var n = Math.floor((labellen+3)/4)*4;
+			var label = read_string(n).substring(0,labellen);
+			}	
+		if(nmissing>0)
+			{
+			for(var i=0;i<nmissing;i++)
+				read_double();
+			}
+		if(type>=0)
+			variables.push({name:name,type:type});
+		}
+	else if(rectype==3)
+		{
+		// VALUE LABEL RECORD
+		var labelcount = read_int32();
+		for(var i=0;i<labelcount;i++)
+			{
+			var value = read_string(8);
+			var labellen = read_byte();
+			var n = Math.floor((labellen+1+7)/8)*8;
+			var label = read_string(n);
+			}
+		}
+	else if(rectype==4)
+		{
+		// VALUE LABEL VARIABLE 
+		var varcount = read_int32();
+		for(var i=0;i<varcount;i++)		
+			read_int32();	
+		}
+	else if(rectype==6)		
+		{
+		// DOCUMENT RECORD
+		var nline = read_int32();
+		for(var i=0;i<nline;i++)
+			read_string(80);
+		}
+	else if(rectype==7)
+		{
+		var subtype = read_int32();
+		var size = read_int32();
+		var count = read_int32();	
+		offset += count*size;
+		}
+	else if(rectype==999)	
+		{
+		var filler = read_int32();		
+		break;
+		}
+	}
+
+data = [];
+
+var row = [];
+for(var j=0;j<variables.length;j++)
+	row.push(variables[j].name);
+data.push(row);
+
+
+if(compression==0)
+	read_uncompressed_records();
+else
+	read_compressed_records();
+
+check_data_type(callback);
+
+		
+	//---------------------------------------------------------------------
+	
+	function read_byte()
+	{
+	return content[offset++];
+	}
+
+	//---------------------------------------------------------------------
+
+	function read_string(n)
+	{
+	var r = content.toString("utf8",offset,offset+n);
+	offset += n;
+	return r;
+	}
+
+	//---------------------------------------------------------------------
+
+	function process_uncompressed_records()
+	{
+	var nv = variables.length;
+	var row = new Array(nv);
+	while(offset<content.length)
+		{
+		for(var j=0;j<nv;j++)
+			{
+			if(variables[j].type==0)
+				row[j] = read_double();
+			else
+				{
+				var n = Math.floor((variables[j].type+7)/8)*8;
+				row[j] = read_string(n).trim();
+				}
+			}
+		data.push(row);
+		row = new Array(nv);
+		}
+	}
+
+	//---------------------------------------------------------------------
+
+	function read_compressed_records()
+	{		
+	var nv = variables.length;
+	var row = new Array(nv);
+	var b = new Array(8);
+	var j = 0; // variable index
+	var l = 0; // length of string
+	while(offset<content.length)
+		{
+		for(var k=0;k<8;k++)
+			b[k] = read_byte();
+		for(var k=0;k<8;k++)
+			{
+			if((b[k]>0)&&(b[k]<=251))
+				{
+				// COMPRESSED
+				row[j++] = b[k]-bias;
+				if(j==nv) {	data.push(row); j = 0; row = new Array(nv); }
+				}
+			else if(b[k]==253)
+				{
+				// UNCOMPRESSED
+				if(variables[j].type==0)
+					{
+					row[j++] = read_double();
+					if(j==nv) { data.push(row); j = 0 ; row = new Array(nv); }	
+					}
+				else 
+					{
+					row[j] = (l==0?"":row[j])+read_string(8);
+					l += 8;
+					if(l>=variables[j].type)
+						{
+						row[j] = row[j].trim();
+						l = 0;
+						j++;
+						if(j==nv) { data.push(row); j=0; row = new Array(nv); }
+						}
+					}	
+				}
+			else if(b[k]==254)
+				{
+				// SPACES
+				row[j] = (l==0?"":row[j])+"        ";
+				l+=8;
+				if(l>=variables[j].type)			
+					{			
+					row[j] = row[j].trim();
+					l = 0;
+					j++;
+					if(j==nv) { data.push(row); j=0;  row = new Array(nv); }
+					}
+				}
+			else if(b[k]==255)
+				{
+				// MISSING
+				if(variables[j].type==0)
+					row[j++] = 0;
+				else
+					row[j++] = "";
+				if(j==nv) { data.push(row); j = 0; row = new Array(nv) }
+				}
+			else if(b[k]==252)
+				break;
+			}
+		}
+
+	}
+
 }
 
 //****************************************************************************

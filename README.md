@@ -93,6 +93,10 @@ Launch the application, and drag a file containing a dataframe saved by R in bin
 
 Launch the application, and drag a file containing a dataset saved by Stata 8 or higher.
 
+##### SPSS file
+
+Launch the application, and drag a file containing a dataset saved by SPSS in uncompressed format.
+
 ##### Web file
 
 Launch the application, and drag a file containing the url of the data.
