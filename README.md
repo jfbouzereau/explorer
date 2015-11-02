@@ -4,6 +4,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 You can watch a demo on [dailymotion](http://www.dailymotion.com/video/x39lwif_data-explorer-demo_tech) or [youtube](https://youtu.be/S0pAdZcNnj4) .
 
 ![explorer screenshot](http://jfbouzereau.free.fr/explorer/explorer2.png)
+![explorer screenshot](http://jfbouzereau.free.fr/explorer/explorer3.png)
 
 ## Types of analysis
 * Pie chart
@@ -61,11 +62,11 @@ Launch the application, and click the "Clipboard" button. The data must be in ta
 
 ##### Tabular file
 
-Launch the application, and drag the tabular file to the window. The names of the fields are expected to be on the first line.
+Launch the application, and drag a tabular file to the window. The names of the fields are expected to be on the first line.
 
 ##### Excel spreadsheet
 
-Launch the application, and drag the excel file to the window. The names of the fields are expected to be at the top of the columns.
+Launch the application, and drag an excel file to the window. The names of the fields are expected to be at the top of the columns.
 
 ##### Mysql database
 
@@ -87,6 +88,10 @@ Launch the application, and drag a file containing a JSON array of records.
 ##### R file
 
 Launch the application, and drag a file containing a dataframe saved by R in binary format.
+
+##### Stata file
+
+Launch the application, and drag a file containing a dataset saved by Stata 8 or higher.
 
 ##### Web file
 
