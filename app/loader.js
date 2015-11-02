@@ -1,10 +1,8 @@
 var fs = require("fs");
 
-
 exports.load = load;
 
 var data = [];
-
 
 function load(filename,callback)
 {
@@ -37,6 +35,9 @@ else if(check(content,0x1F,0x8B))
 
 else if(check(content,'R','D','X','2'))
 	process_xdr_content(content,callback);
+
+else if((content[0]>=0x69)&&(content[0]<=0x72)&&(content[1]>=0x01)&&(content[1]<=0x02))
+	process_stata_content(content,callback);
 
 else
 	process_tabular_content(content,callback);
@@ -638,6 +639,248 @@ return;
 	return null;
 	}
 
+}
+
+//****************************************************************************
+
+function process_stata_content(content,callback)
+{
+data = [];
+
+// check format
+if(content[0]==105)
+	{
+	lhead = 32;
+	lname = 9;
+	lformat = 12;
+	llabel = 9;
+	llist = 32;
+	lxsize = 2;
+	lcat = 12;
+	}
+if(content[0]==108)
+	{
+	lhead = 81;
+	lname = 9;
+	lformat = 12;
+	llabel = 9;
+	llist = 81;
+	lxsize = 2;
+	lcat = 12;
+	}
+if(content[0]==113)
+	{
+	lhead = 81;
+	lname = 33;
+	lformat = 12;
+	llabel = 33;
+	llist = 81;
+	lxsize = 4;
+	lcat = 36;
+	}
+if(content[0]==114)
+	{
+	lhead = 81;
+	lname = 33;
+	lformat = 49;
+	llabel = 33;
+	llist = 81;
+	lxsize = 4;
+	lcat = 36;
+	}
+
+// check byte order
+if(content[1]==0x01)
+	{
+	var read_int16 = function() { var r = content.readInt16BE(offset); offset+= 2; return r }
+	var read_int32 = function() { var r = content.readInt32BE(offset); offset+= 4; return r }
+	var read_dbl = function() { var r = content.readDoubleBE(offset); offset+=8; return r }
+	var read_flt = function() { var r = content.readFloatBE(offset); offset+=4; return r }
+	}
+else 
+	{	
+	var read_int16 = function() { var r = content.readInt16LE(offset); offset+=2; return r }
+	var read_int32 = function() { var r = content.readInt32LE(offset); offset+=4; return r }
+	var read_dbl = function() { var r = content.readDoubleLE(offset); offset+=8; return r }
+	var read_flt = function() { var r = content.readFloatLE(offset); offset+=4; return r }
+	}
+
+
+var offset = 4;
+
+var nv = read_int16();	// number of variables
+var nr = read_int32();	// number of records
+
+var head = read_string(lhead);
+var stamp = read_string(18);
+
+var vtypes = new Array(nv);
+var vnames = new Array(nv);
+var vsorts = new Array(nv+1);
+var vformats = new Array(nv);
+var vlabels = new Array(nv);
+var vlists = new Array(nv);
+
+for(var j=0;j<nv;j++)	
+	vtypes[j] = read_byte();
+
+for(var j=0;j<nv;j++)
+	vnames[j] = read_string(lname);
+data.push(vnames);
+
+for(var j=0;j<nv+1;j++)
+	vsorts[j] = read_int16();
+
+for(var j=0;j<nv;j++)
+	vformats[j] = read_string(lformat);
+
+for(var j=0;j<nv;j++)
+	vlabels[j] = read_string(llabel);
+
+for(var j=0;j<nv;j++)
+	vlists[j] = read_string(llist);
+
+// expansion fields
+while(true)
+	{
+	offset+=1;
+	var xsize = lxsize==2 ? read_int16() : read_int32();
+	if(xsize==0) break;
+	offset += xsize;
+	}
+
+if(content[0]<=108)
+	read_rows_108();
+else
+	read_rows_113();
+
+while(offset<content.length)
+	{
+	var size = read_int32();
+
+	// name of categorical variable
+	var name = read_string(lcat);
+
+	// look in list of variables
+	var index = vlabels.indexOf(name);
+	if(index<0) index = vnames.indexOf(name);
+
+	// number of categories	
+	var ncat = read_int32();
+	offset += 4;
+
+	// offset of each category name from beginning of string
+	var shift = new Array(ncat);	
+	for(var i=0;i<ncat;i++)
+		shift[i] = read_int32();
+
+	// list of codes
+	var code = new Array(ncat);
+	for(var i=0;i<ncat;i++)
+		code[i] = read_int32();
+
+	var set = {};
+
+	// associate codes and category names
+	for(var i=0;i<ncat;i++)
+		{
+		var l = content.indexOf(0,offset+shift[i]);
+		set[code[i]] = content.toString("utf8",offset+shift[i],l);
+		}	
+
+
+	// replace numerical data by category name
+	if(index>=0)
+		{
+		for(var i=1;i<data.length;i++)
+			{		
+			var row = data[i];
+			if(row[index] in set)	
+				row[index] = set[row[index]];
+			}
+		}
+
+	offset += size-4-4-4*ncat-4*ncat;
+	}
+
+
+check_data_type(callback);
+
+	function read_rows_113()
+	{
+	for(var i=0;i<nr;i++)
+		{
+		var row = new Array(nv);
+		for(var j=0;j<nv;j++)
+			{
+			switch(vtypes[j])	
+				{
+				case 255: row[j] = Math.round(read_double()*10000)/10000; break;
+				case 254: row[j] = Math.round(read_float()*10000)/10000; break;		
+				case 253: row[j] = read_int32(); break;
+				case 252: row[j] = read_int16(); break;
+				case 251: row[j] = read_byte(); break;
+				default: row[j] = read_string(vtypes[j]); break;
+				}
+			}
+		data.push(row);
+		}
+	}
+
+	function read_rows_108()
+	{
+	for(var i=0;i<nr;i++)
+		{
+		var row = new Array(nv);
+		for(var j=0;j<nv;j++)
+			{
+			switch(vtypes[j])
+				{	
+				case 98:  row[j] = read_byte(); break;
+				case 102: row[j] = Math.round(read_float()*10000)/10000; break;
+				case 105: row[j] = read_int16(); break;
+				default : row[j] = read_string(vtypes[j]-127); break;
+				}
+			}
+		data.push(row);
+		}
+	}
+
+	//---------------------------------------------------------------------
+
+	function read_string(n)
+	{
+	var l = n;
+	for(var i=0;i<n;i++)
+		if(content[offset+i]==0)
+			{ l= i; break; }
+	var s = content.toString("utf8",offset,offset+l);
+	offset += n;
+	return s;	
+	}
+
+	//---------------------------------------------------------------------
+
+	function read_double()
+	{
+	var r = read_dbl();
+	return r>1e30 ? 0 :r;
+	}
+
+	//---------------------------------------------------------------------
+
+	function read_float()
+	{
+	var r = read_flt();
+	return r>1e30 ? 0 : r;
+	}
+
+	//---------------------------------------------------------------------
+
+	function read_byte()
+	{
+	return content[offset++];
+	}
 }
 
 //****************************************************************************
