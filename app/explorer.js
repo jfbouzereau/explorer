@@ -5,7 +5,7 @@ var ipc = require("ipc");
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.72";
+var VERSION = "1.73";
 
 /***************************************************************************/
 
@@ -194,7 +194,7 @@ _type("TUKEY","Tukey lambda PPCC plot",{topvalue:1});
 _type("SCATTER","Scatter plot",{topvalue:1,leftvalue:2,bottomlabel:1,display:3});
 _type("POLAR","Polar plot",{topvalue:1,leftvalue:2,bottomlabel:1,display:3,options:2});
 _type("LAG","Lag plot",{topvalue:1});
-_type("CORR","Correlations",{ivalues:1});
+_type("CORR","Correlations",{ivalues:1,options:2});
 _type("AUTOCORR","Autocorrelation plot",{topvalue:1});
 _type("ACP","Principal components",{ivalues:1,bottomlabel:1,display:3,options:3});
 _type("CANON","Canonical correlation analysis",{leftlabel:1,ivalues:1,jvalues:1,display:3,options:5});
@@ -210,7 +210,7 @@ _type("G3D","3D plot",{ivalues:1,leftlabel:1});
 var NBTYPE2 = KNUM; 		//  max plot types
 
 _type("DISCRI","Discriminant analysis",{ivalues:1,leftlabel:1,display:3,options:2});
-_type("TEST","Analysis of variance",{topvalue:1,leftlabel:1});
+_type("TEST","Analysis of variance",{ivalues:1,leftlabel:1});
 _type("REGRES","Linear regression",{ivalues:1,leftvalue:1});
 _type("BOX","Box plot",{topvalue:1,leftlabel:1});
 _type("PARA","Parallel coordinates",{ivalues:1,leftlabel:1,options:2});
@@ -239,6 +239,7 @@ _menu("TEST","BARTLETT","Bartlett's test");
 _menu("TEST","FISHER","Fisher's test");
 _menu("TEST","LEVENE","Levene's test");
 _menu("TEST","BROWN","Brown-Forsythe test");
+_menu("TEST","BOXM","Box's M test");
 
 _menu("LAW","UNIFORM","Uniform");
 _menu("LAW","NORMAL","Normal");
@@ -1462,6 +1463,20 @@ var k = GINFO[graph.type].display;
 if(k)
 	graph["ilabel"+k] = graph["ilabel"+k] == index ? -1 : index;
 		
+}
+
+//*********************************************************************
+
+function multiText(ctx,params,x,y)
+{
+for(var i=0;i<params.length;i+=2)
+	{
+	ctx.fillStyle = params[i];
+	ctx.fillText(params[i+1],x,y);
+	var l = ctx.measureText(params[i+1]).width;
+	x += l;
+	}
+
 }
 
 //*********************************************************************
@@ -5302,7 +5317,7 @@ if((graph.ilabel1>=0)&&(graph.ilabel2>=0))
 	ctx.fillText("Test statistic T",graph.x+40,y);
 	z = Math.round(graph._z.chi2*10000)/10000;
 	ctx.fillText(""+z,graph.x+240,y);
-	ctx.fillText("(p="+pvalue+")",graph.x+360,y);
+	ctx.fillText("(pvalue="+pvalue+")",graph.x+360,y);
 
 	y += 40;
 	ctx.fillStyle= "#FF0000";	
@@ -7906,7 +7921,9 @@ function computeCorrData(graph)
 
 if(graph.ivalues.length<2) return;
 
-computeCorrelationMatrix(graph)
+graph._z.cov = computeGlobalVariance(graph);
+console.log(graph._z);
+
 }
 
 //*********************************************************************
@@ -7983,52 +8000,11 @@ graph._z.corr = M;
 
 //*********************************************************************
 
-function getCorrTable(graph)
-{
-
-var t = ""
-
-t += "<html>";
-t += "<style>\n";
-t += "table	{\n";
-t += "font-family:Courier;\n";
-t += "font-size:12px;\n";	
-t += "}\n";
-t += "</style>\n";
-t += "<body>";
-t += "<table>\n";
-
-var n = graph.ivalues.length;
-
-t += "<tr style='background-color:#CCCCCC;'>"
-t += "<td></td>"
-for(var j=0;j<n;j++)
-	t += "<td>"+values[graph.ivalues[j]]+"</td>"
-t += "</tr>"
-
-for(var j=0;j<n;j++)
-	{
-	t += "<tr style='background-color:#EEEEEE;'>"
-	t += "<td>"+values[graph.ivalues[j]]+"</td>"
-	for(var k=0;k<n;k++)
-		t += "<td>"+((graph._z.corr[j][k]+"").replace(".",","))+"</td>"
-	t += "</tr>"
-	}
-
-t += "</table>"
-t += "</body>"
-t += "</html>"
-
-return t
-
-}
-
-//*********************************************************************
-
 function moveCorrGraph(ptmove,graph)
 {
 
 if(graph.ivalues.length<2) return false;
+if(!graph._z.cov) return;
 
 var x1 = graph.x+10;
 var x2 = graph.x + graph.w - 115;
@@ -8052,7 +8028,7 @@ else
 	x2 = dx + dx/2
 	}
 
-var n = graph._z.corr.length;
+var n = graph._z.cov.length;
 var d = dx/n;
 
 var j = Math.floor((ptmove.x-x1)/d)
@@ -8063,8 +8039,18 @@ if(j>=graph.ivalues.length) return;
 if(k<0) return;
 if(k>=graph.ivalues.length) return;
 
+var option = getGraphOption(graph);
+if(option==0)
+	{
+	var c = graph._z.cov[j][k]/Math.sqrt(graph._z.cov[j][j]*graph._z.cov[k][k]);
+	}
+else	
+	{
+	var c = graph._z.cov[j][k];
+	}
+
 message = values[graph.ivalues[k]]+" ~ "+values[graph.ivalues[j]]+" : "+
-	trunc(graph._z.corr[j][k]+0.0000005,5);
+	(Math.round(c*100000)/100000);
 
 return true
 }
@@ -8085,68 +8071,97 @@ function drawCorrIcon(ctx,x,y)
 
 function drawCorrGraph(ctx,graph)
 {
-var font = ctx.font
+if(graph.ivalues.length<2) return;
 
-if(graph.ivalues.length>=2)
+var option = getGraphOption(graph);
+
+var x1 = graph.x+10;
+var x2 = graph.x + graph.w - 115;
+var dx = (x2-x1)
+var xc = (x1+x2)/2
+var y1 = graph.y + graph.hbar + 5;
+var y2 = graph.y + graph.h -5
+var yc = (y1+y2)/2;
+var dy = (y2-y1);
+
+if(dx<dy)
 	{
+	dy = dx;
+	y1 = yc - dy/2;
+	y2 = yc + dy/2;
+	}
+else
+	{
+	dx = dy;
+	x1 = xc - dx/2;
+	x2 = dx + dx/2;
+	}
 
-	var x1 = graph.x+10;
-	var x2 = graph.x + graph.w - 115;
-	var dx = (x2-x1)
-	var xc = (x1+x2)/2
-	var y1 = graph.y + graph.hbar + 5;
-	var y2 = graph.y + graph.h -5
-	var yc = (y1+y2)/2
-	var dy = (y2-y1)
+var cov = graph._z.cov;
 
-	if(dx<dy)
-		{
-		dy = dx
-		y1 = yc - dy/2
-		y2 = yc + dy/2	
-		}
-	else
-		{
-		dx = dy
-		x1 = xc - dx/2
-		x2 = dx + dx/2
-		}
+var nv = cov.length;
+var d = dx/nv;
 
-	var n = graph._z.corr.length;
-	var d = dx/n;
+if(option==0)
+	{
+	// correlations
 
-	ctx.textAlign = "center"
-	ctx.font = "9px helvetica";
-
-	for(var j=0;j<n;j++)
-		for(var k=0;k<n;k++)
-			if(k==j)
+	for(var j=0;j<nv;j++)
+		for(var k=0;k<nv;k++)
 			{
-			ctx.fillStyle = "#000000"
-			if(d>20)
-				ctx.fillText(values[graph.ivalues[k]],x1+j*d+d/2,y1+k*d+d/2+3)
-			}
-			else
-			{
-			var c = graph._z.corr[j][k];
+			var c = cov[j][k]/Math.sqrt(cov[j][j]*cov[k][k]);
 			if(c<0)
 				{
-				ctx.fillStyle = "#FF0000"
-				var size = -d*c
+				ctx.fillStyle = "#FF0000";
+				var size = -d*c;
 				ctx.fillRect(x1+j*d+d/2-size/2,y1+k*d+d/2-size/2,size,size)
 				}
 			else
 				{
-				ctx.fillStyle = "#008800"
-				var size = d*c
+				ctx.fillStyle = "#008800";
+				var size = d*c;
+				ctx.fillRect(x1+j*d+d/2-size/2,y1+k*d+d/2-size/2,size,size)
+				}		
+			}
+	}
+else
+	{
+	// covariances
+
+	var max = get_max();
+
+	for(var j=0;j<nv;j++)
+		for(var k=0;k<nv;k++)
+			{
+			var c = cov[j][k];
+			if(c<0)
+				{
+				ctx.fillStyle = "#FF0000";
+				var size = -d*c/max;
+				ctx.fillRect(x1+j*d+d/2-size/2,y1+k*d+d/2-size/2,size,size)
+				}
+			else
+				{
+				ctx.fillStyle = "#008800";
+				var size = d*c/max;
 				ctx.fillRect(x1+j*d+d/2-size/2,y1+k*d+d/2-size/2,size,size)
 				}		
 			}
 	}
 
-ctx.font = font
-ctx.strokeStyle = "#000000"
-ctx.strokeRect(x1-5,y1-5,dx+10,dy+10)
+
+	function get_max()
+	{
+	var max = 0;
+	var nv = graph._z.cov.length;
+	for(var j=0;j<nv;j++)
+		for(var k=0;k<nv;k++)
+			{
+			var v = Math.abs(graph._z.cov[j][k]);
+			if(v>max) max = v;
+			}
+	return max;
+	}
 
 }
 
@@ -8156,17 +8171,42 @@ function buildCorrTable(graph)
 {
 if(graph.ivalues.length<2) return;
 
-setTableName("Correlations");
+setTableName("Covariances - Correlations");
+
+var row = 1;
+table(row,1,"Covariances");
 
 for(var i=0;i<graph.ivalues.length;i++)
-	table(1,2+i,values[graph.ivalues[i]]);
+	table(row,2+i,values[graph.ivalues[i]]);
 
 for(var j=0;j<graph.ivalues.length;j++)
 	{
-	table(2+j,1,values[graph.ivalues[j]]);
+	row++;
+	table(row,1,values[graph.ivalues[j]]);
 	for(var i=0;i<graph.ivalues.length;i++)
-		table(2+j,2+i,Math.round(graph._z.corr[i][j]*100)/100);
+		table(row,2+i,Math.round(graph._z.cov[i][j]*10000)/10000);
 	}
+
+row++;
+row++;
+table(row,1,"Correlations");
+
+for(var i=0;i<graph.ivalues.length;i++)
+	table(row,2+i,values[graph.ivalues[i]]);
+
+for(var j=0;j<graph.ivalues.length;j++)
+	{
+	row++;
+	table(row,1,values[graph.ivalues[j]]);
+	for(var i=0;i<graph.ivalues.length;i++)
+		{
+		var c = graph._z.cov[i][j]/Math.sqrt(graph._z.cov[i][i]*graph._z.cov[j][j]);
+		table(row,2+i,Math.round(c*10000)/10000);
+		}
+	}
+
+
+
 }
 
 //*********************************************************************
@@ -10771,8 +10811,7 @@ for(var j=0;j<graph.ivalues.length;j++)
 	}
 
 // 
-var GV = {};
-compute_intragroup_variances();
+var GV = computeIntraGroupVariances(graph,0);
 
 var ellipse = {};
 for(var key in GV)
@@ -10837,44 +10876,6 @@ graph._z.ellipse = ellipse;
 
 	// ----------------------------------------------------------------
 	
-	function compute_global_variance()
-	{
-	var count = 0;
-	var sum = vector(nv);
-	var V = matrix(nv,nv);
-
-	for(var i=0;i<lrecords.length;i++)
-		{
-		if(!recordMatch(i,graph)) continue
-		var key = lrecords[i][graph.ilabel1];
-
-		count += 1;
-
-		for(var j=0;j<nv;j++)
-			{
-			var xj = vrecords[i][graph.ivalues[j]] 
-			sum[j] += xj
-
-			for(var k=0;k<nv;k++)
-				{
-				var xk = vrecords[i][graph.ivalues[k]]
-				V[j][k] += xj*xk;
-				}
-			}	
-		}
-
-	if(count==0) count = 1;
-
-	for(var j=0;j<nv;j++)
-		sum[j] = sum[j]/count;
-
-
-	for(var j=0;j<nv;j++)
-		for(var k=0;k<nv;k++)
-			V[j][k] = (V[j][k]-count*sum[j]*sum[k])/count
-	
-	return V;
-	}
 
 	// ----------------------------------------------------------------
 
@@ -10893,51 +10894,6 @@ graph._z.ellipse = ellipse;
 			B[j][k] = (B[j][k]-weight*center[j]*center[k])/weight;
 
 	return B;
-	}
-
-	// ----------------------------------------------------------------
-
-	function compute_intragroup_variances()
-	{
-	var count = {};
-	var sum = {};
-
-	for(var i=0;i<lrecords.length;i++)
-		{
-		if(!recordMatch(i,graph)) continue
-		var key = lrecords[i][graph.ilabel1];
-
-		if(!(key in count))
-			{
-			count[key] = 0;
-			sum[key] = vector(nv,nv);
-			GV[key] = matrix(nv,nv);
-			}
-
-		count[key]++;
-
-		for(var j=0;j<nv;j++)
-			{
-			var xj = vrecords[i][graph.ivalues[j]] 
-			sum[key][j] += xj
-
-			for(var k=0;k<nv;k++)
-				{
-				var xk = vrecords[i][graph.ivalues[k]]
-				GV[key][j][k] += xj*xk;
-				}
-			}	
-		}
-
-	for(key in count)
-		{
-		for(var j=0;j<nv;j++)
-			sum[key][j] = sum[key][j]/count[key];
-
-		for(var j=0;j<nv;j++)
-			for(var k=0;k<nv;k++)
-				GV[key][j][k] = (GV[key][j][k]-count[key]*sum[key][j]*sum[key][k])/count[key];
-		}
 	}
 
 	// ----------------------------------------------------------------
@@ -10976,6 +10932,98 @@ graph._z.ellipse = ellipse;
 
 	// ----------------------------------------------------------------
 
+}
+
+//*********************************************************************
+
+function computeGlobalVariance(graph)
+{
+var nv = graph.ivalues.length;
+var count = 0;
+var sum = vector(nv);
+var V = matrix(nv,nv);
+
+for(var i=0;i<lrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue
+	var key = lrecords[i][graph.ilabel1];
+
+	count += 1;
+
+	for(var j=0;j<nv;j++)
+		{
+		var xj = vrecords[i][graph.ivalues[j]] 
+		sum[j] += xj
+
+		for(var k=0;k<nv;k++)
+			{
+			var xk = vrecords[i][graph.ivalues[k]]
+			V[j][k] += xj*xk;
+			}
+		}	
+	}
+
+if(count==0) count = 1;
+
+for(var j=0;j<nv;j++)
+	sum[j] = sum[j]/count;
+
+
+for(var j=0;j<nv;j++)
+	for(var k=0;k<nv;k++)
+		V[j][k] = (V[j][k]-count*sum[j]*sum[k])/count
+
+return V;
+}
+
+//*********************************************************************
+
+function computeIntragroupVariances(graph,bias,GV,count)
+{
+GV = GV || {};
+count = count || {};
+var sum = {};
+
+var nv = graph.ivalues.length;
+
+for(var i=0;i<lrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue
+	var key = lrecords[i][graph.ilabel1];
+
+	if(!(key in count))
+		{
+		count[key] = 0;
+		sum[key] = vector(nv,nv);
+		GV[key] = matrix(nv,nv);
+		}
+
+	count[key]++;
+
+	for(var j=0;j<nv;j++)
+		{
+		var xj = vrecords[i][graph.ivalues[j]] 
+		sum[key][j] += xj
+
+		for(var k=0;k<nv;k++)
+			{
+			var xk = vrecords[i][graph.ivalues[k]]
+			GV[key][j][k] += xj*xk;
+			}
+		}	
+	}
+
+for(key in count)
+	{
+	for(var j=0;j<nv;j++)
+		sum[key][j] = sum[key][j]/count[key];
+
+	for(var j=0;j<nv;j++)
+		for(var k=0;k<nv;k++)
+			GV[key][j][k] = (GV[key][j][k]-count[key]*sum[key][j]*sum[key][k])/(count[key]-bias);
+	}
+
+return GV;
 }
 
 //*********************************************************************
@@ -11284,6 +11332,7 @@ switch(graph.test)
 	case TEST.BARTLETT : computeBartlettData(graph); break;
 	case TEST.LEVENE: computeLeveneData(graph); break;
 	case TEST.BROWN: computeLeveneData(graph); break;
+	case TEST.BOXM: computeBoxmData(graph); break;
 	}
 }
 
@@ -11309,13 +11358,14 @@ function drawTestGraph(ctx,graph)
 {
 
 
-if((graph.ivalue1>=0)&&(graph.ilabel1>=0))
+if((graph.ivalues.length>0)&&(graph.ilabel1>=0))
 	switch(graph.test)
 		{
 		case TEST.FISHER: drawFisherGraph(ctx,graph); break;
 		case TEST.BARTLETT: drawBartlettGraph(ctx,graph); break;
 		case TEST.LEVENE: drawLeveneGraph(ctx,graph); break;
 		case TEST.BROWN: drawLeveneGraph(ctx,graph); break;
+		case TEST.BOXM: drawBoxmGraph(ctx,graph); break;
 		}
 
 drawMenu(ctx,graph,MENU.TEST,graph.test,SELECT_TEST,testindex);
@@ -11343,8 +11393,9 @@ return  -1;
 
 function computeBartlettData(graph)
 {
+if(graph.ivalues.length>1) graph.ivalues.splice(1,graph.ivalues.length-1);
+if(graph.ivalues.length<1) return;
 if(graph.ilabel1<0) return;
-if(graph.ivalue1<0) return;
 
 var stats = {};
 var ng = 0;
@@ -11356,7 +11407,7 @@ for(var i=0;i<vrecords.length;i++)
 
 	nr++;
 	
-	var x = vrecords[i][graph.ivalue1];
+	var x = vrecords[i][graph.ivalues[0]];
 	var g = lrecords[i][graph.ilabel1];
 
 	if(!(g in stats))
@@ -11373,6 +11424,7 @@ for(var i=0;i<vrecords.length;i++)
 for(var g in stats)
 	stats[g].var = stats[g].sum2/stats[g].n - (stats[g].sum)*(stats[g].sum)/stats[g].n/stats[g].n;
 
+console.log(stats);
 
 var sp = 0;
 var sa = 0;
@@ -11396,8 +11448,9 @@ graph._z.cv = critchi(0.05,ng-1);
 
 function computeLeveneData(graph)
 {
+if(graph.ivalues.length>1) graph.ivalues.splice(1,graph.ivalues.length-1);
 if(graph.ilabel1<0) return;
-if(graph.ivalue1<0) return;
+if(graph.ivalues.length<1) return;
 
 var stats = {};
 var ng = 0;
@@ -11408,7 +11461,7 @@ for(var i=0;i<vrecords.length;i++)
 	if(!recordMatch(i,graph)) continue;
 	nr++;
 
-	var x = vrecords[i][graph.ivalue1];
+	var x = vrecords[i][graph.ivalues[0]];
 	var g = lrecords[i][graph.ilabel1];
 
 	if(!(g in stats))
@@ -11447,7 +11500,7 @@ for(var i=0;i<vrecords.length;i++)
 	if(!recordMatch(i,graph)) continue;
 	
 	var g = lrecords[i][graph.ilabel1];
-	var z = Math.abs(vrecords[i][graph.ivalue1]-stats[g].median);
+	var z = Math.abs(vrecords[i][graph.ivalues[0]]-stats[g].median);
 	stats[g].zavg += z;	
 	zavg += z;
 	}
@@ -11466,7 +11519,7 @@ for(var i=0;i<vrecords.length;i++)
 	if(!recordMatch(i,graph)) continue;
 
 	var g = lrecords[i][graph.ilabel1];
-	var z = Math.abs(vrecords[i][graph.ivalue1]-stats[g].median);
+	var z = Math.abs(vrecords[i][graph.ivalues[0]]-stats[g].median);
 
 	sum2 += (z-stats[g].zavg)*(z-stats[g].zavg);
 	}
@@ -11483,8 +11536,9 @@ graph._z.w = w;
 
 function computeFisherData(graph)
 {
+if(graph.ivalues.length>1) graph.ivalues.splice(1,graph.ivalues.length-1);
+if(graph.ivalues.length<1) return;
 if(graph.ilabel1<0) return;
-if(graph.ivalue1<0) return;
 
 var sums = {}
 var counts = {}
@@ -11503,7 +11557,7 @@ for(var i=0;i<lrecords.length;i++)
 		counts[key1] = sums[key1] = sums2[key1] = 0
 		}
 	
-	var x = vrecords[i][graph.ivalue1]
+	var x = vrecords[i][graph.ivalues[0]];
 
 	counts[key1] += 1;
 	sums[key1] += x;
@@ -11547,6 +11601,93 @@ graph._z.nintra = nintra
 
 //*********************************************************************
 
+function computeBoxmData(graph)
+{
+if(graph.ilabel1<0) return;
+if(graph.ivalues.length<1) return;
+
+var nv = graph.ivalues.length;
+
+var VG = {};
+var NG = {};
+
+computeIntragroupVariances(graph,1,VG,NG);
+
+var s = 0;
+var nr = 0;
+var ng = 0;
+for(var key in VG)	
+	{	
+	var det = detM(VG[key]);
+	s += (NG[key]-1)*Math.log(detM(VG[key]));
+	nr += NG[key];
+	ng ++;
+	}
+
+// pooled covariance
+var V = matrix(nv,nv);
+for(var i=0;i<nv;i++)
+	for(var j=0;j<nv;j++)
+		for(var key in VG)
+			V[i][j] += (NG[key]-1)*VG[key][i][j]/(nr-ng);
+
+var m = (nr-ng)*Math.log(detM(V))-s;
+
+var c = -1/(nr-ng);
+for(var key in VG)
+	c += 1/(NG[key]-1);
+c *= (2*nv*nv+3*nv-1)/(6*(nv+1)*(ng-1));
+
+c2 = -1/((nr-ng)*(nr-ng));
+for(var key in VG)
+	c2 += 1/((NG[key]-1)*(NG[key]-1));
+c2 *= (nv-1)*(nv+2)/(6*(ng-1));
+
+var df = nv*(nv+1)*(ng-1)/2;
+
+var df2 = Math.round((df+2)/Math.abs(c2-c*c));
+
+
+if(c2>c*c)
+	{
+	var aplus = df/(1-c-df/df2);
+	var f = m/aplus;
+	}
+else
+	{
+	var aminus = df2/(1-c+2/df2);
+	var f = df2*m/(df*(aminus-m));
+	}
+
+var pvalue = Fspin(f,df,df2);
+
+var max = f;
+var pmax = pvalue;
+while(pmax>0.0001)
+	{
+	max *= 1.1;
+	pmax = Fspin(max,df,df2);
+	}
+
+var level = 0.001;
+var cv = Finv(0.0001,max,level,df,df2);
+
+graph._z.ng = ng;
+graph._z.nv = nv;
+graph._z.nr = nr;
+graph._z.m = m;
+graph._z.f = f;
+graph._z.df1 = df;
+graph._z.df2 = df2;
+graph._z.pvalue = pvalue;
+graph._z.level = level;
+graph._z.crit = cv;
+graph._z.max = max;
+
+}
+
+//*********************************************************************
+
 function drawFisherGraph(ctx,graph)
 {
 	var F = (graph._z.vinter/graph._z.ninter)/(graph._z.vintra/graph._z.nintra)	
@@ -11585,7 +11726,7 @@ function drawFisherGraph(ctx,graph)
 	var level = 0.05;
 	var cv = Finv(0.0001,max,level,graph._z.ninter,graph._z.nintra);
 	cv = Math.round(cv*10000)/10000;
-	ctx.fillText("Critical value", graph.x+40,y);
+	ctx.fillText("Critical value C", graph.x+40,y);
 	ctx.fillText(""+cv,graph.x+240,y);
 	ctx.fillText("(\u03B1="+level+")",graph.x+360,y);
 	
@@ -11594,7 +11735,7 @@ function drawFisherGraph(ctx,graph)
 	pvalue = Math.round(pvalue*10000)/10000;
 	ctx.fillText("Test statistic F",graph.x+40,y);
 	ctx.fillText(""+F,graph.x+240,y);
-	ctx.fillText("(p="+pvalue+")",graph.x+360,y);
+	ctx.fillText("(pvalue="+pvalue+")",graph.x+360,y);
 
 	y += 30;
 	ctx.fillStyle= "#FF0000";
@@ -11602,15 +11743,25 @@ function drawFisherGraph(ctx,graph)
 		{
 		ctx.fillText("At least one mean is different from the others",
 			graph.x+40,y);
+		multiText(ctx,["#000000",labels[graph.ilabel1],
+			"#FF0000"," has influence on ",
+			"#000000",values[graph.ivalues[0]]],x+40,y+20);
+		/*
 		ctx.fillText(quote(labels[graph.ilabel1])+" has influence on "+
-			quote(values[graph.ivalue1]),graph.x+40,y+20);
+			quote(values[graph.ivalue1]),graph.x+40,y+20);	
+		*/
 		}
 	else
 		{
 		ctx.fillText("All the means are equals",
 			graph.x+40,y);
+		multiText(ctx,["#000000",labels[graph.ilabel1],
+			"#FF0000"," has no influence on ",
+			"#000000",values[graph.ivalues[0]]],x+40,y+20);
+		/*
 		ctx.fillText(quote(labels[graph.ilabel1])+" has no influence on "+
 			quote(values[graph.ivalue1]),graph.x+40,y+20);
+		*/
 		}
 
 	y += 20;
@@ -11667,12 +11818,18 @@ function drawFisherGraph(ctx,graph)
 	ctx.fill();
 
 	ctx.textAlign = "center";
+
 	ctx.fillText("F",x+dx*F/max,y+25);	
 	ctx.beginPath();
 	ctx.moveTo(x+dx*F/max,y+2);
 	ctx.lineTo(x+dx*F/max,y+12);
 	ctx.stroke();
 
+	ctx.fillText("C",x+dx*cv/max,y+25);
+	ctx.beginPath();
+	ctx.moveTo(x+dx*cv/max,y+2);
+	ctx.lineTo(x+dx*cv/max,y+12);
+	ctx.stroke();
 	
 }
 
@@ -11708,7 +11865,7 @@ function drawBartlettGraph(ctx,graph)
 	ctx.fillText(""+dof,graph.x+240,y);
 
 	y += 20;
-	ctx.fillText("Critical value",graph.x+40,y);
+	ctx.fillText("Critical value C",graph.x+40,y);
 	z = Math.round(graph._z.cv*10000)/10000;
 	ctx.fillText(""+z,graph.x+240,y);
 	ctx.fillText("(\u03B1="+level+")",graph.x+360,y);
@@ -11717,7 +11874,7 @@ function drawBartlettGraph(ctx,graph)
 	ctx.fillText("Test statistic T",graph.x+40,y);
 	z = Math.round(graph._z.t*10000)/10000;
 	ctx.fillText(""+z,graph.x+240,y);
-	ctx.fillText("(p="+pvalue+")",graph.x+360,y);
+	ctx.fillText("(pvalue="+pvalue+")",graph.x+360,y);
 
 	y += 40;
 	ctx.fillStyle= "#FF0000";	
@@ -11729,15 +11886,25 @@ function drawBartlettGraph(ctx,graph)
 		{
 		ctx.fillText("At least one variance is different from the others",
 			graph.x+40,y);
+		multiText(ctx,["#000000",labels[graph.ilabel1],	
+			"#FF0000"," has influence on ",
+			"#000000",values[graph.ivalues[0]]],graph.x+40,y+20);
+		/*
 		ctx.fillText(quote(labels[graph.ilabel1])+" has influence on "+
 			quote(values[graph.ivalue1]),graph.x+40,y+20);
+		*/
 		}
 	else	
 		{
 		ctx.fillText("All the variances are equal",
 			graph.x+40,y);
+		multiText(ctx,["#000000",labels[graph.ilabel1],
+			"#FF0000"," has no influence on ",
+			"#000000",values[graph.ivalues[0]]],graph.x+40,y+20);
+		/*
 		ctx.fillText(quote(labels[graph.ilabel1])+" has no influence on "+
 			quote(values[graph.ivalue1]),graph.x+40,y+20);	
+		*/
 		}
 
 	y += 20;
@@ -11794,12 +11961,18 @@ function drawBartlettGraph(ctx,graph)
 	ctx.fill();
 
 	ctx.textAlign = "center";
+
 	ctx.fillText("T",x+dx*graph._z.t/max,y+25);	
 	ctx.beginPath();
 	ctx.moveTo(x+dx*graph._z.t/max,y+2);
 	ctx.lineTo(x+dx*graph._z.t/max,y+12);
 	ctx.stroke();
 
+	ctx.fillText("C",x+dx*graph._z.cv/max,y+25);
+	ctx.beginPath();
+	ctx.moveTo(x+dx*graph._z.cv/max,y+2);
+	ctx.lineTo(x+dx*graph._z.cv/max,y+12);
+	ctx.stroke();
 }
 
 //*********************************************************************
@@ -11843,7 +12016,7 @@ function drawLeveneGraph(ctx,graph)
 	var level = 0.05;
 	var cv = Finv(0.0001,max,level,dof1,dof2);
 	cv = Math.round(cv*10000)/10000;
-	ctx.fillText("Critical value", graph.x+40,y);
+	ctx.fillText("Critical value C", graph.x+40,y);
 	ctx.fillText(""+cv,graph.x+240,y);
 	ctx.fillText("(\u03B1="+level+")",graph.x+360,y);
 	
@@ -11852,23 +12025,33 @@ function drawLeveneGraph(ctx,graph)
 	pvalue = Math.round(pvalue*10000)/10000;
 	ctx.fillText("Test statistic W",graph.x+40,y);
 	ctx.fillText(""+w,graph.x+240,y);
-	ctx.fillText("(p="+pvalue+")",graph.x+360,y);
+	ctx.fillText("(pvalue="+pvalue+")",graph.x+360,y);
 
 	y += 30;
 	ctx.fillStyle= "#FF0000";
 	if(pvalue<0.05)
 		{
 		ctx.fillText("At least one variance is different from the others",
-			graph.x+40,y);
+			graph.x+40,y);	
+		multiText(ctx,["#000000",labels[graph.ilabel1],
+			"#FF0000"," has influence on ",
+			"#000000",values[graph.ivalues[0]]],graph.x+40,y+20);
+		/*
 		ctx.fillText(quote(labels[graph.ilabel1])+" has influence on "+
 			quote(values[graph.ivalue1]),graph.x+40,y+20);
+		*/
 		}
 	else
 		{
 		ctx.fillText("All the variances are equals",
 			graph.x+40,y);
+		multiText(ctx,["#000000",labels[graph.ilabel1],
+			"#FF0000"," has no influence on ",
+			"#000000",values[graph.ivalues[0]]],graph.x+40,y+20);
+		/*
 		ctx.fillText(quote(labels[graph.ilabel1])+" has no influence on "+
 			quote(values[graph.ivalue1]),graph.x+40,y+20);
+		*/
 		}
 
 	y += 20;
@@ -11925,15 +12108,163 @@ function drawLeveneGraph(ctx,graph)
 	ctx.fill();
 
 	ctx.textAlign = "center";
+
 	ctx.fillText("W",x+dx*w/max,y+25);	
 	ctx.beginPath();
 	ctx.moveTo(x+dx*w/max,y+2);
 	ctx.lineTo(x+dx*w/max,y+12);
 	ctx.stroke();
 
+	ctx.fillText("C",x+dx*cv/max,y+25);	
+	ctx.beginPath();
+	ctx.moveTo(x+dx*cv/max,y+2);
+	ctx.lineTo(x+dx*cv/max,y+12);
+	ctx.stroke();
+
 	
 }
 
+//*********************************************************************
+
+function drawBoxmGraph(ctx,graph)
+{
+
+ctx.fillStyle = "#000000";
+ctx.strokeStyle = "#000000";
+ctx.textAlign = "left"
+ctx.lineWidth = 1
+
+var y = graph.y+graph.hbar+80;
+
+ctx.fillText("Number of groups",graph.x+40,y);
+ctx.fillText(""+graph._z.ng,graph.x+240,y);
+
+y += 20;
+ctx.fillText("Number of observations", graph.x+40,y);
+ctx.fillText(""+graph._z.nr, graph.x+240,y);
+
+y += 20;
+ctx.fillText("Degrees of freedom",graph.x+40,y);
+ctx.fillText(graph._z.df1+" , "+graph._z.df2,graph.x+240,y)
+
+y += 20;	
+var crit = Math.round(graph._z.crit*10000)/10000;
+ctx.fillText("Critical value C", graph.x+40,y);
+ctx.fillText(""+crit,graph.x+240,y);
+ctx.fillText("(\u03B1="+graph._z.level+")",graph.x+360,y);
+
+y += 20;
+var f = Math.round(graph._z.f*10000)/10000;
+var pvalue = Math.round(graph._z.pvalue*10000)/10000;
+ctx.fillText("Test statistic F",graph.x+40,y);
+ctx.fillText(""+f,graph.x+240,y);
+ctx.fillText("(pvalue="+pvalue+")",graph.x+360,y);
+
+y += 30;
+ctx.fillStyle= "#FF0000";
+if(pvalue<0.001)
+	{
+	ctx.fillText("At least one covariance is different from the others",
+		graph.x+40,y);
+	multiText(ctx,["#000000",labels[graph.ilabel1],
+		"#FF0000"," has influence ",
+		"#000000","on the attributes"],x+40,y+20);	
+	multiText(ctx,["#000000",labels[graph.ilabel1],
+		"#FF0000"," has influence ",
+		"#000000"," on the attributes"],graph.x+40,y+20);
+	/*
+	ctx.fillText(quote(labels[graph.ilabel1])+" has influence on "+
+		quote(values[graph.ivalue1]),graph.x+40,y+20);	
+	*/
+	}
+else
+	{
+	ctx.fillText("All the covariances  are equals",
+		graph.x+40,y);
+	multiText(ctx,["#000000",labels[graph.ilabel1],
+		"#FF0000"," has no influence ",
+		"#000000","on the attributes"],x+40,y+20);
+	multiText(ctx,["#000000",labels[graph.ilabel1],
+		"#FF0000"," has no influence",
+		"#000000"," on the attributes"],graph.x+40,y+20);
+	/*
+	ctx.fillText(quote(labels[graph.ilabel1])+" has no influence on "+
+		quote(values[graph.ivalue1]),graph.x+40,y+20);
+	*/
+	}
+
+y += 20;
+ctx.fillStyle = "#000000";
+
+// draw fisher curve
+ctx.strokeStyle = "#000000";
+ctx.lineWidth = 1;
+ctx.beginPath();
+
+// max value along x
+
+var dy = 200;
+var dx = graph.w-40;
+var x = graph.x+20;	
+y += 220;
+
+var dmax = 0;
+var max = graph._z.max;
+for(var i=0;i<=100;i++)
+	{
+	var d = fisherdensity(max*i/100,graph._z.df1,graph._z.df2);
+	if(d>dmax) dmax = d;
+	}
+
+for(var i=0;i<=100;i++)
+	{
+	var d = fisherdensity(max*i/100,graph._z.df1,graph._z.df2);
+	if(i==0)
+		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+	else
+		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+	}
+ctx.stroke();
+
+ctx.beginPath();
+ctx.moveTo(x,y);
+ctx.lineTo(x+dx,y);
+ctx.stroke();
+
+ctx.fillStyle = "#000000";
+var j = Math.round(crit*100/max);	
+
+ctx.beginPath();
+for(var i=j;i<=100;i++)
+	{
+	var d = fisherdensity(max*i/100,graph._z.df1,graph._z.df2);
+	if(i==j)
+		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+	else
+		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+	}
+ctx.lineTo(x+dx,y);
+ctx.lineTo(x+dx*j/100,y);
+ctx.closePath();
+ctx.fill();
+
+ctx.textAlign = "center";
+
+var ratio = graph._z.f/max;
+ctx.fillText("F",x+dx*ratio,y+25);	
+ctx.beginPath();
+ctx.moveTo(x+dx*ratio,y+2);
+ctx.lineTo(x+dx*ratio,y+12);
+ctx.stroke();
+
+var ratio = crit/max;
+ctx.fillText("C",x+dx*ratio,y+25);	
+ctx.beginPath();
+ctx.moveTo(x+dx*ratio,y+2);
+ctx.lineTo(x+dx*ratio,y+12);
+ctx.stroke();
+}
+	
 //*********************************************************************
 
 function dragTestGraph(graph)
@@ -12200,7 +12531,7 @@ if((graph.ivalues.length>0)&&(graph.ivalue1>=0))
 	ctx.fillText("Test-F ("+n1+","+n2+")",graph.x+30,y);
 	ctx.textAlign = "right"
 	ctx.fillText(trunc(ftest,4),graph.x+260,y);
-	ctx.fillText("(p="+trunc(pvalue,4)+")",graph.x+350,y);
+	ctx.fillText("(pvalue="+trunc(pvalue,4)+")",graph.x+350,y);
 
 	y += 30;
 	ctx.textAlign = "left";
@@ -13778,6 +14109,17 @@ return vec
 
 //*********************************************************************
 
+function sumV(V)
+{
+var n = V.length;
+var s = 0;
+for(i=0;i<n;i++)
+	s += V[i];
+return s;
+}
+
+//*********************************************************************
+
 function matrix(n1,n2)
 {
 var mat = new Array(n1)
@@ -13846,6 +14188,25 @@ var V = new Array(n);
 for(var i=0;i<n;i++)
 	V[i] = M[i][col];
 return V;
+}
+
+//*********************************************************************
+
+function detM(M)
+{
+// WARNING: M must be symmetric
+var A = copyM(M);
+
+var n = M.length;
+var d = new Array(n);
+var e = new Array(n);
+tred(A,d,e,n);
+tql2(A,d,e,n);
+
+var p = 1;
+for(var i=0;i<n;i++)
+	p = p*d[i];
+return p;
 }
 
 //*********************************************************************
@@ -18787,7 +19148,7 @@ return med;
 
 //*********************************************************************
 
-function gamma(z)
+function logamma(z)
 {
 	var  RECIP_E = 0.36787944117144232159552377016147;
     var TWOPI = 6.283185307179586476925286766559;
@@ -18795,17 +19156,36 @@ function gamma(z)
     var d = 1.0 / (10.0 * z);
     d = 1.0 / ((12 * z) - d);
     d = (d + z) * RECIP_E;
-    d = Math.pow(d, z);
-    d *= Math.sqrt(TWOPI / z);
 
-    return d;
+	var e = z*Math.log(d)+Math.log(TWOPI/z)/2;
+	return e;
+}
+
+//*********************************************************************
+
+function gamma(z)
+{
+	return Math.exp(logamma(z));
+	/*
+	var  RECIP_E = 0.36787944117144232159552377016147;
+    var TWOPI = 6.283185307179586476925286766559;
+
+    var d = 1.0 / (10.0 * z);
+    d = 1.0 / ((12 * z) - d);
+    d = (d + z) * RECIP_E;
+
+	var e = z*Math.log(d)+Math.log(TWOPI/z)/2;
+	console.log("in gamma "+z+" e="+e+" returning "+Math.exp(e));
+
+	return Math.exp(e);
+	*/
 }
 
 //*********************************************************************
 
 function beta(x,y)
 {
-return gamma(x)*gamma(y)/gamma(x+y);
+return Math.exp(logamma(x)+logamma(y)-logamma(x+y));
 }
 
 //*********************************************************************
@@ -18822,11 +19202,10 @@ return a*b/c/gamma(k/2);
 
 function fisherdensity(x,d1,d2)
 {
-var a = Math.pow(d1*x,d1/2);
-var b = Math.pow(d2,d2/2);
-var c = Math.pow(d1*x+d2,(d1+d2)/2);
-var d = x*beta(d1/2,d2/2);
-return a*b/c/d;
+var a = d1*Math.log(d1*x)/2+d2*Math.log(d2)/2-(d1+d2)*Math.log(d1*x+d2)/2;
+var b = Math.exp(a);
+var c = beta(d1/2,d2/2);
+return b/(x*c);
 }
 
 //*********************************************************************

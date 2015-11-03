@@ -39,6 +39,7 @@ You can watch a demo on [dailymotion](http://www.dailymotion.com/video/x39lwif_d
 * F-test
 * Levene test
 * Brown Forsythe test
+* Box's M test
 * Principal components
 * Canonical correlation analysis
 * K-means
