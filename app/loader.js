@@ -1,14 +1,24 @@
 var fs = require("fs");
 
 exports.load = load;
+exports.clipboard = clipboard;
 
 var data = [];
+
+//****************************************************************************
 
 function load(filename,callback)
 {
 console.log("load "+filename);
 var content = fs.readFileSync(filename);
 console.log("content "+content.length);
+process_content(content,callback);
+}
+
+//****************************************************************************
+
+function clipboard(content,callback)
+{
 process_content(content,callback);
 }
 
