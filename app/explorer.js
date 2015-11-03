@@ -2,10 +2,19 @@ var remote = require("remote");
 var console = remote.getGlobal("console");
 var ipc = require("ipc");
 
+// check if console if working
+try	{
+	console.log("TEST");
+	}
+catch(e)
+	{
+	var console = {log:function(){}};
+	}
+
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.73";
+var VERSION = "1.74";
 
 /***************************************************************************/
 

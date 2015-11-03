@@ -8,6 +8,9 @@ var clipboard = require("clipboard");
 wreader = null;
 wexplorer = null;
 
+if(typeof(console)=="undefined")
+	var console = {log:function(){}};
+
 //****************************************************************************
 
 

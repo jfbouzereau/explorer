@@ -3,6 +3,16 @@ var fs = require("fs");
 exports.load = load;
 exports.clipboard = clipboard;
 
+// check if console is working
+
+try	{
+	console.log("TEST");
+	}
+catch(e)
+	{
+	var console = {log:function(){}};
+	}
+
 var data = [];
 
 //****************************************************************************
