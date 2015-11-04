@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.74";
+var VERSION = "1.75";
 
 /***************************************************************************/
 
@@ -54,7 +54,8 @@ _action("PASTE_LABEL21","Map axis");
 _action("PASTE_LABEL22","Map axis");
 _action("CREATE_GRAPH1","Create graph from axis 1");
 _action("CREATE_GRAPH2","Create graph from axis 2");
-_action("CREATE_VALUE","Convert to numerical");
+_action("CONVERT_LABEL","Convert to numerical");
+_action("CONVERT_VALUE","Convert to categorical");
 _action("DRAG_VALUE","");
 _action("SET_TOPVALUE","Define field");
 _action("SET_LEFTVALUE","Define field");
@@ -149,6 +150,7 @@ _action("SELECT_ANGLE","Select circle unit");
 _action("DRAG_ORIGIN","Change circle origin");
 _action("SELECT_HOMO","Select coefficient");
 _action("CHANGE_ORIENTATION","Change orientation");
+_action("SELECT_CHI2","Select chi2 test");
 
 // actions that gray the graph
 var GACTIONS = {}
@@ -186,7 +188,7 @@ _type("SOL","Solidarity",{toplabel:1,leftlabel:2});
 _type("ARC","Arc diagram",{toplabel:1,leftlabel:2,options:2});
 _type("CROSS","Contingency table",{toplabel:1,leftlabel:2,options:2});
 _type("ASSOC","Associations",{toplabel:1,leftlabel:2});
-_type("FAC","Multiple Correspondence analysis",{ilabels:1,bin:1,options:3});
+_type("FAC","Multiple Correspondence analysis",{ilabels:1,bin:1,options:2});
 _type("SOM","Self-organizing map",{toplabel:1,leftlabel:2});
 _type("THREE","Graph 3",{toplabel:1,leftlabel:2,bottomlabel:3});
 _type("TREE","Treemap",{ilabels:1});
@@ -248,8 +250,14 @@ _menu("TEST","BARTLETT","Bartlett's test");
 _menu("TEST","FISHER","Fisher F-test");
 _menu("TEST","LEVENE","Levene's test");
 _menu("TEST","BROWN","Brown-Forsythe test");
+_menu("TEST","STUDENT","Student T-test");
 _menu("TEST","WELCH","Welch T-test");
 _menu("TEST","BOXM","Box's M test");
+
+_menu("CHI2","PEARSON","Pearson's \u03C72 test");
+_menu("CHI2","YATES","Yates' \u03C72 test");
+_menu("CHI2","G","G-test");
+_menu("CHI2","EXACT","Fisher's exact test");
 
 _menu("LAW","UNIFORM","Uniform");
 _menu("LAW","NORMAL","Normal");
@@ -457,6 +465,7 @@ GINFO[KNUM].move = pointer("move"+rname+"Graph");
 GINFO[KNUM].drag = pointer("drag"+rname+"Graph");
 GINFO[KNUM].up   = pointer("up"+rname+"Graph");
 GINFO[KNUM].table = pointer("build"+rname+"Table");
+GINFO[KNUM].wheel = pointer("wheel"+rname+"Graph");
 
 KNUM++;
 
@@ -558,7 +567,7 @@ this.test = 0;
 this.law = 0;			// for TYPE.PROBA
 this.clustering = -1;	// for TYPE.CLUSTER
 this.homo = 0;			// for TYPE.HOMO
-
+this.chi2 = 0;			// for TYPE.CHI2
 this.angle = 0;			// for TYPE.POLAR
 this.origin = 0;
 
@@ -3845,7 +3854,8 @@ graph._z.xfrom = "";			// to change orientation
 graph._z.xto = "";		
 graph._z.yfrom = "";
 graph._z.yto = "";
-
+graph._z.xsign = 1;
+graph._z.ysign = 1;
 
 if(graph._z.xrow)
 for(var i=0;i<graph._z.xrow.length;i++)
@@ -4007,11 +4017,16 @@ var option = getGraphOption(graph);
 
 if(option==0)
 	{
-	var dx = graph.w/2
-	var dy = (graph.h - graph.hbar -20)/2
+	var xleft = graph.x+5;
+	var xright = graph.x+graph.w-110;
+	var ytop = graph.y+graph.hbar+5;
+	var ybottom = graph.y+graph.h-5;
+	
+	var dx = (xright-xleft)/2;
+	var dy = (ybottom-ytop)/2;
 
-	var xc = graph.x + dx
-	var yc = graph.y + graph.h - 20 - dy
+	var xc = xleft+dx;
+	var yc = ytop+dy;
 
 	var xmax = graph._z.xmax 
 	var ymax = graph._z.ymax
@@ -4024,13 +4039,16 @@ if(option==0)
 	var yscale = (dy-5)/ymax;
 	var scale = (xscale<yscale) ? xscale : yscale
 
+	var xsign = graph._z.xsign;
+	var ysign = graph._z.ysign;
+
 	// look for the closest point
 
 	if(graph._z.xcol)
 	for(var i=0;i<graph._z.xcol.length;i++)
 		{
-		var x = xc + scale*graph._z.xcol[i]
-		var y = yc - scale*graph._z.ycol[i]
+		var x = xc + xsign*scale*graph._z.xcol[i]
+		var y = yc - ysign*scale*graph._z.ycol[i]
 		var dist = (pt.x-x)*(pt.x-x)+(pt.y-y)*(pt.y-y)
 		if(dist<mindist)
 			{
@@ -4040,11 +4058,11 @@ if(option==0)
 			}
 		}
 
-	if(graph._z.row)
+	if(graph._z.xrow)
 	for(var i=0;i<graph._z.xrow.length;i++)
 		{		
-		var x = xc + scale*graph._z.xrow[i]
-		var y = yc - scale*graph._z.yrow[i]
+		var x = xc + xsign*scale*graph._z.xrow[i]
+		var y = yc - ysign*scale*graph._z.yrow[i]
 		var dist = (pt.x-x)*(pt.x-x)+(pt.y-y)*(pt.y-y)
 		if(dist<mindist)
 			{
@@ -4087,26 +4105,58 @@ var option = getGraphOption(graph);
 if(option==0)
 	{
 	var x = inFacGraph(pt,graph)
+	
+	var nl = graph.ilabels.length;
 
 	if(!x)
 		return false;
+	else if(nl>2)
+		{
+		}
 	else if(x.type==1)
 		{
-		var k = getKeyIndex(graph,x.index)
-		message = graph._keys1[k]
-		overlabel1 = graph.ilabel1
-		overkey1 = graph._keys1[k] 
+		message = graph._z.name1[x.index];
+		overlabel1 = graph.ilabels[0];
+		overkey1 = graph._z.name1[x.index];
 		return true
 		}
 	else if(x.type==2)
 		{
-		message = graph._keys2[x.index]
-		overlabel1 = graph.ilabel2
-		overkey1 = graph._keys2[x.index]
+		message = graph._z.name2[x.index];
+		overlabel1 = graph.ilabels[1];
+		overkey1 = graph._z.name2[x.index];
 		return true
 		}
 	}
+else if(option==1)
+	{
+	if(!graph._z.lambda) return false;
 
+	var xleft = graph.x+30;
+	var xright = graph.x+graph.w-10;
+	var ytop = graph.y+graph.hbar+10;
+	var ybottom = graph.y+graph.h-30;
+
+	var lambda = graph._z.lambda;
+	var nlambda = lambda.length;
+
+	var suml = 0;	
+	for(var i=0;i<nlambda;i++)
+		suml += lambda[i];
+	var dx = (xright-xleft)/nlambda;
+
+	var k = Math.floor((pt.x-xleft)/dx);
+	if(k<0) return false;
+	if(k>=nlambda) return false;
+
+	var pct = 100*lambda[k]/suml;
+	message = "Factor "+(k+1)+" : "+
+		(Math.round(lambda[k]*10000)/10000)+
+		"  ( "+(Math.round(pct*100)/100)+" )";
+	return true;
+	}
+
+return false;
 }
 
 //*********************************************************************
@@ -4177,6 +4227,9 @@ if(option==0)
 	var yscale = (dy-5)/ymax;
 	var scale = (xscale<yscale) ? xscale : yscale;
 
+	var xsign = graph._z.xsign;
+	var ysign = graph._z.ysign;
+
 	ctx.font = "12px helvetica";
 	ctx.textAlign = "center";
 
@@ -4186,7 +4239,9 @@ if(option==0)
 	ctx.fillRect(xc,ytop,1,ybottom-ytop);
 
 	if(nl==2)
-		{	
+		{		
+		var over = null;
+
 		// draw legend
 		ctx.fillStyle = graph._z.colors[0];
 		ctx.fillRect(graph.x+graph.w-130,graph.y+graph.hbar+5,20,20);
@@ -4196,27 +4251,37 @@ if(option==0)
 		ctx.fillStyle = graph._z.colors[0];
 		for(var i=0;i<graph._z.xrow.length;i++)
 			{
-			var x = xc + scale*graph._z.xrow[i];
-			var y = yc - scale*graph._z.yrow[i];
+			var x = xc + xsign*scale*graph._z.xrow[i];
+			var y = yc - ysign*scale*graph._z.yrow[i];
 			ctx.fillText(graph._z.name1[i],x,y+3);
+			if((overlabel1==graph.ilabels[0])&&(overkey1==graph._z.name1[i]))
+				over = [graph._z.name1[i],x,y];
 			}
 
 		ctx.fillStyle = graph._z.colors[1];
 		for(var i=0;i<graph._z.xcol.length;i++)
 			{
-			var x = xc + scale*graph._z.xcol[i];
-			var y = yc - scale*graph._z.ycol[i];
+			var x = xc + xsign*scale*graph._z.xcol[i];
+			var y = yc - ysign*scale*graph._z.ycol[i];
 			ctx.fillText(graph._z.name2[i],x,y+3);
-			/*
-			if(hiliteMatch1(graph.ilabel2,key2))
-				over = [key2,x,y];
-			*/
+			if((overlabel1==graph.ilabels[1])&&(overkey1==graph._z.name2[i]))
+				over = [graph._z.name2[i],x,y];
+			}
+
+		if(over)
+			{
+			var l = ctx.measureText(over[0]).width;
+			ctx.fillStyle = "#000000";
+			ctx.fillRect(over[1]-l/2-4,over[2]-9,l+8,15);
+			ctx.fillStyle = "#FFFFFF";
+			ctx.fillText(over[0],over[1],over[2]+3);	
 			}
 		}
 
 	else
 		{
 		// multi
+		var over = null;
 		var i = 0;
 		for(var j=0;j<nl;j++)
 			{
@@ -4224,11 +4289,24 @@ if(option==0)
 			ctx.fillRect(graph.x+graph.w-130,graph.y+graph.hbar+5+25*j,20,20);
 			for(var k=0;k<graph._z.name1[j].length;k++)
 				{
-				var x = xc + scale*graph._z.xrow[i];
-				var y = yc - scale*graph._z.yrow[i];
+				var x = xc + xsign*scale*graph._z.xrow[i];
+				var y = yc - ysign*scale*graph._z.yrow[i];
 				ctx.fillText(graph._z.name1[j][k],x,y+3);
+				if((overlabel1==graph.ilabels[j])&&(overkey1==graph._z.name1[j][k]))
+					{
+					over = [graph._z.name1[j][k],x,y];
+					}
 				i++;
 				}
+			}
+
+		if(over)
+			{
+			var l = ctx.measureText(over[0]).width;
+			ctx.fillStyle = "#000000";
+			ctx.fillRect(over[1]-l/2-4,over[2]-9,l+8,15);
+			ctx.fillStyle = "#FFFFFF";
+			ctx.fillText(over[0],over[1],over[2]+3);	
 			}
 		}
 
@@ -4263,14 +4341,6 @@ if(option==0)
 		}
 	// hilite the selected point if any
 	/*
-	if(over)
-		{
-		var l = ctx.measureText(over[0]).width;
-		ctx.fillStyle = "#000000";
-		ctx.fillRect(over[1]-l/2-4,over[2]-9,l+8,15);
-		ctx.fillStyle = "#FFFFFF";
-		ctx.fillText(over[0],over[1],over[2]+3);	
-		}
 	*/
 	}
 
@@ -4299,7 +4369,7 @@ if(option==1)
 		suml += lambda[i];
 	var dx = (xright-xleft)/nlambda;
 
-	ctx.fillStyle = "#00FF00";
+	ctx.fillStyle = getColor(graph.hue,1,1);
 	ctx.strokeStyle = "#000000";
 	for(var i=0;i<nlambda;i++)
 		{
@@ -4394,24 +4464,10 @@ function upFacGraph(graph)
 if(action!=CHANGE_ORIENTATION) return;
 
 if(graph._z.xfrom!=graph._z.xto)
-	{
-	if(graph._z.xrow)
-		for(var i=0;i<graph._z.xrow.length;i++)
-			graph._z.xrow[i] = -graph._z.xrow[i];
-	if(graph._z.xcol)		
-		for(var i=0;i<graph._z.xcol.length;i++)
-			graph._z.xcol[i] = -graph._z.xcol[i];
-	}
+	graph._z.xsign = -graph._z.xsign;
 
 if(graph._z.yfrom!=graph._z.yto)
-	{
-	if(graph._z.yrow)
-		for(var i=0;i<graph._z.yrow.length;i++)
-			graph._z.yrow[i] = -graph._z.yrow[i];
-	if(graph._z.xcol)		
-		for(var i=0;i<graph._z.ycol.length;i++)
-			graph._z.ycol[i] = -graph._z.ycol[i];
-	}
+	graph._z.ysign = -graph._z.ysign;
 
 }
 
@@ -5250,11 +5306,28 @@ process_label(0);
 //
 //*********************************************************************
 
-
 function computeChi2Data(graph)
 {
+if(graph.w<460)
+	graph.w = 460;
+
 if(graph.ilabel1<0) return;
 if(graph.ilabel2<0) return;
+
+switch(graph.chi2)
+	{
+	case CHI2.PEARSON: computeChi2Test(graph); break;
+	case CHI2.YATES: computeChi2Test(graph); break;
+	case CHI2.G: computeChi2Test(graph); break;
+	case CHI2.EXACT: computeExactTest(graph); break;
+	}
+
+}
+
+//*********************************************************************
+
+function computeChi2Test(graph)
+{
 
 var sum1 = new Array(graph._keys1.length);
 for(var i=0;i<sum1.length;i++)
@@ -5289,9 +5362,25 @@ for(var i=0;i<graph._keys1.length;i++)
 		{
 		var key = graph._keys1[i]+"\t"+graph._keys2[j]
 		if(key in graph._count)
-			{
+			{	
+			var o = graph._count[key];
 			var e =  sum1[i]*sum2[j]/sum;
-			chi2 +=	(graph._count[key]-e)*(graph._count[key]-e)/e;
+			switch(graph.chi2)
+				{
+				case CHI2.PEARSON:
+					chi2 += (o-e)*(o-e)/e;
+					break;
+
+				case CHI2.YATES:
+					var f = Math.abs(o-e);
+					chi2 += (f-0.5)*(f-0.5)/e;
+					break;
+
+				case CHI2.G:
+					var f = Math.log(o/e);	
+					chi2 += 2*o*f;
+					break;
+				}
 			}
 		}
 	}
@@ -5302,6 +5391,76 @@ graph._z.dof = (graph._keys1.length-1)*(graph._keys2.length-1);
 graph._z.cv = critchi(graph._z.level,graph._z.dof);
 graph._z.chi2 = chi2;
 
+
+}
+
+//*********************************************************************
+
+function computeExactTest(graph)
+{
+if(graph._keys1.length!=2) return;
+if(graph._keys2.length!=2) return;
+
+var key,a,b,c,d;
+
+key = graph._keys1[0]+"\t"+graph._keys2[0];
+a = graph._count[key];
+if(isNaN(a)) return;
+
+key = graph._keys1[0]+"\t"+graph._keys2[1];
+b = graph._count[key];
+if(isNaN(b)) return;
+
+key = graph._keys1[1]+"\t"+graph._keys2[0];
+c = graph._count[key];
+if(isNaN(c)) return;
+
+key = graph._keys1[1]+"\t"+graph._keys2[1];
+d = graph._count[key];
+if(isNaN(d)) return;
+
+
+// compute pvalue
+var p = formula(a,b,c,d);
+//console.log(a+" "+b+" "+c+" "+d+" -> "+p);
+
+// compute all others pvalues
+
+var sum = p;
+
+sum += tryall(a,b,c,d,-1,p);
+sum += tryall(a,b,c,d,1,p);
+
+graph._z.exact = sum;
+
+	function formula(a,b,c,d)
+	{
+	var f = logamma(a+b+1)+logamma(c+d+1)+logamma(a+c+1)+logamma(b+d+1)
+		-logamma(a+1)-logamma(b+1)-logamma(c+1)-logamma(d+1)
+		-logamma(a+b+c+d+1);
+	return Math.exp(f);
+	}
+
+	function tryall(x,y,z,t,incr,pcutoff)
+	{
+	var s = 0;
+	while(true)			
+		{
+		x+=incr;
+		if(x<0) break;
+		y-=incr;
+		if(y<0) break;
+		z-=incr;
+		if(z<0) break;
+		t+=incr;
+		if(t<0) break;
+		var pp = formula(x,y,z,t);	
+		//console.log(x+" "+y+" "+z+" "+t+" -> "+pp);
+		if(pp<=pcutoff)
+			s += pp;
+		}
+	return s;
+	}
 
 }
 
@@ -5320,18 +5479,34 @@ function drawChi2Icon(ctx,x,y)
 
 function drawChi2Graph(ctx,graph)
 {
+if(graph.ilabel1<0) return;
+if(graph.ilabel2<0) return;
+
+switch(graph.chi2)
+	{
+	case CHI2.PEARSON: drawChi2(ctx,graph); break;
+	case CHI2.YATES: drawChi2(ctx,graph); break;
+	case CHI2.G : drawChi2(ctx,graph); break;
+	case CHI2.EXACT: drawExact(ctx,graph); break;
+	}
+
+}
+
+//*********************************************************************
+
+function drawChi2(ctx,graph)
+{
+
 var name1 = getGraphLabel(graph,"toplabel");
 var name2 = getGraphLabel(graph,"leftlabel");
-
-if((graph.ilabel1>=0)&&(graph.ilabel2>=0))
-	{
 
 	var level = graph._z.level;
 	var dof = graph._z.dof;
 	var max = Math.max(graph._z.cv,graph._z.chi2);
-	max *= 1.1;
-	var pvalue = chi2inv(0.0001,max,graph._z.chi2,dof);
+	max *= 1.2;
+	var pvalue = chi2inv(0.00001,max,graph._z.chi2,dof);
 	pvalue = Math.round(pvalue*10000)/10000;
+	var cv = graph._z.cv;
 
 	ctx.fillStyle = "#000000";
 	ctx.strokeStyle = "#000000";
@@ -5353,8 +5528,8 @@ if((graph.ilabel1>=0)&&(graph.ilabel2>=0))
 	ctx.fillText(""+dof,graph.x+240,y);
 
 	y += 20;
-	ctx.fillText("Critical value",graph.x+40,y);
-	z = Math.round(graph._z.cv*10000)/10000;
+	ctx.fillText("Critical value C",graph.x+40,y);
+	z = Math.round(cv*10000)/10000;
 	ctx.fillText(""+z,graph.x+240,y);
 	ctx.fillText("(\u03B1="+level+")",graph.x+360,y);
 
@@ -5364,86 +5539,141 @@ if((graph.ilabel1>=0)&&(graph.ilabel2>=0))
 	ctx.fillText(""+z,graph.x+240,y);
 	ctx.fillText("(pvalue="+pvalue+")",graph.x+360,y);
 
-	y += 40;
-	ctx.fillStyle= "#FF0000";	
-	if(graph._z.chi2>graph._z.cv)
+	if(!isNaN(graph._z.chi2))
 		{
-		ctx.fillText("Independance hypothesis is rejected",graph.x+40,y);
-		}
-	else	
-		{
-		ctx.fillText("Independance hypothesis is accepted",graph.x+40,y);
-		}
+		y += 40;
+		ctx.fillStyle= "#FF0000";	
+		if(graph._z.chi2>graph._z.cv)
+			{
+			multiText(ctx,["#000000","Independence hypothesis is ",
+				"#FF0000","rejected"],graph.x+40,y);
+			}
+		else	
+			{
+			multiText(ctx,["#000000","Independence hypothesis is ",
+				"#FF0000","accepted"],graph.x+40,y);
+			}
 
-	y += 20;
+		y += 20;
 
-	// draw chi2 curve
-	ctx.strokeStyle = "#000000";
-	ctx.lineWidth = 1;
-	ctx.beginPath();
+		// draw chi2 curve
+		ctx.strokeStyle = "#000000";
+		ctx.lineWidth = 1;
+		ctx.beginPath();
 
-	var max = critchi(0.001,dof);
-	max = Math.max(max,graph._z.chi2);
-	max = max*1.01;
+		var max = critchi(0.001,dof);
+		max = Math.max(max,graph._z.chi2);
+		max = max*1.01;
 
-	var dy = 200;
-	var dx = graph.w-40;
+		var dy = 200;
+		var dx = graph.w-40;
 
-	var x = graph.x+20;	
-	y += 220;
+		var x = graph.x+20;	
+		y += 220;
 
-	var dmax = 0;
-	for(var i=0;i<=100;i++)
-		{
-		var d = chi2density(max*i/100,dof);
-		if(d>1e4) continue;
-		if(d>dmax) dmax = d;
-		}
+		var dmax = 0;
+		for(var i=0;i<=100;i++)
+			{
+			var d = chi2density(max*i/100,dof);
+			if(d>1e4) continue;
+			if(d>dmax) dmax = d;
+			}
 
-	var first = true;
-	for(var i=0;i<=100;i++)
-		{
-		var d = chi2density(max*i/100,dof);
-		if(d>1e4) continue;
-		if(first)
-			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
-		else
-			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
-		first = false;
-		}
-	ctx.stroke();
+		var first = true;
+		for(var i=0;i<=100;i++)
+			{
+			var d = chi2density(max*i/100,dof);
+			if(d>1e4) continue;
+			if(first)
+				ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+			else
+				ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+			first = false;
+			}
+		ctx.stroke();
 
-	ctx.beginPath();
-	ctx.moveTo(x,y);
-	ctx.lineTo(x+dx,y);
-	ctx.stroke();
+		ctx.beginPath();
+		ctx.moveTo(x,y);
+		ctx.lineTo(x+dx,y);
+		ctx.stroke();
 
-	ctx.fillStyle = "#000000";
-	var j = Math.round(graph._z.cv*100/max);
-	ctx.beginPath();
-	var first = true;
-	for(var i=j;i<=100;i++)
-		{
-		var d = chi2density(max*i/100,dof);		
-		if(d>1e4) continue;	
-		if(first)
-			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
-		else
-			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);	
-		first = false;
-		}
-	ctx.lineTo(x+dx,y);
-	ctx.lineTo(x+dx*j/100,y);
-	ctx.fill();
+		ctx.fillStyle = "#000000";
+		var j = Math.round(graph._z.cv*100/max);
+		ctx.beginPath();
+		var first = true;
+		for(var i=j;i<=100;i++)
+			{
+			var d = chi2density(max*i/100,dof);		
+			if(d>1e4) continue;	
+			if(first)
+				ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+			else
+				ctx.lineTo(x+dx*i/100,y-d*dy/dmax);	
+			first = false;
+			}
+		ctx.lineTo(x+dx,y);
+		ctx.lineTo(x+dx*j/100,y);
+		ctx.fill();
 
-	ctx.textAlign = "center";
-	ctx.fillText("T",x+dx*graph._z.chi2/max,y+25);	
-	ctx.beginPath();
-	ctx.moveTo(x+dx*graph._z.chi2/max,y+2);
-	ctx.lineTo(x+dx*graph._z.chi2/max,y+12);
-	ctx.stroke();
+		ctx.textAlign = "center";
+		ctx.fillText("T",x+dx*graph._z.chi2/max,y+25);	
+		ctx.beginPath();
+		ctx.moveTo(x+dx*graph._z.chi2/max,y+2);
+		ctx.lineTo(x+dx*graph._z.chi2/max,y+12);
+		ctx.stroke();
+
+		ctx.textAlign = "center";
+		ctx.fillText("C",x+dx*cv/max,y+25);	
+		ctx.beginPath();
+		ctx.moveTo(x+dx*cv/max,y+2);
+		ctx.lineTo(x+dx*cv/max,y+12);
+		ctx.stroke();
 	}
 
+drawMenu(ctx,graph,MENU.CHI2,graph.chi2,SELECT_CHI2,menuindex);
+
+}
+
+//*********************************************************************
+
+function drawExact(ctx,graph)
+{
+
+if(!graph._z.exact)
+	{
+	var x = graph.x+graph.w/2;
+	var y = graph.y+graph.h/2;
+	ctx.fillStyle = "#000000";
+	ctx.textAlign =  "center";
+	ctx.fillText("Not a 2x2 table");
+	return;
+	}
+
+ctx.textAlign = "left";
+
+ctx.fillStyle = "#000000";
+
+var y = graph.y+graph.hbar+60;
+
+var exact = Math.round(graph._z.exact*1000000)/1000000;
+ctx.fillText("pvalue",graph.x+40,y);
+ctx.fillText(""+exact,graph.x+240,y);
+
+y+=40;
+
+
+if(graph._z.exact<0.05)
+	{
+	multiText(ctx,["#000000","Independence hypothesis is ",
+		"#FF0000","rejected"],graph.x+40,y);
+	}
+else	
+	{
+	multiText(ctx,["#000000","Independence hypothesis is ",
+		"#FF0000","accepted"],graph.x+40,y);
+	}
+
+drawMenu(ctx,graph,MENU.CHI2,graph.chi2,SELECT_CHI2,menuindex);
 }
 
 //*********************************************************************
@@ -5455,11 +5685,11 @@ if(graph.ilabel2<0) return -1;
 
 if(typeof(graph.error)=="undefined") graph.error = 5;
 
-var y = graph.y + 200;
-var x = graph.x+20+(graph.w-40)*graph.error/10;
-
-if(inRect(pt,x-10,y-15,20,30))
-	return DRAG_ERROR;
+var w = 150;
+var x = graph.x+graph.w/2-w/2;
+var y = graph.y+graph.hbar+5;
+if(inRect(pt,x,y,w,20))
+	return SELECT_CHI2;
 
 return -1;
 }
@@ -5468,14 +5698,10 @@ return -1;
 
 function dragChi2Graph(graph)
 {
-if(faction==DRAG_ERROR)
+if(faction==SELECT_CHI2)
 	{
-	graph.error = (ptmove.x-graph.x-20)*10/(graph.w-40)	
-	graph.error = Math.round(graph.error*10)/10.0;	
-	if(graph.error<0.1)
-		graph.error = 0.1
-	if(graph.error>10)
-		graph.error = 10
+	selectMenuItem(ptmove,graph,MENU.CHI2);
+	return;
 	}
 
 }
@@ -11371,13 +11597,18 @@ else
 
 function computeTestData(graph)
 {
+
+if(graph.w<460)
+	graph.w = 460;
+
 switch(graph.test)
 	{
-	case TEST.WELCH: computeWelchData(graph); break;
 	case TEST.FISHER: computeFisherData(graph); break;
 	case TEST.BARTLETT : computeBartlettData(graph); break;
 	case TEST.LEVENE: computeLeveneData(graph); break;
 	case TEST.BROWN: computeLeveneData(graph); break;
+	case TEST.STUDENT: computeStudentData(graph); break;
+	case TEST.WELCH: computeWelchData(graph); break;
 	case TEST.BOXM: computeBoxmData(graph); break;
 	}
 }
@@ -11412,7 +11643,8 @@ if((graph.ivalues.length>0)&&(graph.ilabel1>=0))
 		case TEST.LEVENE: drawLeveneGraph(ctx,graph); break;
 		case TEST.BROWN: drawLeveneGraph(ctx,graph); break;
 		case TEST.BOXM: drawBoxmGraph(ctx,graph); break;
-		case TEST.WELCH: drawWelchGraph(ctx,graph); break;
+		case TEST.WELCH: drawTGraph(ctx,graph,false); break;
+		case TEST.STUDENT: drawTGraph(ctx,graph,true); break;
 		}
 
 drawMenu(ctx,graph,MENU.TEST,graph.test,SELECT_TEST,testindex);
@@ -11438,17 +11670,84 @@ return  -1;
 
 //*********************************************************************
 
-function computeWelchData(graph)
+function computeStudentData(graph)
 {
 if(graph.ivalues.length>1) graph.ivalues.splice(1,graph.ivalues.length-1);
 if(graph.ivalues.length<1) return;
 if(graph.ilabel1<0) return;
 
-// verif
-var area = 0;
-for(var x=-100;x<=100;x+=0.001)
-	area += dt(x,175.99814741188248)*0.001;
-console.log("VERIF "+area);
+var nr = 0;
+var ng = 0;
+var counts = {};
+var means = {};
+var variances = {};
+
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+
+	nr++;
+	
+	var key = lrecords[i][graph.ilabel1];
+	if(!(key in means))
+		{
+		counts[key] = 0;
+		means[key] = 0;
+		variances[key] = 0;
+		ng++;
+		}
+
+	counts[key]++;
+	var x = vrecords[i][graph.ivalues[0]];
+	means[key] += x;
+	variances[key] += x*x;
+	}
+
+graph._z.ng = ng;
+if(ng!=2) return;
+
+var keys = [];
+
+for(var key in counts)
+	{
+	keys.push(key);
+	means[key] =means[key]/counts[key];
+	variances[key] = (variances[key]-counts[key]*means[key]*means[key])/(counts[key]-1);
+	}
+
+
+var den = 0;
+den += (counts[keys[0]]-1)*variances[keys[0]];
+den += (counts[keys[1]]-1)*variances[keys[1]];
+den = Math.sqrt(den/(counts[keys[0]]+counts[keys[1]]-2));
+den = den*Math.sqrt(1/counts[keys[0]]+1/counts[keys[1]]);
+
+var num = means[keys[0]]-means[keys[1]];
+
+var t = num/den;
+var dof = counts[keys[0]]+counts[keys[1]]-2;
+
+var pvalue = pt(t,dof);
+var level = 0.025;
+var cv = qt(1-level,dof);
+
+graph._z.t = t;
+graph._z.dof = dof;
+graph._z.level = level;
+graph._z.pvalue = pvalue;
+graph._z.cv = cv;
+graph._z.no = nr;
+
+}
+
+//*********************************************************************
+
+function computeWelchData(graph)
+{
+if(graph.ivalues.length>1) graph.ivalues.splice(1,graph.ivalues.length-1);
+if(graph.ivalues.length<1) return;
+if(graph.ilabel1<0) return;
 
 
 var nr = 0;
@@ -11548,8 +11847,6 @@ for(var i=0;i<vrecords.length;i++)
 
 for(var g in stats)
 	stats[g].var = stats[g].sum2/stats[g].n - (stats[g].sum)*(stats[g].sum)/stats[g].n/stats[g].n;
-
-console.log(stats);
 
 var sp = 0;
 var sa = 0;
@@ -11754,8 +12051,6 @@ graph._z.max = max;
 graph._z.pmax = pmax;
 graph._z.level = level;
 graph._z.cv = cv;
-
-console.log(graph._z);
 
 }
 
@@ -12420,7 +12715,7 @@ ctx.stroke();
 	
 //*********************************************************************
 
-function drawWelchGraph(ctx,graph)
+function drawTGraph(ctx,graph,samevar)
 {
 if(graph._z.ng<2)
 	{
@@ -12454,6 +12749,12 @@ ctx.lineWidth = 1
 
 var y = graph.y+graph.hbar+80;
 
+if(samevar)
+	ctx.fillText("NOTE: Variances are assumed to be equal",graph.x+40,y);
+else
+	ctx.fillText("NOTE: Variances are not assumed to be equal",graph.x+40,y);
+y+= 20;
+
 ctx.fillText("Number of groups",graph.x+40,y);
 var ng = graph._z.ng;
 ctx.fillText(""+ng,graph.x+240,y);
@@ -12471,15 +12772,15 @@ ctx.fillText(""+dof,graph.x+240,y)
 y += 20;	
 cv = Math.round(cv*10000)/10000;
 ctx.fillText("Critical value C", graph.x+40,y);
-ctx.fillText(""+cv,graph.x+240,y);
+ctx.fillText("+/-"+cv,graph.x+240,y);
 ctx.fillText("(\u03B1="+level+")",graph.x+360,y);
 
 y += 20;
 t = Math.round(t*10000)/10000;
-pvalue = Math.round(pvalue*10000)/10000;
+var pv = Math.round(2*pvalue*10000)/10000;
 ctx.fillText("Test statistic T",graph.x+40,y);
 ctx.fillText(""+t,graph.x+240,y);
-ctx.fillText("(pvalue="+pvalue+")",graph.x+360,y);
+ctx.fillText("(pvalue="+pv+")",graph.x+360,y);
 
 y += 30;
 ctx.fillStyle= "#FF0000";
@@ -12583,6 +12884,13 @@ ctx.lineTo(x+dx*ratio,y+12);
 ctx.stroke();
 
 var ratio = (cv-min)/(max-min);
+ctx.fillText("C",x+dx*ratio,y+25);
+ctx.beginPath();
+ctx.moveTo(x+dx*ratio,y+2);
+ctx.lineTo(x+dx*ratio,y+12);
+ctx.stroke();
+
+ratio = (-cv-min)/(max-min);
 ctx.fillText("C",x+dx*ratio,y+25);
 ctx.beginPath();
 ctx.moveTo(x+dx*ratio,y+2);
@@ -14973,21 +15281,59 @@ return -1
 
 //*********************************************************************
 
-function createValue(index)
+function convertLabel(index)
 {
-// if value already created
-//if(indexIn(labels[index],values)>=0) return
-
+// check if numerical
+var isnum = true;
 for(var i=0;i<lrecords.length;i++)
 	{
 	var x = Number(lrecords[i][index].replace(",","."))
-	if(isNaN(x)) x = 0
-	vrecords[i].push(x)
+	if(isNaN(x)) isnum=false;
 	}
+
+if(isnum)
+	{
+	// convert as is
+	for(var i=0;i<lrecords.length;i++)
+		vrecords[i].push(Number(lrecords[i][index].replace(",",".")));
+	}
+else
+	{	
+	// convert to index 
+	var set = {};
+	for(var i=0;i<lrecords.length;i++)
+		set[lrecords[i][index]] = 1;
+
+	var aset = [];
+	for(var key in set)
+		aset.push(key);
+
+	aset.sort();
+
+	set = {};
+	for(var i=0;i<aset.length;i++)
+		set[aset[i]] = i+1;
+
+	for(var i=0;i<lrecords.length;i++)
+		vrecords[i].push(set[lrecords[i][index]]);
+	}
+
 
 values.push(labels[index])
 
 removeLabel(index);
+}
+
+//*********************************************************************
+
+function convertValue(index)
+{
+for(var i=0;i<vrecords.length;i++)
+	lrecords[i].push(""+vrecords[i][index]);	
+
+labels.push(values[index]);
+
+removeValue(index);
 }
 
 //*********************************************************************
@@ -16055,9 +16401,13 @@ else if(action==CREATE_GRAPH2)
 	graphs.push(newgraph)
 	computeGraphData(newgraph)
 	}
-else if(action==CREATE_VALUE)
+else if(action==CONVERT_LABEL)
 	{
-	createValue(labelindex)
+	convertLabel(labelindex)
+	}
+else if(action==CONVERT_VALUE)
+	{
+	convertValue(valueindex);
 	}
 else if(action==CREATE_LABEL)
 	{
@@ -16212,6 +16562,15 @@ else if(action==SELECT_HOMO)
 		{
 		graph = graphs[graphindex];
 		graph.homo = menuindex;
+		}
+	}
+else if(action==SELECT_CHI2)
+	{
+	if(menuindex>=0)
+		{
+		graph = graphs[graphindex];
+		graph.chi2 = menuindex;
+		computeChi2Data(graph);
 		}
 	}
 else if((action==SELECT_TYPE)&&(typeindex>=0))
@@ -17290,7 +17649,7 @@ else if(faction==DRAG_LABEL)
 		}
 	else if(inValue(ptmove)>=0)
 		{
-		action = labelInUse(labelindex) ? DONT_REMOVE:CREATE_VALUE;
+		action = labelInUse(labelindex) ? DONT_REMOVE:CONVERT_LABEL;
 		}
 	else if(i<0)
 		{
@@ -17350,7 +17709,11 @@ else if(faction==DRAG_VALUE)
 	else if(inLabel(ptmove)>=0)
 		{
 		if(valueindex==0)
-			action = PIVOT_DATA;;
+			action = PIVOT_DATA;
+		else if(valueInUse(valueindex))
+			action = DONT_REMOVE;
+		else
+			action = CONVERT_VALUE;
 		}
 	else if(i<0)
 		action = DRAG_VALUE;
@@ -18931,7 +19294,7 @@ else if((action==CREATE_GRAPH1)||(action==CREATE_GRAPH2))
 	var j = Math.floor(typeindex/5)
 	ctx.fillRect(mywidth-100+i*20,labels.length*20+20+j*20,20,20)
 	}
-else if((action==CREATE_VALUE)||(action==ADD_VALUE)||(action==CREATE_PROJECTION)||(action==CREATE_VBOOLEAN)||(action==SHOW_VALUE))
+else if((action==CONVERT_LABEL)||(action==ADD_VALUE)||(action==CREATE_PROJECTION)||(action==CREATE_VBOOLEAN)||(action==SHOW_VALUE))
 	{	
 	var ni = Math.ceil(NBTYPE3/5)
 	ctx.fillStyle = GRAY
@@ -18945,7 +19308,7 @@ else if((action==SORT_DATA)&&(valueindex>=0))
 	ctx.fillRect(mywidth-100,
 		labels.length*20+20+ni*20+20+20*valueindex-barshift,100,20);
 	}
-else if((action==CREATE_LABEL)||(action==CREATE_KGROUP)||(action==CREATE_LBOOLEAN))
+else if((action==CREATE_LABEL)||(action==CREATE_KGROUP)||(action==CREATE_LBOOLEAN)||(action==CONVERT_VALUE))
 	{
 	ctx.fillStyle = GRAY
 	ctx.fillRect(mywidth-100,0,100,labels.length*20)
@@ -19595,37 +19958,26 @@ return med;
 
 //*********************************************************************
 
-function logamma(z)
+function gamma(z)
 {
-	var  RECIP_E = 0.36787944117144232159552377016147;
-    var TWOPI = 6.283185307179586476925286766559;
-
-    var d = 1.0 / (10.0 * z);
-    d = 1.0 / ((12 * z) - d);
-    d = (d + z) * RECIP_E;
-
-	var e = z*Math.log(d)+Math.log(TWOPI/z)/2;
-	return e;
+    return Math.exp(logamma(z));
 }
 
 //*********************************************************************
 
-function gamma(z)
+pgamma = [ 676.5203681218851,   -1259.1392167224028,  771.32342877765313,
+         -176.61502916214059,     12.507343278686905, -0.13857109526572012,
+            9.9843695780195716e-6, 1.5056327351493116e-7];
+
+function logamma(z)
 {
-	return Math.exp(logamma(z));
-	/*
-	var  RECIP_E = 0.36787944117144232159552377016147;
-    var TWOPI = 6.283185307179586476925286766559;
+z = z-1;
+var x = 0.99999999999980993;
+for(var i=0;i<pgamma.length;i++)
+	x += pgamma[i]/(z+i+1);
 
-    var d = 1.0 / (10.0 * z);
-    d = 1.0 / ((12 * z) - d);
-    d = (d + z) * RECIP_E;
-
-	var e = z*Math.log(d)+Math.log(TWOPI/z)/2;
-	console.log("in gamma "+z+" e="+e+" returning "+Math.exp(e));
-
-	return Math.exp(e);
-	*/
+t = z+pgamma.length-0.5;
+return Math.log(Math.PI*2)*0.5+ (z+0.5)*Math.log(t)-t+Math.log(x);
 }
 
 //*********************************************************************

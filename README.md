@@ -18,7 +18,10 @@ You can watch a demo on [dailymotion](http://www.dailymotion.com/video/x39lwif_d
 * Self-organizing map
 * 3-variable graph
 * Treemap
-* Chi-square test
+* Pearson' chi-square test
+* Yates' chi-square test
+* G-test
+* Fisher's exact test
 * Gini impurity
 * Entropy
 * Repartition curve
@@ -40,6 +43,7 @@ You can watch a demo on [dailymotion](http://www.dailymotion.com/video/x39lwif_d
 * Levene test
 * Brown Forsythe test
 * Box's M test
+* Student's T-test
 * Welch T-test
 * Principal components
 * Canonical correlation analysis
@@ -131,17 +135,27 @@ There are two kinds of fields :
 
 * Drag a slice of a pie chart to the workspace to create a subset of the data.
 
+* Drag a slice of a pie chart to the title of another graph to change its selection.
+
 * Drag a bar of a bar chart to the workspace to create a subset of the data.
+
+* Drag a bar of a bar chart to the title of another graph to change its selection.
 
 * Move the mouse over an element of a graph to highlight the corresponding element in all the graphs.
 
-* Drag a field to the trash icon, or drag the trash icon to a field, to remove this field.
+* Drag a categorical field to the numerical fields to convert it to numerical.
 
-* Drag a field to the table icon, or drag the table icon to a field, to display the values of this field.
+* Drag a numerical field to the categorical fields to convert it to categorical.
+
+* Drag a field to the trash icon, or drag the trash icon to a field, to remove this field.
 
 * Drag a field to the sort icon, or drag the sort icon to a field, to sort the data according to this field.
 
 * Drag the help icon (exclamation mark) to a graph to get info about this type of graph.
+
+* Drag the grid icon to the fields to get a spreadsheet of the data.
+
+* Drag the grid icon to a graph to get a spreadsheet of its values.
 
 * Drag the background to scroll the workspace.
 
