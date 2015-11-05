@@ -4,10 +4,30 @@ This Explorer allows to perform various statistical analyses and data mining ope
 
 ## Videos
 
-| Demos | Dailymotion | &nbsp;&nbsp; Youtube &nbsp;&nbsp;  |
-| --- |: --- :|: --- :|
-|Overview| [![](http://jfbouzereau.free.fr/explorer/dailymotion.png)](http://www.dailymotion.com/video/x39lwif_data-explorer-demo_tech)| [![](http://jfbouzereau.free.fr/explorer/youtube.jpeg)](https://youtu.be/S0pAdZcNnj4)|
-|Contingency table|[![](http://jfbouzereau.free.fr/explorer/dailymotion.png)](http://www.dailymotion.com/video/x3ciuco_contingency-table-with-data-explorer_lifesty)|[![](http://jfbouzereau.free.fr/explorer/youtube.jpeg)](https://www.youtube.com/watch?v=6hUlluoQOd8)|
+<table>
+<tr>
+	<td>Overview</td>
+	<td align="center">
+		<a href="http://www.dailymotion.com/video/x39lwif_data-explorer-demo_tech" title="watch on dailymotion">
+			<img src="http://jfbouzereau.free.fr/explorer/dailymotion.png"></img>
+		</a></td>
+	<td align="center"> 
+		<a href="https://youtu.be/S0pAdZcNnj4" title="watch on youtube">
+			<img src="http://jfbouzereau.free.fr/explorer/youtube.jpeg""></img>
+		</a></td>
+</tr>
+<tr>
+	<td> Contingency table</td>
+	<td align="center">
+		<a href="http://www.dailymotion.com/video/x3ciuco_contingency-table-with-data-explorer_lifesty"  title="watch on dailymotion">
+			<img src="http://jfbouzereau.free.fr/explorer/dailymotion.png">
+		</a></td>
+	<td align="center">
+		<a href="https://www.youtube.com/watch?v=6hUlluoQOd8" title="watch on youtube">
+			<img src="http://jfbouzereau.free.fr/explorer/youtube.jpeg"></img>
+		</a></td>
+</tr>
+</table>
 
 
 ## Screenshots
