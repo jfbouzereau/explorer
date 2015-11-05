@@ -4152,7 +4152,7 @@ else if(option==1)
 	var pct = 100*lambda[k]/suml;
 	message = "Factor "+(k+1)+" : "+
 		(Math.round(lambda[k]*10000)/10000)+
-		"  ( "+(Math.round(pct*100)/100)+" )";
+		"  ( "+(Math.round(pct*100)/100)+"% )";
 	return true;
 	}
 
@@ -5192,7 +5192,7 @@ for(var i=0;i<graph._keys[index].length;i++)
 	
 	if(mustdraw)
 		{
-		if(hiliteMatch1(graph.ilabels[index],graph._keys[index][i]))
+		if(graph._z.hilite==newkey.replace(/\t/g," \u2022 "))
 			ctx.fillStyle = graph._hilites1[graph._keys[index][i]]
 		else
 			ctx.fillStyle = graph._colors1[graph._keys[index][i]]
@@ -5243,6 +5243,7 @@ if(indices instanceof Array)
 		key += ksep + graph._keys[k][indices[k]]
 		ksep = "\t"
 		}
+	graph._z.hilite = message;
 	if(key in graph._count)
 		{
 		var pct = graph._count[key]*1000/graph.total
@@ -5645,31 +5646,29 @@ if(!graph._z.exact)
 	var y = graph.y+graph.h/2;
 	ctx.fillStyle = "#000000";
 	ctx.textAlign =  "center";
-	ctx.fillText("Not a 2x2 table");
-	return;
+	ctx.fillText("Not a 2x2 table",x,y);
 	}
 
-ctx.textAlign = "left";
-
-ctx.fillStyle = "#000000";
-
-var y = graph.y+graph.hbar+60;
-
-var exact = Math.round(graph._z.exact*1000000)/1000000;
-ctx.fillText("pvalue",graph.x+40,y);
-ctx.fillText(""+exact,graph.x+240,y);
-
-y+=40;
-
-
-if(graph._z.exact<0.05)
+else
 	{
+
+	ctx.textAlign = "left";
+
+	ctx.fillStyle = "#000000";
+
+	var y = graph.y+graph.hbar+60;
+
+	var exact = Math.round(graph._z.exact*1000000)/1000000;	
+	ctx.fillText("two-tail test",graph.x+40,y);
+	ctx.fillText("pvalue="+exact,graph.x+240,y);
+
+	y+=40;
+
+	if(graph._z.exact<0.05)
 	multiText(ctx,["#000000","Independence hypothesis is ",
 		"#FF0000","rejected"],graph.x+40,y);
-	}
-else	
-	{
-	multiText(ctx,["#000000","Independence hypothesis is ",
+	else	
+		multiText(ctx,["#000000","Independence hypothesis is ",
 		"#FF0000","accepted"],graph.x+40,y);
 	}
 
@@ -16734,7 +16733,7 @@ h += "<!DOCTYPE html>\n";
 h += "<html>\n";
 h += "<head>\n";
 h += "<style>\n";
-h += "body	{ margin:0px; }\n";
+h += "body	{ margin:0px; cursor: default;}\n";
 h += "*	{ font-family: Calibri; font-size: 12px; }\n";
 h += "td { min-width: 50px; border-left: 1px solid #AAA;  border-top: 1px solid #AAA;}\n";
 h += "table { border-bottom: 1px solid #AAA; border-right: 1px solid #AAA; }\n";
