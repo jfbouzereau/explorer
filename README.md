@@ -1,7 +1,16 @@
 # Presentation
 
-This Explorer allows to perform various statistical analyses and data mining operations in a very easy and intuitive way. As the name implies, this software aims at exploring data and getting quick insight of the order of magnitude of the observed objects. That's why it does focus on graphical representation and mouse driven operations, unlike the traditional statistical tools cluttered with numerous dialog boxes and lists with five decimal figures. You can, however, have the detailed numbers once your analyses are completed.<br>
-You can watch a demo on [dailymotion](http://www.dailymotion.com/video/x39lwif_data-explorer-demo_tech) or [youtube](https://youtu.be/S0pAdZcNnj4) .
+This Explorer allows to perform various statistical analyses and data mining operations in a very easy and intuitive way. As the name implies, this software aims at exploring data and getting quick insight of the order of magnitude of the observed objects. That's why it does focus on graphical representation and mouse driven operations, unlike the traditional statistical tools cluttered with numerous dialog boxes and lists with five decimal figures. You can, however, have the detailed numbers once your analysis is completed.
+
+## Videos
+
+| Demos | Dailymotion | &nbsp;&nbsp; Youtube &nbsp;&nbsp;  |
+| --- |: --- :|: --- :|
+|Overview| [![](http://jfbouzereau.free.fr/explorer/dailymotion.png)](http://www.dailymotion.com/video/x39lwif_data-explorer-demo_tech)| [![](http://jfbouzereau.free.fr/explorer/youtube.jpeg)](https://youtu.be/S0pAdZcNnj4)|
+|Contingency table|[![](http://jfbouzereau.free.fr/explorer/dailymotion.png)](http://www.dailymotion.com/video/x3ciuco_contingency-table-with-data-explorer_lifesty)|[![](http://jfbouzereau.free.fr/explorer/youtube.jpeg)](https://www.youtube.com/watch?v=6hUlluoQOd8)|
+
+
+## Screenshots
 
 ![explorer screenshot](http://jfbouzereau.free.fr/explorer/explorer2.png)
 ![explorer screenshot](http://jfbouzereau.free.fr/explorer/explorer3.png)
