@@ -133,6 +133,10 @@ Launch the application, and drag a file containing a dataset saved by Stata 8 or
 
 Launch the application, and drag a file containing a dataset saved by SPSS in uncompressed format.
 
+##### dBase file
+
+Launch the application, and drag a dBase file. The file extension must be ".dbf" .
+
 ##### Web file
 
 Launch the application, and drag a file containing the url of the data.

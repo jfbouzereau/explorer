@@ -365,8 +365,13 @@ var animtimer = null
 ipc.on("start",  function (filename)
 {
 
+	console.log("start "+filename);
+
 	var loader = require("./loader");
+
+	console.log("loader "+loader);
 	loader.load(filename,loaded)
+	console.log("sent");
 
 	function loaded(data)
 	{

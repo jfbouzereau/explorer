@@ -6,6 +6,7 @@ exports.clipboard = clipboard;
 // check if console is working
 
 try	{
+	var console = require("console");
 	console.log("TEST");
 	}
 catch(e)
@@ -22,19 +23,26 @@ function load(filename,callback)
 console.log("load "+filename);
 var content = fs.readFileSync(filename);
 console.log("content "+content.length);
-process_content(content,callback);
+
+console.log(filename.toLowerCase().indexOf(".dbf"));
+console.log(filename.length-4);
+
+if(filename.toLowerCase().indexOf(".dbf")==filename.length-4)
+	process_dbase_content(content,callback);
+else
+	process_content(content,filename,callback);
 }
 
 //****************************************************************************
 
 function clipboard(content,callback)
 {
-process_content(content,callback);
+process_content(content,"",callback);
 }
 
 //****************************************************************************
 
-function process_content(content,callback)
+function process_content(content,filename,callback)
 {
 console.log("process_content "+content.length);
 
@@ -238,7 +246,7 @@ catch(e)
 			remote = Buffer.concat([remote,chunk]);
 		});
 		res.on("end", function() {
-			process_content(remote,callback);
+			process_content(remote,obj.pathname,callback);
 		});
 	}
 
@@ -315,7 +323,7 @@ console.log("process gzip content");
 try {			
 	var zlib = require("zlib");
 	var uncompressed = zlib.gunzipSync(content);
-	process_content(uncompressed,callback);
+	process_content(uncompressed,"",callback);
 	}
 catch(e)
 	{
@@ -1139,9 +1147,143 @@ check_data_type(callback);
 
 //****************************************************************************
 
-function read_clipboard() {
-	var content = clipboard.readText() || "";
-	process_content(content);
+function process_dbase_content(content,callback)
+{
+var offset = 0;
+var filetype = read_byte();
+offset += 3;	// skip date
+var nr = read_int32();
+var pos = read_int16();
+var rlen = read_int16();
+
+offset+= 16;
+
+var tflag = read_byte();
+var codepage = read_byte();
+offset +=2;
+
+console.log("code page "+codepage);
+
+var fields = [];
+while(true)
+	{
+	if(content[offset]==0x0D) break;
+	var f =  {};
+	f.name = read_string(11);
+	f.type = read_string(1);
+	f.disp = read_int32();
+	f.len = read_byte();
+	f.dec = read_byte();
+	f.dflag = read_byte();
+	f.dnext = read_int32();
+	f.dstep = read_byte();
+	offset += 8;
+	fields.push(f);	
+	}
+
+offset +=1;
+
+// if FoxPro
+if((filetype>=0x30)&&(filetype<=0x032))
+	offset += 263;
+
+data = [];
+var row = new Array(fields.length);
+for(var i=0;i<fields.length;i++)
+	row[i] = fields[i].name;
+data.push(row);
+
+while(true)
+	{
+	if(offset>=content.length) break;
+	if(content[offset]==0x1A) break;
+
+	var del = read_string(1);
+	if(del=='*')
+		{
+		offset += rlen-1;
+		continue;
+		}
+	
+	var row = new Array(fields.length);
+	for(var i=0;i<fields.length;i++)
+		switch(fields[i].type)
+		{
+		case 'C':
+			row[i] = read_string(fields[i].len).trim();
+			break;
+
+		case 'N':
+			row[i] = Number(read_string(fields[i].len));
+			break;
+		
+		case 'L':
+			row[i] = read_string(fields[i].len).toUpperCase();			
+			break;
+
+		case 'D':
+			row[i] = read_string(fields[i].len);
+			break;
+
+		case 'M':
+			row[i] = "";
+			offset += fields[i].len;
+			break;
+
+		case 'F':
+			row[i] = Number(read_string(fields[i].len));
+			break;
+
+		case 'I':
+			row[i] = read_int32();
+			break;
+
+		default:
+			row[i] = "";
+			offset += fields[i].len;
+			break;
+		}
+	data.push(row);
+	}
+
+check_data_type(callback);
+
+	function read_byte()
+	{
+	return content[offset++];
+	}
+
+	function read_int16()
+	{
+	var r = content.readInt16LE(offset);
+	offset += 2;	
+	return r;
+	}
+
+	function read_int32()
+	{
+	var r = content.readInt32LE(offset);	
+	offset += 4;
+	return r;
+	}
+
+	function read_string(n)
+	{
+	var l = n;
+	for(var i=0;i<n;i++)
+		if(content[offset+i]==0)
+			{ l = i; break; }
+	if(cptable[codepage])
+		{
+		var r = "";
+		for(var i=0;i<l;i++)
+			r += cptable[codepage].dec[content[offset+i]];
+		}
+	else
+		var r = content.toString("utf8",offset,offset+l);
+	offset += n;
+	return r;
+	}
 }
 
 //****************************************************************************
@@ -1206,3 +1348,20 @@ return m==null ? s : m[1];
 }
 
 //****************************************************************************
+
+// CODEPAGES
+cptable = {};
+
+
+// International MSDOS
+cptable[2] = (function(){ var d = "\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\b\t\n\u000b\f\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈıÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµþÞÚÛÙýÝ¯´­±‗¾¶§÷¸°¨·¹³²■ ", D = [], e = {}; for(var i=0;i!=d.length;++i) { if(d.charCodeAt(i) !== 0xFFFD) e[d[i]] = i; D[i] = d.charAt(i); } return {"enc": e, "dec": D }; })();
+
+// MSDOS
+
+cptable[1] = (function(){ var d = "\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\b\t\n\u000b\f\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ ", D = [], e = {}; for(var i=0;i!=d.length;++i) { if(d.charCodeAt(i) !== 0xFFFD) e[d[i]] = i; D[i] = d.charAt(i); } return {"enc": e, "dec": D }; })();
+
+// Windows ANSI
+cptable[3] = (function(){ var d = "\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\b\t\n\u000b\f\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~€�‚ƒ„…†‡ˆ‰Š‹Œ�Ž��‘’“”•–—˜™š›œ�žŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ", D = [], e = {}; for(var i=0;i!=d.length;++i) { if(d.charCodeAt(i) !== 0xFFFD) e[d[i]] = i; D[i] = d.charAt(i); } return {"enc": e, "dec": D }; })();
+
+
+cptable[15] = cptable[2];
