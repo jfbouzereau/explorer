@@ -67,6 +67,12 @@ else if(check(content,'R','D','X','2'))
 else if(check(content,'$','F','L','2'))
 	process_spss_content(content,callback);
 
+else if(check(content,0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+                      0x0, 0x0, 0x0, 0x0, 0xc2,0xea,0x81,0x60,
+                      0xb3,0x14,0x11,0xcf,0xbd,0x92,0x8, 0x0,
+                      0x9, 0xc7,0x31,0x8c,0x18,0x1f,0x10,0x11))
+	process_sas_content(content,callback);
+
 else if((content[0]>=0x69)&&(content[0]<=0x72)&&(content[1]>=0x01)&&(content[1]<=0x02))
 	process_stata_content(content,callback);
 
@@ -1284,6 +1290,384 @@ check_data_type(callback);
 	offset += n;
 	return r;
 	}
+}
+
+//****************************************************************************
+
+function process_sas_content(content,callback)
+{
+var PAGE_META = 0;
+var PAGE_DATA = 1<<8;
+var PAGE_MIX1 = 1<<9;
+var PAGE_MIX2 = 1<<9|1<<7;
+var PAGE_AMD = 1<<10;
+var PAGE_METC = 1<<14;
+var PAGE_COMP = 1<<14|1<<13|1<<12;
+var PAGE_MIX = [PAGE_MIX1,PAGE_MIX2];
+var PAGE_MIX_DATA = [PAGE_MIX1,PAGE_MIX2,PAGE_DATA];
+var PAGE_META_MIX_AMD = [PAGE_META,PAGE_MIX1,PAGE_MIX2,PAGE_AMD];
+var PAGE_ANY_COMP = [PAGE_METC,PAGE_COMP];
+var PAGE_ANY =[PAGE_META,PAGE_MIX1,PAGE_MIX2,PAGE_AMD,PAGE_DATA,PAGE_METC,PAGE_COMP];
+
+// Subheader 'signatures'
+SUBH_ROWSIZE = new Buffer([0xF7,0xF7,0xF7,0xF7]);
+SUBH_COLSIZE = new Buffer([0xF6,0xF6,0xF6,0xF6]);
+SUBH_COLTEXT = new Buffer([0xFD,0xFF,0xFF,0xFF]);
+SUBH_COLATTR = new Buffer([0xFC,0xFF,0xFF,0xFF]);
+SUBH_COLNAME = new Buffer([0xFF,0xFF,0xFF,0xFF]);
+SUBH_COLLABS = new Buffer([0xFE,0xFB,0xFF,0xFF]);
+SUBH_COLLIST = new Buffer([0xFE,0xFF,0xFF,0xFF]);
+SUBH_SUBHCNT = new Buffer([0x00,0xFC,0xFF,0xFF]);
+
+var offset = 32;
+var align1 = read_byte()==0x33 ? 4: 0;
+var u64 = align1==4;
+
+offset = 35;
+var align2 = read_byte()==0x33 ? 4: 0;
+
+offset = 37;
+var endian = read_byte();
+
+offset = 39;
+var winunix = read_string(1);
+
+offset = 196+align2;
+var headerlen = read_int32();
+var pagesize = read_int32();
+var pagecount = read_int32();
+
+offset = 216+align1+align2;
+var release = read_string(8);
+var sashost = read_string(8);
+
+offset = 240+align1+align2;
+var osversion = read_string(16);
+var osmaker = read_string(16);
+var osname = read_string(16);
+
+offset = headerlen;
+
+var pages = [];
+for(var ipage=0;ipage<pagecount;ipage++)	
+	{
+	pages[ipage] = {};
+	pages[ipage].page = ipage;
+	pages[ipage].data = content.slice(offset,offset+pagesize);
+	offset += pagesize;	
+	pages[ipage].type = pages[ipage].data.readUInt16LE(u64 ? 32:16);
+	pages[ipage].blck_count = pages[ipage].data.readUInt16LE(u64 ? 34:18);
+	pages[ipage].subh_count = pages[ipage].data.readUInt16LE(u64 ? 36:20);
+	}
+
+
+var subhs = [];
+for(var ipage=0;ipage<pagecount;ipage++)
+	subhs = subhs.concat(read_subheaders(pages[ipage],u64));
+
+
+// rowsize subheader
+var rowsize = get_subhs(subhs,SUBH_ROWSIZE);
+if(rowsize.length!=1) { callback(null); return; }
+
+rowsize = rowsize[0];
+var row_length = rowsize.raw.readUInt32LE( u64 ? 40 : 20);
+var row_count = rowsize.raw.readUInt32LE( u64 ? 48 : 24);
+var col_count_p1 = rowsize.raw.readUInt32LE( u64 ? 72 : 36);
+var col_count_p2 = rowsize.raw.readUInt32LE( u64 ? 80 : 40);
+var row_count_fp = rowsize.raw.readUInt32LE( u64 ? 120 : 60);
+
+// colsize subheader
+var colsize = get_subhs(subhs,SUBH_COLSIZE);
+if(colsize.length!=1) { callback(null); return; }
+colsize = colsize[0];
+
+var col_count_6 = colsize.raw.readUInt32LE( u64 ? 8 : 4);
+var col_count =  col_count_6;
+
+var col_text = get_subhs(subhs, SUBH_COLTEXT);
+
+var col_attr = get_subhs(subhs, SUBH_COLATTR);
+col_attr = read_column_attributes(col_attr,u64);
+
+var col_name = get_subhs(subhs, SUBH_COLNAME);
+col_name = read_column_names(col_name,col_text,u64);
+
+var col_labs = get_subhs(subhs,SUBH_COLLABS);
+col_labs = read_column_labels_formats(col_labs, col_text, u64);
+
+var col_info = [];
+for(var i=0;i<col_name.length;i++)
+	col_info[i] = merge(col_name[i],col_labs[i],col_attr[i]);
+
+data = [];
+
+var row = new Array(col_info.length);
+for(var i=0;i<col_info.length;i++)
+	row[i] = col_info[i].name;
+data.push(row);
+
+// check pages for known types
+for(var i=0;i<pages.length;i++)
+	{
+	if(PAGE_ANY.indexOf(pages[i].type)<0)
+		{
+		console.log("PAGE "+i+" UNKNOW TYPE "+pages[i].type);
+		callback(null);
+		return;
+		}
+	
+	if(PAGE_ANY_COMP.indexOf(pages[i].type)>=0)
+		{
+		console.log("PAGE "+i+" CONTAINS COMPRESSED DATA");
+		callback(null);
+		return;
+		}
+	}
+
+
+var bytes = new Array(8);
+
+for(var ipage=0;ipage<pages.length;ipage++)
+	{
+	var page = pages[ipage];
+	if(PAGE_MIX_DATA.indexOf(page.type)<0)
+		{
+		console.log("Ignoring page "+i+" type "+page.type);
+		continue;
+		}	
+	
+	var base = (u64 ? 32:16)+8;	
+	if(PAGE_MIX.indexOf(page.type)>=0)
+		{
+		var row_count_p = row_count_fp;
+		// skip subheader pointer
+		base += page.subh_count *(u64?24:12);
+		base += base%8;		
+		}
+	else
+		{
+		var row_count_p = page.data.readUInt16LE( u64 ? 34: 18);	
+		}
+	base = Math.floor((base+7)/8)*8 + base % 8;
+	if(row_count_p > row_count)
+		row_count_p = row_count;
+	for(var irow=0;irow<row_count_p;irow++)
+		{
+		var row = new Array(col_info.length);
+		for(var icol=0;icol<col_info.length;icol++)
+			{
+			var col = col_info[icol];
+			var off = base + col.offset;		
+			var col_len = col.length;
+			var value = "";
+			if(col_len>0)
+				{			
+				if(col.type=="numeric")
+					{
+					for(var j=0;j<8-col_len;j++)
+						bytes[j] = 0;
+					for(var j=0;j<col_len;j++)
+						bytes[j+8-col_len] = page.data[off+j];
+					var value = (new Buffer(bytes)).readDoubleLE(0);	
+					value = Math.round(value*10000)/10000;
+					}
+				else
+					{
+					var value = page.data.toString("utf8",off,off+col_len).trim();
+					}
+				}
+			row[icol] = value;
+			}
+		data.push(row);
+		base += row_length;
+		}
+	}
+
+check_data_type(callback);
+
+
+	//---------------------------------------------------------------------------
+
+	function read_subheaders(page,u64)
+	{
+	var subhs = [];
+	var subhtotal = -1;
+	if(PAGE_META_MIX_AMD.indexOf(page.type)<0)
+		return subhs;
+	var oshp = u64 ? 40:24; // offset to subheader pointers
+	var lshp = u64 ? 24:12; // length of subheader pointers
+	var lshf = u64 ? 8:4;   // length of first subheader field
+	for(var i=1;i<=page.subh_count;i++)
+		{
+		subhtotal += 1;
+		var base = oshp + (i-1)*lshp;
+		subhs[subhtotal] = {};
+		subhs[subhtotal].page = page.page;		
+		if(lshf==4)
+			{
+			subhs[subhtotal].offset = page.data.readInt32LE(base);
+			subhs[subhtotal].length = page.data.readInt32LE(base+4);
+			}
+		else
+			{
+			subhs[subhtotal].offset = page.data.readInt32LE(base);
+			subhs[subhtotal].length = page.data.readInt32LE(base+8);
+			}
+		if(subhs[subhtotal].length>0)
+			{
+			subhs[subhtotal].raw = page.data.slice(
+				subhs[subhtotal].offset,
+				subhs[subhtotal].offset+subhs[subhtotal].length);
+			subhs[subhtotal].signature = subhs[subhtotal].raw.slice(0,4);
+			}
+		}
+	return subhs;
+	}
+
+	//---------------------------------------------------------------------------
+
+	function get_subhs(subhs,signature)
+	{
+	var selection = [];
+	for(var i=0;i<subhs.length;i++)
+		{
+		if(subhs[i].signature)
+			if(subhs[i].signature.equals(signature))
+				selection.push(subhs[i]);
+		}
+	return selection;
+	}
+
+
+	//---------------------------------------------------------------------------
+
+	function read_column_attributes(col_attr,u64)
+	{
+	var info = [];
+	var info_ct = -1;
+	var lcav = u64 ? 16 : 12;
+	for(var k=0;k<col_attr.length;k++)
+		{
+		var subh = col_attr[k];
+		var cmax = (subh.length - (u64 ? 28:20))/lcav;
+		for(var i=1;i<=cmax;i++)		
+			{
+			info_ct++;
+			info[info_ct] = {};
+			var base = lcav+(i-1)*lcav;
+			info[info_ct].offset = subh.raw.readUInt32LE(base);
+			base += (u64 ? 8 : 4);
+			info[info_ct].length = subh.raw.readUInt32LE(base);
+			base += 6;
+			info[info_ct].btype = subh.raw[base];
+			info[info_ct].type = info[info_ct].btype==1 ? "numeric" : "character";
+			}
+		}
+	return info;
+	}
+
+	//---------------------------------------------------------------------------
+
+	function read_column_names(col_name, col_text, u64)
+	{
+	var names = [];
+	var name_count = -1;
+	var offp = u64 ? 8 : 4;
+	for(var k=0;k<col_name.length;k++)
+		{
+		var subh = col_name[k];
+		var cmax = (subh.length- (u64 ? 28:20))/8;
+		for(var i=1;i<=cmax;i++)
+			{
+			name_count++;
+			names[name_count] = {};
+			var base = (u64 ? 16 :12) + (i-1)*8;
+			var hdr = subh.raw.readUInt16LE(base);
+			var off = subh.raw.readUInt16LE(base+2);
+			var len = subh.raw.readUInt16LE(base+4);
+			names[name_count].name = col_text[hdr].raw.toString("utf8",off+offp,off+offp+len);
+			}
+		}
+	return names;
+	}
+
+	//---------------------------------------------------------------------------
+
+	function read_column_labels_formats(col_labs,col_text,u64)	
+	{
+	if(col_labs.length==0) return null;
+	var offp = u64 ? 8 : 4;
+	var labs = [];
+	for(var i=0;i<col_labs.length;i++)
+		{		
+		var subh = col_labs[i];
+		labs[i] = {};
+		var base = u64 ? 46 : 34;
+		var hdr = subh.raw.readUInt16LE(base);
+		var off = subh.raw.readUInt16LE(base+2);
+		var len = subh.raw.readUInt16LE(base+4);
+		if(len>0)
+			labs[i].format = col_text[hdr].raw.toString("utf8",off+offp,off+offp+len);
+		labs[i].fhdr = hdr;
+		labs[i].foff = off;
+		labs[i].flen = len;
+		
+		base = u64 ? 52: 40;
+		var hdr = subh.raw.readUInt16LE(base);
+		var off = subh.raw.readUInt16LE(base+2);
+		var len = subh.raw.readUInt16LE(base+4);
+		if(len>0)
+			labs[i].label = col_text[hdr].raw.toString("utf8",off+offp,off+offp+len);	
+		labs[i].lhdr = hdr;
+		labs[i].loff = off;
+		labs[i].llen = len;
+		}
+	return labs;
+	}
+
+	//---------------------------------------------------------------------------
+
+	function merge(name,labs,attr)	
+	{
+	var obj = {};
+	for(var key in name)
+		obj[key] = name[key];
+	for(var key in labs)
+		obj[key] = labs[key];
+	for(var key in attr)
+		obj[key] = attr[key];
+	return obj;
+	}
+
+	//---------------------------------------------------------------------------
+
+	function read_int16()
+	{
+	var r = content.readInt16LE(offset);
+	offset+=2;
+	return r;
+	}
+
+	function read_int32()
+	{
+	var r = content.readInt32LE(offset);
+	offset+=4;	
+	return r;
+	}
+
+	function read_string(n)
+	{
+	var r = content.toString("utf8",offset,offset+n);
+	offset += n;
+	return r;
+	}
+	
+	function read_byte()
+	{
+	return content[offset++];
+	}
+
 }
 
 //****************************************************************************

@@ -125,13 +125,17 @@ Launch the application, and drag a file containing a JSON array of records.
 
 Launch the application, and drag a file containing a dataframe saved by R in binary format.
 
-##### Stata file
+##### SAS file
 
-Launch the application, and drag a file containing a dataset saved by Stata 8 or higher.
+Launch the application, and drag a SAS file (extension sas7bdat) in uncompressed format.
 
 ##### SPSS file
 
 Launch the application, and drag a file containing a dataset saved by SPSS in uncompressed format.
+
+##### Stata file
+
+Launch the application, and drag a file containing a dataset saved by Stata 8 or higher.
 
 ##### dBase file
 
