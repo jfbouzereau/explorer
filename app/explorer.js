@@ -261,6 +261,11 @@ _menu("TEST","BARTLETT","Bartlett's test");
 _menu("TEST","LEVENE","Levene's test");
 _menu("TEST","BROWN","Brown-Forsythe test");
 _menu("TEST","BOXM","Box's M test");
+_menu("TEST","-","-");
+_menu("TEST","LAWLEY","Lawley-Hotelling's trace");
+_menu("TEST","PILLAI","Pillai's trace");
+//_menu("TEST","ROY","Roy's largest root");
+_menu("TEST","WILK","Wilk's lambda");
 
 _menu("CHI2","PEARSON","Pearson's \u03C72 test");
 _menu("CHI2","YATES","Yates' \u03C72 test");
@@ -5898,7 +5903,7 @@ if(action==SAVE_LABELSET)
 	var name = "SET."+newfield;
 	labels.push(name);
 	for(var i=0;i<lrecords.length;i++)
-		lrecords[i].push(graph._z.set[i]?"TRUE":"FALSE");
+		lrecords[i].push(graph._z.set[i]?"YES":"NO");
 	}
 
 if(action==SAVE_VALUESET)
@@ -11886,6 +11891,9 @@ switch(graph.test)
 	case TEST.BOXM: computeBoxmData(graph); break;
 	case TEST.HOTELLING: computeHotellingData(graph); break;
 	case TEST.F: computeTData(graph); break;
+	case TEST.LAWLEY: computeManovaData(graph); break;
+	case TEST.PILLAI: computeManovaData(graph); break;
+	case TEST.WILK: computeManovaData(graph); break;
 	}
 }
 
@@ -11922,12 +11930,12 @@ if((graph.ivalues.length>0)&&(graph.ilabel1>=0))
 		case TEST.WELCH: drawTGraph(ctx,graph,false); break;
 		case TEST.STUDENT: drawTGraph(ctx,graph,true); break;
 		case TEST.HOTELLING:  drawHotellingGraph(ctx,graph); break;
+		case TEST.WILK: drawManovaGraph(ctx,graph); break;
+		case TEST.PILLAI: drawManovaGraph(ctx,graph); break;
+		case TEST.LAWLEY: drawManovaGraph(ctx,graph); break;
 		}
 
 drawMenu(ctx,graph,MENU.TEST,graph.test,SELECT_TEST,testindex);
-
-ctx.textAlign = "center"
-
 
 }
 
@@ -12547,6 +12555,322 @@ else
 
 //*********************************************************************
 
+function computeManovaData(graph)
+{
+if(graph.ilabel1<0) return;
+if(graph.ivalues.length<2) return;
+
+var nv = graph.ivalues.length;
+
+var H = matrix(nv,nv);
+var E = matrix(nv,nv);
+
+var z = computeMatrices(graph,H,E);
+var nr = z[0];
+var ng = z[1];
+
+// HE^-1
+var M = multMM(powerM(E,-1),H);
+
+var E = matrix(nv,nv);
+var wr = vector(nv)
+var wi = vector(nv)
+var o = {}
+	o.outmsgstr = ""
+
+calcEigSysReal(nv,M,E,wr,wi,o)
+wr.sort( function(a,b) { return b-a })
+
+
+var wilk = 1;
+var pillai = 0;
+var lawley = 0;
+var roy = 0;
+for(var i=0;i<wr.length;i++)
+	{
+	wilk *= 1/(1+wr[i]);	
+	pillai += wr[i]/(1+wr[i]);
+	if(wr[i]>roy) roy = wr[i];
+	lawley += wr[i];
+	}
+
+graph._z.wilk = wilk;
+graph._z.pillai = pillai;
+graph._z.roy = roy;
+graph._z.lawley = lawley;
+
+graph._z.ng = ng;
+graph._z.no = nr;
+graph._z.level = 0.05;
+
+var max = 0;
+
+// wilks
+var ne = nr-ng-1;
+var nh = ng-1;
+var d = nv;
+var j = ng;
+var t = Math.sqrt((d*d*nh*nh-4)/(d*d+nh*nh-5));
+var g = d*nh/2-1;
+var f = nr-1-(j+d)/2;
+graph._z.wdof1 = d*nh;
+graph._z.wdof2 = f*t-g;
+var l1b = Math.pow(graph._z.wilk,1/t);
+graph._z.wF = (1-l1b)/l1b*(f*t-g)/(d*nh);
+graph._z.wcv = cv(graph._z.wdof1,graph._z.wdof2,0.05,graph._z.wilk);
+graph._z.wpvalue = Fspin(graph._z.wF,graph._z.wdof1,graph._z.wdof2);
+graph._z.wmax = max;
+
+// lawley
+var s = Math.min(nv,ng-1);
+var t = (Math.abs(nv-ng+1)-1)/2;
+var u = (nr-ng-nv-1)/2;
+console.log("s="+s+" t="+t+" u="+u);
+
+graph._z.ldof1 = s*(2*t+s+1)
+graph._z.ldof2 = 2*(s*u+1);
+graph._z.lF = 2*(s*u+1)/(s*s*(2*t+s+1))*graph._z.lawley;
+graph._z.lcv = cv(graph._z.ldof1,graph._z.ldof2,0.05,graph._z.lawley);
+graph._z.lpvalue = Fspin(graph._z.lF,graph._z.ldof1,graph._z.ldof2);
+graph._z.lmax = max;
+
+// pillai
+graph._z.pdof1 = s*(2*t+s+1);
+graph._z.pdof2 = s*(2*u+s+1);
+var ratio = (nr+Math.min(nv,ng-1)-(nv+ng))/Math.max(nv,ng-1);
+graph._z.pF = ratio*graph._z.pillai/(s-graph._z.pillai);
+graph._z.pcv = cv(graph._z.pdof1,graph._z.pdof2,0.05,graph._z.pillai);
+graph._z.ppvalue = Fspin(graph._z.pF,graph._z.pdof1,graph._z.pdof2);
+graph._z.pmax = max;
+
+// roy
+var r = Math.max(nv,nh);
+graph._z.rdof1 = r;
+graph._z.rdof2 = nh+ne+r;
+graph._z.rF = graph._z.roy*(nh+ne-r)/r;
+graph._z.rcv = cv(graph._z.rdof1,graph._z.rdof2,0.05,graph._z.roy);
+graph._z.rpvalue = Fspin(graph._z.rF,graph._z.rdof1,graph._z.rdof2);
+graph._z.rmax = max;
+
+console.log(graph._z);
+
+	function cv(dof1,dof2,level,f)
+	{
+	max = 2;
+	pmax = 1;
+	while(pmax>0.0001)
+		{
+		max *= 1.1;
+		pmax = Fspin(max,dof1,dof2);
+		}
+	return Finv(0.0001,max,level,dof1,dof2);
+	}
+}
+
+//*********************************************************************
+
+function computeMatrices(graph,H,E)
+{
+var nv = graph.ivalues.length;
+
+var gcount = 0;
+var gsum = vector(nv);
+
+var sum = {};
+var count = {};
+
+var nr = 0;
+var ng = 0;
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	nr++;
+	var key =lrecords[i][graph.ilabel1];
+	if(!(key in sum))
+		{
+		ng++;
+		sum[key] = vector(nv);
+		count[key] = 0;
+		}
+	count[key]++;
+	for(var j=0;j<nv;j++)
+		sum[key][j] += vrecords[i][graph.ivalues[j]];
+	
+	gcount++;
+	for(var j=0;j<nv;j++)
+		gsum[j] += vrecords[i][graph.ivalues[j]];
+	}
+
+
+for(var j=0;j<nv;j++)
+	gsum[j] = gsum[j]/gcount;
+
+for(var key in sum)
+	for(var j=0;j<nv;j++)
+		sum[key][j] = sum[key][j]/count[key];
+
+for(var key in sum)
+	for(var j=0;j<nv;j++)
+		for(var k=0;k<nv;k++)
+			H[j][k] += count[key]*(sum[key][j]-gsum[j])*(sum[key][k]-gsum[k]);
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	var key =lrecords[i][graph.ilabel1];
+
+	for(var j=0;j<nv;j++)
+		{
+		var xj = vrecords[i][graph.ivalues[j]];
+		for(var k=0;k<nv;k++)
+			{
+			var xk = vrecords[i][graph.ivalues[k]];
+			E[j][k] += (xj-sum[key][j])*(xk-sum[key][k]);
+			}
+		}
+	}
+
+return [nr,ng];
+}
+
+//*********************************************************************
+
+function drawManovaGraph(ctx,graph)
+{
+var level = graph._z.level;
+var ng = graph._z.ng;
+var no = graph._z.no;
+
+if(graph.test==TEST.WILK)
+	{
+	var dof1 = graph._z.wdof1;
+	var dof2 = graph._z.wdof2;
+	var max = graph._z.wmax;
+	var F = graph._z.wF;
+	var cv = graph._z.wcv;
+	var pvalue = graph._z.wpvalue;
+	}
+if(graph.test==TEST.PILLAI)
+	{
+	var dof1 = graph._z.pdof1;
+	var dof2 = graph._z.pdof2;
+	var max = graph._z.pmax;
+	var F = graph._z.pF;
+	var cv = graph._z.pcv;
+	var pvalue = graph._z.ppvalue;
+	}
+if(graph.test==TEST.LAWLEY)
+	{
+	var dof1 = graph._z.ldof1;
+	var dof2 = graph._z.ldof2;
+	var max = graph._z.lmax;
+	var F = graph._z.lF;
+	var cv = graph._z.lcv;
+	var pvalue = graph._z.lpvalue;
+	}
+/*
+if(graph.test==TEST.ROY)
+	{
+	var dof1 = graph._z.rdof1;
+	var dof2 = graph._z.rdof2;
+	var max = graph._z.rmax;
+	var F = graph._z.rF;
+	var cv = graph._z.rcv;
+	var pvalue = graph._z.rpvalue;
+	}
+*/
+
+ctx.fillStyle = "#000000";
+ctx.strokeStyle = "#000000";
+ctx.textAlign = "left"
+ctx.lineWidth = 1
+
+var y = graph.y+graph.hbar+80;
+
+ctx.fillText("Number of groups",graph.x+40,y);
+ctx.fillText(""+ng,graph.x+240,y);
+
+y += 20;
+ctx.fillText("Number of observations", graph.x+40,y);
+ctx.fillText(""+no, graph.x+240,y);
+
+if(graph.test==TEST.WILK)
+	{
+	y += 20;
+	ctx.fillText("Wilk's lambda \u039B",graph.x+40,y);
+	var z = Math.round(graph._z.wilk*10000)/10000;
+	ctx.fillText(""+z,graph.x+240,y);
+	}
+
+if(graph.test==TEST.PILLAI)
+	{
+	y += 20;
+	ctx.fillText("Pilla's trace V",graph.x+40,y);
+	var z = Math.round(graph._z.pillai*10000)/10000;
+	ctx.fillText(""+z,graph.x+240,y);
+	}
+
+if(graph.test==TEST.LAWLEY)
+	{
+	y += 20;
+	ctx.fillText("Lawley-Hotelling trace T\u00B2",graph.x+40,y);
+	var z = Math.round(graph._z.lawley*10000)/10000;
+	ctx.fillText(""+z,graph.x+240,y);
+	}
+
+/*
+if(graph.test==TEST.ROY)
+	{	
+	y+=20;
+	ctx.fillText("Roy's largest root",graph.x+40,y);
+	var z = Math.round(graph._z.roy*10000)/10000;
+	ctx.fillText(""+z,graph.x+240,y);
+	}
+*/
+
+y += 20;
+ctx.fillText("Degrees of freedom",graph.x+40,y);
+var d1 = Math.round(dof1*100)/100;
+var d2 = Math.round(dof2*100)/100;
+ctx.fillText(d1+","+d2,graph.x+240,y)
+
+y += 20;	
+ctx.fillText("Critical value C", graph.x+40,y);
+var z = Math.round(cv*10000)/10000;
+ctx.fillText(""+z,graph.x+240,y);
+ctx.fillText("(\u03B1="+level+")",graph.x+360,y);
+
+y += 20;
+F = Math.round(F*10000)/10000;
+pvalue = Math.round(pvalue*10000)/10000;
+ctx.fillText("Test statistic F",graph.x+40,y);
+ctx.fillText(""+F,graph.x+240,y);
+ctx.fillText("(pvalue="+pvalue+")",graph.x+360,y);
+
+y += 30;
+ctx.fillStyle= "#FF0000";
+if(pvalue<0.05)
+	{
+	ctx.fillText("At least one mean is different from the others",
+		graph.x+40,y);
+	}
+else
+	{
+	ctx.fillText("All the means are equals",
+		graph.x+40,y);
+	}
+
+
+y += 20;
+ctx.fillStyle = "#000000";
+
+drawFisherCurve(ctx,graph,y,dof1,dof2,0,max,F,"F",cv);
+
+}
+
+//*********************************************************************
+
 function drawFisherGraph(ctx,graph)
 {
 var F = graph._z.f;
@@ -12658,7 +12982,9 @@ ctx.restore();
 
 
 ctx.textAlign = "center";
-ctx.fillText("F("+dof1+","+dof2+")",x+dx/2,y-dy-5);
+var d1 = Math.round(dof1*100)/100;
+var d2 = Math.round(dof2*100)/100;
+ctx.fillText("F("+d1+","+d2+")",x+dx/2,y-dy-5);
 
 ctx.strokeStyle = "#000000";
 ctx.beginPath();
@@ -12695,13 +13021,13 @@ ctx.fill();
 
 ctx.textAlign = "center";
 
-ctx.fillText(letter,x+dx*f/max,y+25);	
+ctx.fillText(letter,x+dx*f/max,y+24);	
 ctx.beginPath();
 ctx.moveTo(x+dx*f/max,y+2);
 ctx.lineTo(x+dx*f/max,y+12);
 ctx.stroke();
 
-ctx.fillText("C",x+dx*cv/max,y+25);
+ctx.fillText("C",x+dx*cv/max,y+24);
 ctx.beginPath();
 ctx.moveTo(x+dx*cv/max,y+2);
 ctx.lineTo(x+dx*cv/max,y+12);
@@ -15581,6 +15907,34 @@ for(var i=0;i<n1;i++)
 		for(var k=0;k<n2;k++)
 			C[i][j] += A[i][k]*B[k][j]
 return C;
+}
+
+//*********************************************************************
+
+function multM(M,a,R)
+{
+var n1 = M.length;
+var n2 = M[0].length;
+R = R || matrix(n1,n2);
+for(var i=0;i<n1;i++)
+	for(var j=0;j<n2;j++)
+		R[i][j] = M[i][j]*a;
+return R;
+}
+
+//*********************************************************************
+
+function addMM(A,B,R)
+{
+if(B.length!=A.length) return null;
+if(B[0].length!=A[0].length) return null;
+var n1 = A.length;
+var n2 = A[0].length;
+R = R || matrix(n1,n2);
+for(var i=0;i<n1;i++)
+	for(var j=0;j<n2;j++)
+		R[i][j] = A[i][j] + B[i][j];
+return R;
 }
 
 //*********************************************************************
