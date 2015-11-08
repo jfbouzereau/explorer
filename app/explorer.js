@@ -208,7 +208,7 @@ _type("HISTO","Histogram",{topvalue:1,leftlabel:1});
 _type("DISTRIB","Distribution curve",{topvalue:1});
 _type("PROBA","Probability plot",{topvalue:1});
 _type("TUKEY","Tukey lambda PPCC plot",{topvalue:1});
-_type("SCATTER","Scatter plot",{topvalue:1,leftvalue:2,bottomlabel:1,display:3});
+_type("SCATTER","Scatter plot",{topvalue:1,leftvalue:2,bottomlabel:1,display:3,options:2});
 _type("POLAR","Polar plot",{topvalue:1,leftvalue:2,bottomlabel:1,display:3,options:2});
 _type("LAG","Lag plot",{topvalue:1});
 _type("CORR","Correlations",{ivalues:1,options:2});
@@ -376,17 +376,12 @@ var newfield = 0;
 ipc.on("start",  function (filename)
 {
 
-	console.log("start "+filename);
-
 	var loader = require("./loader");
 
-	console.log("loader "+loader);
 	loader.load(filename,loaded)
-	console.log("sent");
 
 	function loaded(data)
 	{
-	console.log("loaded");
 	if((data==null)||(data.length==0))
 		{
 		console.log("NULL DATA");
@@ -5785,9 +5780,9 @@ if(!graph._z.set)
 	graph._z.set = new Array(nr);
 	for(var i=0;i<nr;i++)
 	graph._z.set[i] = false;
-	
-	graph._z.ns = 0;
-	graph._z.nr = nr;
+
+	graph._z.yes = 0;	
+	graph._z.no = nr;
 	}
 
 if(graph.ilabel1<0) 
@@ -5798,32 +5793,67 @@ if(graph.ilabel1<0)
 	return;
 	}
 
-var allcount = {};
-var setcount = {};
+var yescount = {};
+var nocount = {};
 
 for(var i=0;i<lrecords.length;i++)
 	{
 	var key = lrecords[i][graph.ilabel1];
-	if(!(key in allcount))
-		allcount[key] = 1;
+	if(!(key in yescount))
+		{
+		yescount[key] = 0;
+		nocount[key] = 0;
+		}
+	if(graph._z.set[i])
+		yescount[key]++;
 	else
-		allcount[key]++;
-	if(!graph._z.set[i]) continue;
-	if(!(key in setcount))
-		setcount[key] = 1;
-	else
-		setcount[key]++;
+		nocount[key]++;
 	}
 
 // sort keys
 var keys = [];
-for(var key in allcount)
+for(var key in yescount)
 	keys.push(key);
 keys.sort();
 
 graph._z.keys = keys;
-graph._z.allcount = allcount;
-graph._z.setcount = setcount;
+graph._z.yescount = yescount;
+graph._z.nocount = nocount;
+
+}
+
+//*********************************************************************
+
+function moveSetGraph(pt,graph)
+{
+var xyes = graph.x+graph.w-120;
+var xno = graph.x+graph.w-30;
+var xkey = graph.x+graph.w-150;
+var ytop = graph.y+graph.hbar+10;
+
+var width = 26;
+
+graph._z.about = void 0;
+
+if(!graph._z.keys) return false;
+
+if(pt.x<xkey) return false;
+if(pt.y<ytop+50-14) return false;
+if(pt.y>ytop+50+20*graph._z.keys.length-14) return false;
+
+var j = Math.floor((pt.y-ytop-50+14)/20);
+
+if((pt.x>xyes-width)&&(pt.x<xyes+width))
+	{
+	graph._z.about = {a:SET_REMOVE,i:j};
+	return  true;
+	}
+else if((pt.x>xno-width)&&(pt.x<xno+width))
+	{
+	graph._z.about = {a:SET_ADD,i:j};
+	return true;
+	}
+return false;
 
 }
 
@@ -5831,44 +5861,38 @@ graph._z.setcount = setcount;
 
 function downSetGraph(pt,graph)
 {
-
-var xkey = graph.x+4*graph.w/9;
-var xall = graph.x+5*graph.w/9;
-var xset = graph.x+7*graph.w/9;
+var xyes = graph.x+graph.w-120;
+var xno = graph.x+graph.w-30;
+var xkey = graph.x+graph.w-150;
 var ytop = graph.y+graph.hbar+10;
 
-var width = graph.w*0.1;
+var width = 26;
 
+/*
 if(inRect(pt,graph.x+8*graph.w/9-10,ytop,20,20))
 	{
 	return DRAG_SET;
 	}
+*/
 
 if(!graph._z.keys) return -1;
 
-if(pt.x<xall-width) return -1;
-if(pt.x>xset+width) return -1;
+if(pt.x<xkey) return -1;
 if(pt.y<ytop+50-14) return -1;
 if(pt.y>ytop+50+20*graph._z.keys.length-14) return -1;
 
-var i = Math.floor((pt.x-(xall-width))/(2*width));
 var j = Math.floor((pt.y-ytop-50+14)/20);
 
-if(i==0)
+if((pt.x>xyes-width)&&(pt.x<xyes+width))
 	{
 	sliceindex = j;
-	graph._z.dx = pt.x-xall+width;
-	graph._z.dy = pt.y-(ytop+50+j*20-14);
-	return SET_ADD;	
-	}
-else if(i==1)
-	{
-	sliceindex = j;
-	graph._z.dx = pt.x-xset+width;
-	graph._z.dy = pt.y-(ytop+50+j*20-14);
 	return SET_REMOVE;
 	}
-
+else if((pt.x>xno-width)&&(pt.x<xno+width))
+	{
+	sliceindex = j;
+	return SET_ADD;
+	}
 return -1;
 }
 
@@ -5897,6 +5921,7 @@ if((action==SET_ADD)||(action==SET_REMOVE))
 	computeSetData(graph);
 	}
 
+/*
 if(action==SAVE_LABELSET)
 	{
 	newfield++;
@@ -5913,7 +5938,8 @@ if(action==SAVE_VALUESET)
 	values.push(name);
 	for(var i=0;i<vrecords.length;i++)
 		vrecords[i].push(graph._z.set[i]?1:0);
-	}
+	
+*/
 
 }
 
@@ -5921,20 +5947,21 @@ if(action==SAVE_VALUESET)
 
 function drawSetGraph(ctx,graph)
 {
-var xkey = graph.x+4*graph.w/9;
-var xall = graph.x+5*graph.w/9;
-var xset = graph.x+7*graph.w/9;
-var ytop = graph.y+graph.hbar+10;
+var xyes = graph.x+graph.w-120;
+var xno = graph.x+graph.w-30;
+var xkey = graph.x+graph.w-150;
+var xabout = graph.x+graph.w-75;
 
-var width = graph.w*0.1;
+var ytop = graph.y+graph.hbar+10;
+var width = 26;
 
 ctx.textAlign = "center";
 ctx.fillStyle = "#000000";
-ctx.fillText("ALL",xall,ytop+10);
-ctx.fillText("SET",xset,ytop+10);
+ctx.fillText("YES",xyes,ytop+10);
+ctx.fillText("NO",xno,ytop+10);
 
-ctx.fillText(""+graph._z.nr,xall,ytop+30);
-ctx.fillText(""+graph._z.ns,xset,ytop+30);
+ctx.fillText(""+graph._z.yes,xyes,ytop+30);
+ctx.fillText(""+graph._z.no,xno,ytop+30);
 
 ctx.fillStyle = "#FFFFFF";
 drawRightArrow(ctx,graph.x+8*graph.w/9,ytop+10);
@@ -5945,27 +5972,43 @@ if(graph._z.keys)
 	ctx.strokeStyle = "#CCCCCC";
 
 	var keys = graph._z.keys;
-	var allcount = graph._z.allcount;
-	var setcount = graph._z.setcount;
+	var yescount = graph._z.yescount;
+	var nocount = graph._z.nocount;
 	for(var i=0;i<keys.length;i++)
 		{
 		ctx.textAlign = "right";
-		ctx.fillText(keys[i],xkey,ytop+50+i*20);
+		ctx.fillText(keys[i],xkey-5,ytop+50+i*20);
 		ctx.textAlign = "center";
-		draw(allcount[keys[i]],xall,ytop+50+i*20);
-		draw(setcount[keys[i]],xset,ytop+50+i*20);
+		draw(yescount[keys[i]],xyes,ytop+50+i*20);
+		draw(nocount[keys[i]],xno,ytop+50+i*20);
+		}
+	}
+
+if(graph._z.about)
+	{
+	ctx.fillStyle = GRAY;
+	var i = graph._z.about.i;
+	if(graph._z.about.a==SET_REMOVE)
+		{
+		if(yescount[keys[i]]>0)
+			ctx.fillText("-->",xabout,ytop+50+i*20);
+		}
+	else if(graph._z.about.a==SET_ADD)
+		{	
+		if(nocount[keys[i]]>0)
+			ctx.fillText("<--",xabout,ytop+50+i*20);
 		}
 	}
 
 if((faction==SET_ADD)&&(graphs[graphindex]==graph))
 	{
 	ctx.fillStyle = GRAY;
-	ctx.fillRect(xall-width,ytop+50+20*sliceindex-14,2*width,17);
+	ctx.fillRect(xno-width,ytop+50+20*sliceindex-14,2*width,17);
 	}
 if((faction==SET_REMOVE)&&(graphs[graphindex]==graph))
 	{
 	ctx.fillStyle = GRAY;
-	ctx.fillRect(xset-width,ytop+50+20*sliceindex-14,2*width,17);
+	ctx.fillRect(xyes-width,ytop+50+20*sliceindex-14,2*width,17);
 	}
 
 	function draw(n,x,y)	
@@ -7695,9 +7738,172 @@ graph._z.b = sum2 - sum1*v12/v11;
 graph._z.min = min1;
 graph._z.max = max1;
 
+var V = matrix(2,2);
+var r = computeScatterVariance(graph,V);
+graph._z.center = r;
+graph._z.ellipse = computeScatterEllipse(V);
+
 if(graph.ilabel1>=0)
+	{
+	var H = matrix(2,2);
+	var E = matrix(2,2);
+
+	var r = computeScatterMatrices(graph,H,E);
+
+	graph._z.center = r[0];
+	graph._z.centers = r[1];
+	
+	graph._z.hellipse = computeScatterEllipse(H);
+	graph._z.eellipse = computeScatterEllipse(E);
+
 	computeGraphData1(graph)
+	}
 }
+
+//*********************************************************************
+
+function computeScatterVariance(graph,V)
+{
+var nv = 2;
+var count = 0;
+var sum = vector(nv);
+
+for(var i=0;i<lrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue
+	count += 1;
+
+	var x1 = vrecords[i][graph.ivalue1];
+	sum[0] += x1;
+
+	var x2 = vrecords[i][graph.ivalue2];
+	sum[1] += x2;
+
+	V[0][0] += x1*x1;
+	V[0][1] += x1*x2;
+	V[1][0] += x2*x1;
+	V[1][1] += x2*x2;
+	}
+
+if(count==0) count = 1;
+
+for(var j=0;j<nv;j++)
+	sum[j] = sum[j]/count;
+
+
+for(var j=0;j<nv;j++)
+	for(var k=0;k<nv;k++)
+		V[j][k] = (V[j][k]-count*sum[j]*sum[k])/count
+
+return sum;
+}
+
+//*********************************************************************
+
+function computeScatterMatrices(graph,H,E)
+{
+var nv = 2;
+var gcount = 0;
+var gsum = vector(nv);
+
+var sum = {};
+var count = {};
+
+var nr = 0;
+var ng = 0;
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	nr++;
+	var key =lrecords[i][graph.ilabel1];
+	if(!(key in sum))
+		{
+		ng++;
+		sum[key] = vector(nv);
+		count[key] = 0;
+		}
+	count[key]++;
+	sum[key][0] += vrecords[i][graph.ivalue1];
+	sum[key][1] += vrecords[i][graph.ivalue2];
+	
+	gcount++;
+	gsum[0] += vrecords[i][graph.ivalue1];
+	gsum[1] += vrecords[i][graph.ivalue2];
+	}
+
+
+gsum[0] = gsum[0]/gcount;
+gsum[1] = gsum[1]/gcount;
+
+for(var key in sum)
+	{
+	sum[key][0] = sum[key][0]/count[key];
+	sum[key][1] = sum[key][1]/count[key];
+	}
+
+for(var key in sum)
+	{
+	for(var j=0;j<nv;j++)
+		for(var k=0;k<nv;k++)
+			H[j][k] += count[key]*(sum[key][j]-gsum[j])*(sum[key][k]-gsum[k]);
+	}
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	var key =lrecords[i][graph.ilabel1];
+
+	var x0 = vrecords[i][graph.ivalue1];
+	var x1 = vrecords[i][graph.ivalue2];
+
+	E[0][0] += (x0-sum[key][0])*(x0-sum[key][0]);
+	E[0][1] += (x0-sum[key][0])*(x1-sum[key][1]);
+	E[1][0] += (x1-sum[key][1])*(x0-sum[key][0]);
+	E[1][1] += (x1-sum[key][1])*(x1-sum[key][1]);
+	}
+
+for(var j=0;j<2;j++)
+	for(var k=0;k<2;k++)
+		{
+		H[j][k] /= nr;
+		E[j][k] /= nr;
+		}
+
+return [gsum,sum];
+}
+
+//*********************************************************************
+
+function computeScatterEllipse(V)
+{
+
+var n = V.length;
+var d = new Array(n);
+var e = new Array(n);
+tred(V,d,e,n);
+tql2(V,d,e,n);
+
+var rotation = Math.atan(V[0][1]/V[1][1]);
+
+var sin = Math.sin(rotation);
+var cos = Math.cos(rotation);
+
+var xmul = Math.sqrt(5.991*Math.abs(d[0]));
+var ymul = Math.sqrt(5.991*Math.abs(d[1]));
+
+var xellipse = new Array(100);
+var yellipse = new Array(100);
+for(var i=0;i<100;i++)
+	{
+	var x = Math.cos(Math.PI*2*i/100)*xmul;
+	var y = Math.sin(Math.PI*2*i/100)*ymul;
+	xellipse[i] = x*cos+y*sin;
+	yellipse[i] = -x*sin+y*cos;
+	}
+return {x:xellipse,y:yellipse}
+}
+
 
 //*********************************************************************
 
@@ -7783,31 +7989,34 @@ function drawScatterIcon(ctx,x,y)
 
 function drawScatterGraph(ctx,graph)
 {
-var oldfont = ctx.font;
 
-if((graph.ivalue1>=0)&&(graph.ivalue2>=0))
+if(graph.ivalue1<0) return;
+if(graph.ivalue2<0) return;
+
+
+var display = getGraphDisplay(graph); 
+var option = getGraphOption(graph);
+
+var i1 = graph.ivalue1;
+var i2 = graph.ivalue2;
+
+var xmin = i1==0 ? 0 : graph._z.xmin;
+var xmax = i1==0 ? lrecords.length : graph._z.xmax;
+
+var ymin = i2==0 ? 0 : graph._z.ymin;
+var ymax = i2==0 ? lrecords.length : graph._z.ymax;
+
+var xleft = graph.x+20;
+var xright = graph.x+graph.w-10;
+var ytop = graph.y+graph.hbar+30;
+var ybottom = graph.y+graph.h-30;
+
+var xscale = (xright-xleft)/(xmax-xmin)
+var yscale = (ybottom-ytop)/(ymax-ymin)
+
+// draw regression line
+if(option==0)
 	{
-
-	var display = getGraphDisplay(graph); 
-
-	var i1 = graph.ivalue1;
-	var i2 = graph.ivalue2;
-
-	var xmin = i1==0 ? 0 : graph._z.xmin;
-	var xmax = i1==0 ? lrecords.length : graph._z.xmax;
-
-	var ymin = i2==0 ? 0 : graph._z.ymin;
-	var ymax = i2==0 ? lrecords.length : graph._z.ymax;
-
-	var xleft = graph.x+20;
-	var xright = graph.x+graph.w-10;
-	var ytop = graph.y+graph.hbar+30;
-	var ybottom = graph.y+graph.h-30;
-
-	var xscale = (xright-xleft)/(xmax-xmin)
-	var yscale = (ybottom-ytop)/(ymax-ymin)
-
-	// draw regression line
 	ctx.strokeStyle = GREEN;
 	ctx.lineWidth = 1
 	ctx.beginPath()
@@ -7822,31 +8031,35 @@ if((graph.ivalue1>=0)&&(graph.ivalue2>=0))
 	y = ybottom-(yy-graph._z.ymin)*yscale
 	ctx.lineTo(x,y)
 	ctx.stroke()
+	}
 
 
-	ctx.textAlign = "center"
-	ctx.font = "9px helvetica";
+ctx.textAlign = "center"
+ctx.font = "9px helvetica";
 
-	//graph._colors1 = {}
-	//graph._hilites1 = {}
-	//graph._pales1 = {}
+//graph._colors1 = {}
+//graph._hilites1 = {}
+//graph._pales1 = {}
 
-	var x;
-	var y;
-	var v;
+var x;
+var y;
+var v;
 
-	// if ivalue1=0 or ivalue2=0, use index instead
-	var ind = 0;
-	var b = (i1==0)||(i2==0);
+// if ivalue1=0 or ivalue2=0, use index instead
+var ind = 0;
+var b = (i1==0)||(i2==0);
 
-	// draw axes
-	ctx.fillStyle = "#999999"
+// draw axes
+ctx.fillStyle = "#999999"
 
-	x = xleft +(0-xmin)*xscale;
-	ctx.fillRect(x,graph.y+graph.hbar+5,1,graph.h-graph.hbar-10)
-	y = ybottom -(0-ymin)*yscale
-	ctx.fillRect(graph.x+5,y,graph.w-10,1)
+x = xleft +(0-xmin)*xscale;
+ctx.fillRect(x,graph.y+graph.hbar+5,1,graph.h-graph.hbar-10)
+y = ybottom -(0-ymin)*yscale
+ctx.fillRect(graph.x+5,y,graph.w-10,1)
 
+
+if(option==0)
+	{
 	// draw points
 	for(var i=0;i<lrecords.length;i++)
 		{
@@ -7890,7 +8103,7 @@ if((graph.ivalue1>=0)&&(graph.ivalue2>=0))
 
 			if(display<0)
 				{
-				ctx.strokeStyle = "#000000";
+				ctx.fillStyle = "#000000";
 				ctx.fillRect(x-3,y-3,7,7)
 				}
 			else
@@ -7903,10 +8116,101 @@ if((graph.ivalue1>=0)&&(graph.ivalue2>=0))
 				}
 			}
 		}
-
 	}
 
-ctx.font = oldfont;
+if((option==1)&&(graph.ilabel1<0))
+	{
+	var xcenter = graph._z.center[0];
+	var ycenter = graph._z.center[1];
+
+	// draw global variance ellipse
+	ctx.strokeStyle = "#000000";
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+
+
+	for(var i=0;i<graph._z.ellipse.x.length;i++)
+		{
+		x = xleft +(xcenter+graph._z.ellipse.x[i]-xmin)*xscale;
+		y = ybottom - (ycenter+graph._z.ellipse.y[i]-ymin)*yscale;
+		if(i==0)
+			{
+			ctx.moveTo(x,y);
+			}
+		else
+			ctx.lineTo(x,y);
+		}
+	ctx.closePath();
+	ctx.stroke();	
+
+
+	// draw center
+	x = xleft+(xcenter-xmin)*xscale;
+	y = ybottom - (ycenter-ymin)*yscale;
+	ctx.fillStyle = "#000000";
+	ctx.fillRect(x-1,y-5,2,10);
+	ctx.fillRect(x-5,y-1,10,2);
+	}
+
+if((option==1)&&(graph.ilabel1>=0))
+	{
+	var xcenter = graph._z.center[0];
+	var ycenter = graph._z.center[1];
+
+	// draw ellipses
+	ctx.strokeStyle = "#00CC00";		
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	for(var i=0;i<graph._z.hellipse.x.length;i++)
+		{
+		x = xleft +(xcenter+graph._z.hellipse.x[i]-xmin)*xscale;
+		y = ybottom - (ycenter+graph._z.hellipse.y[i]-ymin)*yscale;
+		if(i==0)
+			{
+			ctx.moveTo(x,y);
+			}
+		else
+			ctx.lineTo(x,y);
+		}
+	ctx.closePath();
+	ctx.stroke();	
+
+	ctx.strokeStyle = "#FF0000";
+	ctx.beginPath();
+	for(var i=0;i<graph._z.eellipse.x.length;i++)
+		{
+		x = xleft+(xcenter+graph._z.eellipse.x[i]-xmin)*xscale;
+		y = ybottom - (ycenter+graph._z.eellipse.y[i]-ymin)*yscale;
+		if(i==0)
+			ctx.moveTo(x,y);
+		else
+			ctx.lineTo(x,y);
+		}
+	ctx.closePath();
+	ctx.stroke();
+
+	ctx.lineWidth = 1;
+
+	// draw centers
+	for(var key in graph._z.centers)
+		{
+		var x = graph._z.centers[key][0];
+		var y = graph._z.centers[key][1];
+		x = xleft+(x-xmin)*xscale;
+		y = ybottom - (y-ymin)*yscale;
+		ctx.fillStyle = "#000000";
+		ctx.textAlign = "center";
+		ctx.fillText(key,x,y+4);
+		}
+
+	// draw center
+	x = xleft+(xcenter-xmin)*xscale;
+	y = ybottom - (ycenter-ymin)*yscale;
+	ctx.fillStyle = "#000000";
+	ctx.fillRect(x-1,y-5,2,10);
+	ctx.fillRect(x-5,y-1,10,2);
+	}
+
 
 }
 
@@ -11241,15 +11545,12 @@ function computeDiscriData(graph)
 if(graph.ilabel1<0) return;
 if(graph.ivalues.length<2) return
 
-
 computeGraphData1(graph)
-
 
 var nv = graph.ivalues.length;
 
-
 // global variance matrix
-var V = compute_global_variance();
+var V = computeGlobalVariance(graph);
 
 // compute inverse of variance
 var VINV = powerM(V,-1);
@@ -11262,14 +11563,11 @@ var gweight = {};
 var gcenter = {};
 compute_centers();
 
-
 // intergroup variance
 var B = compute_intergroup_variance();
 
-
 // matrix to process
 var W = multMM(VINV,B)
-
 
 var E = matrix(nv,nv);
 var wr = vector(nv)
@@ -11278,7 +11576,6 @@ var o = {}
 	o.outmsgstr = ""
 
 calcEigSysReal(nv,W,E,wr,wi,o)
-
 
 var temp;
 
@@ -11299,7 +11596,6 @@ for(var j=0;j<nv-1;j++)
 				}
 			}
 		}
-
 
 // coefficients of projections
 var xcoef = []
@@ -11360,7 +11656,6 @@ for(var j=0;j<graph.ivalues.length;j++)
 	corr[j] = [xcorr,ycorr];
 	}
 
-// 
 var GV = computeIntraGroupVariances(graph,0);
 
 var ellipse = {};
@@ -11528,7 +11823,7 @@ return V;
 
 //*********************************************************************
 
-function computeIntragroupVariances(graph,bias,GV,count)
+function computeIntraGroupVariances(graph,bias,GV,count)
 {
 GV = GV || {};
 count = count || {};
@@ -11656,9 +11951,8 @@ if(option==0)
 		if(display<0)
 			ctx.fillRect(x-1,y-1,3,3)
 		else
-			ctx.fillText(lrecords[i][display],x,y+3)
+			ctx.fillText(lrecords[i][display],x,y+3)	
 		}
-
 
 	if(overlabel1>=0)
 		for(var i=0;i<lrecords.length;i++)
@@ -12358,7 +12652,7 @@ var nv = graph.ivalues.length;
 var VG = {};
 var NG = {};
 
-computeIntragroupVariances(graph,1,VG,NG);
+computeIntraGroupVariances(graph,1,VG,NG);
 
 var s = 0;
 var nr = 0;
@@ -12457,7 +12751,7 @@ var nv = graph.ivalues.length;
 var VG = {};
 var NG = {};
 
-computeIntragroupVariances(graph,1,VG,NG);
+computeIntraGroupVariances(graph,1,VG,NG);
 
 var nr = 0;
 var ng = 0;
@@ -12617,7 +12911,7 @@ graph._z.wdof1 = d*nh;
 graph._z.wdof2 = f*t-g;
 var l1b = Math.pow(graph._z.wilk,1/t);
 graph._z.wF = (1-l1b)/l1b*(f*t-g)/(d*nh);
-graph._z.wcv = cv(graph._z.wdof1,graph._z.wdof2,0.05,graph._z.wilk);
+graph._z.wcv = cv(graph._z.wdof1,graph._z.wdof2,0.05,graph._z.wF);
 graph._z.wpvalue = Fspin(graph._z.wF,graph._z.wdof1,graph._z.wdof2);
 graph._z.wmax = max;
 
@@ -12625,12 +12919,11 @@ graph._z.wmax = max;
 var s = Math.min(nv,ng-1);
 var t = (Math.abs(nv-ng+1)-1)/2;
 var u = (nr-ng-nv-1)/2;
-console.log("s="+s+" t="+t+" u="+u);
 
 graph._z.ldof1 = s*(2*t+s+1)
 graph._z.ldof2 = 2*(s*u+1);
 graph._z.lF = 2*(s*u+1)/(s*s*(2*t+s+1))*graph._z.lawley;
-graph._z.lcv = cv(graph._z.ldof1,graph._z.ldof2,0.05,graph._z.lawley);
+graph._z.lcv = cv(graph._z.ldof1,graph._z.ldof2,0.05,graph._z.lF);
 graph._z.lpvalue = Fspin(graph._z.lF,graph._z.ldof1,graph._z.ldof2);
 graph._z.lmax = max;
 
@@ -12639,7 +12932,7 @@ graph._z.pdof1 = s*(2*t+s+1);
 graph._z.pdof2 = s*(2*u+s+1);
 var ratio = (nr+Math.min(nv,ng-1)-(nv+ng))/Math.max(nv,ng-1);
 graph._z.pF = ratio*graph._z.pillai/(s-graph._z.pillai);
-graph._z.pcv = cv(graph._z.pdof1,graph._z.pdof2,0.05,graph._z.pillai);
+graph._z.pcv = cv(graph._z.pdof1,graph._z.pdof2,0.05,graph._z.pF);
 graph._z.ppvalue = Fspin(graph._z.pF,graph._z.pdof1,graph._z.pdof2);
 graph._z.pmax = max;
 
@@ -12648,15 +12941,14 @@ var r = Math.max(nv,nh);
 graph._z.rdof1 = r;
 graph._z.rdof2 = nh+ne+r;
 graph._z.rF = graph._z.roy*(nh+ne-r)/r;
-graph._z.rcv = cv(graph._z.rdof1,graph._z.rdof2,0.05,graph._z.roy);
+graph._z.rcv = cv(graph._z.rdof1,graph._z.rdof2,0.05,graph._z.rF);
 graph._z.rpvalue = Fspin(graph._z.rF,graph._z.rdof1,graph._z.rdof2);
 graph._z.rmax = max;
 
-console.log(graph._z);
-
 	function cv(dof1,dof2,level,f)
 	{
-	max = 2;
+	max = f*1.1;
+	if(max==0) max = 1;
 	pmax = 1;
 	while(pmax>0.0001)
 		{

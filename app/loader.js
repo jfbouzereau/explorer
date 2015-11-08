@@ -20,12 +20,7 @@ var data = [];
 
 function load(filename,callback)
 {
-console.log("load "+filename);
 var content = fs.readFileSync(filename);
-console.log("content "+content.length);
-
-console.log(filename.toLowerCase().indexOf(".dbf"));
-console.log(filename.length-4);
 
 if(filename.toLowerCase().indexOf(".dbf")==filename.length-4)
 	process_dbase_content(content,callback);

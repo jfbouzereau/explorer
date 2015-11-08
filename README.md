@@ -75,6 +75,9 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Student's T-test
 * Welch T-test
 * Hotelling's test
+* Wilk's lambda
+* Lawley-Hotelling trace
+* Pillai trace
 * Principal components
 * Canonical correlation analysis
 * K-means
