@@ -6,12 +6,11 @@ exports.clipboard = clipboard;
 // check if console is working
 
 try	{
-	var console = require("console");
 	console.log("TEST");
 	}
 catch(e)
 	{
-	var console = {log:function(){}};
+	console = {log:function(){}};
 	}
 
 var data = [];
@@ -67,6 +66,10 @@ else if(check(content,0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                       0xb3,0x14,0x11,0xcf,0xbd,0x92,0x8, 0x0,
                       0x9, 0xc7,0x31,0x8c,0x18,0x1f,0x10,0x11))
 	process_sas_content(content,callback);
+
+else if(check(content,'W','O','R','K','S','H','E','E','T',' ',
+	'S','T','O','R','E','D',' ','B','Y',' ','M','I','N','I','T','A','B'))
+	process_mtw_content(content,callback);
 
 else if((content[0]>=0x69)&&(content[0]<=0x72)&&(content[1]>=0x01)&&(content[1]<=0x02))
 	process_stata_content(content,callback);
@@ -1661,6 +1664,76 @@ check_data_type(callback);
 	function read_byte()
 	{
 	return content[offset++];
+	}
+
+}
+
+//****************************************************************************
+
+function process_mtw_content(content,callback)
+{
+console.log("process mtw content");
+
+offset = 0x50;
+
+var vnames = [];
+var rows = [];
+
+while(true)
+	{	
+	var what = read_int();
+	var vind = read_int();
+	var vnum = read_int();
+	var vsiz = read_int();
+	if(what!=3) break;
+	var vnam = read_string(8);
+	vnames.push(vnam);
+	if(vsiz==0)
+		{
+		var nr = vnum;
+		if(rows.length==0) create_rows(nr);
+		for(var i=0;i<nr;i++)
+			rows[i].push(read_float());
+		}
+	else if(vsiz<0)
+		{
+		var vlen = Math.floor((-vsiz+3)/4)*4;
+		var nr = vnum/vlen*4;
+		if(rows.length==0) create_rows(nr);
+		for(var i=0;i<nr;i++)
+			rows[i].push(read_string(vlen).trim());
+		}
+	}
+
+	data.push(vnames);
+	for(var i=0;i<rows.length;i++)
+		data.push(rows[i]);
+	
+	check_data_type(callback);
+
+	function create_rows(nr)	{
+		rows = new Array(nr);
+		for(var i=0;i<nr;i++)		
+			rows[i] = [];
+	}
+
+	function read_int() {
+		var r = content.readInt32LE(offset);
+		offset+=4;
+		return r;
+	}
+
+	function read_string(n) {
+		var r = content.toString("utf8",offset,offset+n);
+		offset+= n;
+		return r;
+	}
+
+	function read_float()
+	{
+		var r = content.readFloatLE(offset);
+		offset+=4;
+		return Math.round(r*100000)/100000;
 	}
 
 }
