@@ -458,6 +458,7 @@ if(main==null)
 	return;
 	}
 
+
 var mainid = get_id(main);
 if(!(main instanceof Array) )
 	{	
@@ -508,12 +509,11 @@ for(var j=0;j<nfield;j++)
 		}
 
 	// if factor with levels
-	if(attrs[subid])
-		if(attrs[subid].levels)
-			{
-			for(var i=0;i<nrecord;i++)
-				sub[i] = attrs[subid].levels[sub[i]-1];	
-			}
+	if(is_factor(subid))
+		{
+		for(var i=0;i<nrecord;i++)
+			sub[i] = attrs[subid].levels[sub[i]-1];	
+		}
 
 	if(typeof(sub[0])=="number")
 		names[j] = names[j]+":n";
@@ -545,6 +545,18 @@ for(var i=0;i<nrecord;i++)
 callback(data);
 return;
 
+	function is_factor(subid)
+	{
+	if(!attrs[subid]) return false;
+	if(!attrs[subid].class) return false;
+	if(!(attrs[subid].class instanceof Array)) return false;
+	var x  = attrs[subid].class[0];
+	if(x!="factor") return false;
+	
+	if(!attrs[subid].levels) return false;
+	return true;
+	}
+
 	function read_string(len)
 	{	
 	var s = content.toString("utf8",offset,offset+len);
@@ -563,7 +575,7 @@ return;
 	{
 	var d = content.readDoubleBE(offset);
 	offset += 8;
-	return d;
+	return Math.round(d*10000)/10000;
 	}
 
 	function read_object()
@@ -613,8 +625,10 @@ return;
 			obj = read_string(len);
 			break;
 
+		/*
 		case 10:	// logical vector
 			break;
+		*/
 
 		case 13: // integer vector
 			var n = read_integer();
