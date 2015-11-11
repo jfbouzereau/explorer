@@ -128,21 +128,25 @@ Launch the application, and drag a file containing a JSON array of records.
 
 Launch the application, and drag a file containing a dataframe saved by R in binary format.
 
+##### MINITAB file
+
+Launch the application, and drag a MINITAB file (extension mtw).
+
 ##### SAS file
 
 Launch the application, and drag a SAS file (extension sas7bdat) in uncompressed format.
 
 ##### SPSS file
 
-Launch the application, and drag a file containing a dataset saved by SPSS in uncompressed format.
+Launch the application, and drag a file containing a dataset saved by SPSS in uncompressed format (extension sav).
 
 ##### Stata file
 
-Launch the application, and drag a file containing a dataset saved by Stata 8 or higher.
+Launch the application, and drag a file containing a dataset saved by Stata 8 or higher (extension dta).
 
 ##### dBase file
 
-Launch the application, and drag a dBase file. The file extension must be ".dbf" .
+Launch the application, and drag a dBase file. The file extension MUST BE ".dbf" .
 
 ##### Web file
 
