@@ -23,6 +23,8 @@ var content = fs.readFileSync(filename);
 
 if(filename.toLowerCase().indexOf(".dbf")==filename.length-4)
 	process_dbase_content(content,callback);
+else if(filename.toLowerCase().indexOf(".sdd")==filename.length-4)
+	process_sdd_content(content,callback);
 else
 	process_content(content,filename,callback);
 }
@@ -1750,6 +1752,117 @@ while(true)
 		return Math.round(r*100000)/100000;
 	}
 
+}
+
+//****************************************************************************
+
+function process_sdd_content(content,callback)
+{
+content = (content+"").replace(/\r/g,"").split("\n");
+var offset = 0;
+
+var main = read_object();
+
+var pdata = main[".Data"];
+
+var nf = pdata.length;
+
+// check that all fields have the same number of values
+var nr = 0;
+for(var j=0;j<nf;j++)
+	{
+	var n = pdata[j][".Data"].length;
+	if(nr==0)
+		nr = n;	
+	else if(nr!=n)
+		{
+		console.log("FIELDS WITH DIFFERENT LENGTHS");
+		callback(null);
+		return;
+		}
+	}
+
+
+// check if field is factor
+for(var j=0;j<nf;j++)
+	{
+	if(!pdata[j].class) continue;
+	if(!(pdata[j].class instanceof Array)) continue;
+	if(pdata[j].class.indexOf("factor")<0) continue;
+	var label = pdata[j][".Label"];
+	if(!label) continue;
+	if(!(label instanceof Array)) continue;	
+	for(var i=0;i<nr;i++)
+		{
+		var k = parseInt(pdata[j][".Data"][i]);
+		pdata[j][".Data"][i] = label[k-1];
+		}
+	}
+
+data = [];
+var row = [];
+for(var i=0;i<nf;i++)	
+	row.push(pdata[i].name);
+
+data.push(row);
+
+for(var i=0;i<nr;i++)
+	{
+	var row = new Array(nf);
+	for(var j=0;j<nf;j++)
+		row[j] = pdata[j][".Data"][i];
+	data.push(row);
+	}
+
+check_data_type(callback);
+
+
+	function read_object()
+	{	
+		var name = content[offset++];
+		var type = content[offset++];
+		var size = parseInt(content[offset++]);
+		switch(type)
+			{
+			case "character":
+				var obj = [];	
+				for(var i=0;i<size;i++)
+					obj.push(content[offset++]);
+				break;
+
+			case "integer":
+				var obj = [];
+				for(var i=0;i<size;i++)
+					obj.push(parseInt(content[offset++]));
+				break;
+
+			case "structure":
+				var obj = {};
+				for(var i=0;i<size;i++)
+					{					
+					var o = read_object();
+					obj[o.name] = o;
+					}	
+				break;
+
+			case "list":
+				var obj = [];
+				for(var i=0;i<size;i++)
+					obj.push(read_object());
+				break;
+
+			case "single":
+				var obj = [];
+				for(var i=0;i<size;i++)
+					obj.push(content[offset++]);
+				break;
+
+			default:	
+				console.log("UNKNWON TYPE "+type);
+			}
+		obj.name = name;
+		return obj;
+	}
 }
 
 //****************************************************************************
