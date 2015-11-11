@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.78";
+var VERSION = "1.79";
 
 /***************************************************************************/
 
@@ -156,6 +156,7 @@ _action("SET_REMOVE","");
 _action("DRAG_SET","");
 _action("SAVE_LABELSET","Save set");
 _action("SAVE_VALUESET","Save set");
+_action("SELECT_REGR","Selection regression model");
 
 // actions that gray the graph
 var GACTIONS = {}
@@ -199,7 +200,7 @@ _type("THREE","Graph 3",{toplabel:1,leftlabel:2,bottomlabel:3});
 _type("TREE","Treemap",{ilabels:1});
 _type("CHI2","Chi square test",{toplabel:1,leftlabel:2});
 _type("HOMO","Homogeneity",{toplabel:1,leftlabel:2});
-_type("SET","Set constructor",{leftlabel:1});
+_type("SET","Dummy constructor",{leftlabel:1});
 
 var NBTYPE1 = KNUM;			// max graph types
 
@@ -228,7 +229,7 @@ var NBTYPE2 = KNUM; 		//  max plot types
 
 _type("DISCRI","Discriminant analysis",{ivalues:1,leftlabel:1,display:3,options:2});
 _type("TEST","Analysis of variance",{ivalues:1,leftlabel:1});
-_type("REGRES","Linear regression",{ivalues:1,leftvalue:1});
+_type("REGRES","Linear regression",{ivalues:1,leftvalue:1,options:2});
 _type("BOX","Box plot",{topvalue:1,leftlabel:1});
 _type("PARA","Parallel coordinates",{ivalues:1,leftlabel:1,options:2});
 _type("PALETTE","Palette");
@@ -286,6 +287,10 @@ _menu("ANGLE","DEGREE","Degrees");
 
 _menu("HOMO","GINI","Gini impurity");
 _menu("HOMO","ENTROPY","Entropy");
+
+_menu("REGR","ONE","Linear");
+_menu("REGR","TWO","Second degree");
+_menu("REGR","THREE","Third degree");
 
 /***************************************************************************/
 
@@ -582,6 +587,7 @@ this.clustering = -1;	// for TYPE.CLUSTER
 this.homo = 0;			// for TYPE.HOMO
 this.chi2 = 0;			// for TYPE.CHI2
 this.angle = 0;			// for TYPE.POLAR
+this.regr = 0;			// for TYPE.REGR
 this.origin = 0;
 
 this._count = {};
@@ -3257,10 +3263,13 @@ else
 	var index1 = Math.floor((pt.x-xleft)/dx)
 	var index2 = Math.floor((pt.y-ytop)/dy)
 	var key = graph._keys1[index1]+"\t"+graph._keys2[index2]
+	/*
 	if(key in graph._count)
 		return index2 + graph._keys2.length*index1;
 	else
 		return -1
+	*/
+		return index2 + graph._keys2.length*index1;
 	}
 
 }
@@ -5782,7 +5791,7 @@ if(!graph._z.set)
 	graph._z.set[i] = false;
 
 	graph._z.yes = 0;	
-	graph._z.no = nr;
+	graph._z.no = 0;
 	}
 
 if(graph.ilabel1<0) 
@@ -5796,6 +5805,9 @@ if(graph.ilabel1<0)
 var yescount = {};
 var nocount = {};
 
+var yes = 0;
+var no = 0;
+
 for(var i=0;i<lrecords.length;i++)
 	{
 	var key = lrecords[i][graph.ilabel1];
@@ -5805,9 +5817,15 @@ for(var i=0;i<lrecords.length;i++)
 		nocount[key] = 0;
 		}
 	if(graph._z.set[i])
+		{
 		yescount[key]++;
+		yes++;
+		}
 	else
+		{
 		nocount[key]++;
+		no++;
+		}
 	}
 
 // sort keys
@@ -5819,7 +5837,8 @@ keys.sort();
 graph._z.keys = keys;
 graph._z.yescount = yescount;
 graph._z.nocount = nocount;
-
+graph._z.yes = yes;
+graph._z.no = no;
 }
 
 //*********************************************************************
@@ -5841,7 +5860,8 @@ if(pt.x<xkey) return false;
 if(pt.y<ytop+50-14) return false;
 if(pt.y>ytop+50+20*graph._z.keys.length-14) return false;
 
-var j = Math.floor((pt.y-ytop-50+14)/20);
+var bias = Math.round(graph.yshift/12);
+var j = Math.floor((pt.y-ytop-50+14)/20)+bias;
 
 if((pt.x>xyes-width)&&(pt.x<xyes+width))
 	{
@@ -5868,12 +5888,10 @@ var ytop = graph.y+graph.hbar+10;
 
 var width = 26;
 
-/*
-if(inRect(pt,graph.x+8*graph.w/9-10,ytop,20,20))
+if(inRect(pt,graph.x+graph.w-85,ytop,20,20))
 	{
 	return DRAG_SET;
 	}
-*/
 
 if(!graph._z.keys) return -1;
 
@@ -5881,7 +5899,8 @@ if(pt.x<xkey) return -1;
 if(pt.y<ytop+50-14) return -1;
 if(pt.y>ytop+50+20*graph._z.keys.length-14) return -1;
 
-var j = Math.floor((pt.y-ytop-50+14)/20);
+var bias = Math.round(graph.yshift/12);
+var j = Math.floor((pt.y-ytop-50+14)/20)+bias;
 
 if((pt.x>xyes-width)&&(pt.x<xyes+width))
 	{
@@ -5911,17 +5930,9 @@ if((action==SET_ADD)||(action==SET_REMOVE))
 		}
 
 
-	var ns = 0;
-	var set = graph._z.set;
-	for(var i=0;i<set.length;i++)
-		if(set[i])
-			ns++;
-	graph._z.ns = ns;
-
 	computeSetData(graph);
 	}
 
-/*
 if(action==SAVE_LABELSET)
 	{
 	newfield++;
@@ -5934,12 +5945,11 @@ if(action==SAVE_LABELSET)
 if(action==SAVE_VALUESET)
 	{
 	newfield++;
-	var name = "SET."+newfield;
+	var name = "DUMMY."+newfield;
 	values.push(name);
 	for(var i=0;i<vrecords.length;i++)
 		vrecords[i].push(graph._z.set[i]?1:0);
-	
-*/
+	}	
 
 }
 
@@ -5947,6 +5957,7 @@ if(action==SAVE_VALUESET)
 
 function drawSetGraph(ctx,graph)
 {
+
 var xyes = graph.x+graph.w-120;
 var xno = graph.x+graph.w-30;
 var xkey = graph.x+graph.w-150;
@@ -5964,23 +5975,31 @@ ctx.fillText(""+graph._z.yes,xyes,ytop+30);
 ctx.fillText(""+graph._z.no,xno,ytop+30);
 
 ctx.fillStyle = "#FFFFFF";
-drawRightArrow(ctx,graph.x+8*graph.w/9,ytop+10);
+drawRightArrow(ctx,graph.x+graph.w-75,ytop+10);
 
 if(graph._z.keys)
 	{
-	ctx.fillStyle = "#000000";
-	ctx.strokeStyle = "#CCCCCC";
-
 	var keys = graph._z.keys;
 	var yescount = graph._z.yescount;
 	var nocount = graph._z.nocount;
-	for(var i=0;i<keys.length;i++)
+
+	var bias = Math.round(graph.yshift/12);
+	if(bias>=keys.length-1)
+		{
+		graph.yshift = (keys.length-1)*12;
+		bias = keys.length-1;
+		}
+
+	ctx.fillStyle = "#000000";
+	ctx.strokeStyle = "#CCCCCC";
+
+	for(var i=bias;i<keys.length;i++)
 		{
 		ctx.textAlign = "right";
-		ctx.fillText(keys[i],xkey-5,ytop+50+i*20);
+		ctx.fillText(keys[i],xkey-5,ytop+50+(i-bias)*20);
 		ctx.textAlign = "center";
-		draw(yescount[keys[i]],xyes,ytop+50+i*20);
-		draw(nocount[keys[i]],xno,ytop+50+i*20);
+		draw(yescount[keys[i]],xyes,ytop+50+(i-bias)*20);
+		draw(nocount[keys[i]],xno,ytop+50+(i-bias)*20);
 		}
 	}
 
@@ -5991,12 +6010,12 @@ if(graph._z.about)
 	if(graph._z.about.a==SET_REMOVE)
 		{
 		if(yescount[keys[i]]>0)
-			ctx.fillText("-->",xabout,ytop+50+i*20);
+			ctx.fillText("-->",xabout,ytop+50+(i-bias)*20);
 		}
 	else if(graph._z.about.a==SET_ADD)
 		{	
 		if(nocount[keys[i]]>0)
-			ctx.fillText("<--",xabout,ytop+50+i*20);
+			ctx.fillText("<--",xabout,ytop+50+(i-bias)*20);
 		}
 	}
 
@@ -7477,6 +7496,21 @@ function dragProbaGraph(ptmove,graph)
 if(faction==SELECT_LAW)
 	{
 	selectMenuItem(ptmove,graph,MENU.LAW);
+	}
+}
+
+//*********************************************************************
+
+function upProbaGraph(graph)
+{
+if(action==SELECT_LAW)
+	{
+	if(menuindex>=0)
+		{
+		graph = graphs[graphindex];
+		graph.law = menuindex;
+		computeProbaData(graph);
+		}
 	}
 }
 
@@ -12609,6 +12643,7 @@ var F = (vinter/ninter)/(vintra/nintra)
 var pvalue = Fspin(F,ninter,nintra)	
 
 var max = F;
+if(max==0) max = 1;
 var pmax = pvalue;
 while(pmax>0.001)
 	{
@@ -12712,6 +12747,7 @@ else
 var pvalue = Fspin(f,df,df2);
 
 var max = f;
+if(max==0) max = 1;
 var pmax = pvalue;
 while(pmax>0.0001)
 	{
@@ -12824,6 +12860,7 @@ if((n1<50)&&(n2<50))
 	graph._z.pvalue = pvalue;
 
 	var max = f;
+	if(max==0) max = 1;
 	var pmax = pvalue;
 	while(pmax>0.001)
 		{
@@ -13502,6 +13539,7 @@ function drawLeveneGraph(ctx,graph)
 	var pvalue = Fspin(w,dof1,dof2);
 
 	var max = w;
+	if(max==0) max = 1;
 	var pmax = pvalue;
 	while(pmax>0.001)
 		{
@@ -14158,18 +14196,25 @@ function buildBoxmTable(graph)
 //
 //*********************************************************************
 
-
 function computeRegresData(graph)
 {
+if(graph.w<460)
+	graph.w = 460;
 
 if(graph.ivalues.length<1) return;
 if(graph.ivalue1<0) return;
 
-var n = graph.ivalues.length;
-var M = matrix(n+1,n+1);
+var nv = graph.ivalues.length;
+
+var list = generateExponents(nv,graph.regr+1);
+var n = list.length;
+
+var M = matrix(n,n);
 
 var nr = 0;
 var ybar  = 0;
+
+var x1,x2,t1,t2;
 
 for(var i=0;i<vrecords.length;i++)
 	{
@@ -14177,63 +14222,70 @@ for(var i=0;i<vrecords.length;i++)
 	nr += 1;	
 	ybar += vrecords[i][graph.ivalue1];
 
-	M[0][0] += 1;
-	for(var j=0;j<n;j++)
+	for(var k1=0;k1<list.length;k1++)
 		{
-		M[0][j+1] += vrecords[i][graph.ivalues[j]];
-		M[j+1][0] += vrecords[i][graph.ivalues[j]]
-		for(var k=0;k<n;k++)
-			M[k+1][j+1] += vrecords[i][graph.ivalues[j]]*vrecords[i][graph.ivalues[k]]
+		var x1 = 1;
+		for(var j1=0;j1<list[k1].length;j1++) switch(list[k1][j1])
+			{
+			case 1: t1 = vrecords[i][graph.ivalues[j1]]; x1 *= t1; break;
+			case 2: t1 = vrecords[i][graph.ivalues[j1]]; x1 *= t1*t1; break;
+			case 3: t1 = vrecords[i][graph.ivalues[j1]]; x1 *= t1*t1*t1; break;
+			}
+
+		for(var k2=0;k2<list.length;k2++)
+			{
+			var x2 = 1;
+			for(var j2=0;j2<list[k2].length;j2++)  switch(list[k2][j2])
+				{
+				case 1: t2 = vrecords[i][graph.ivalues[j2]]; x2 *= t2; break;
+				case 2: t2 = vrecords[i][graph.ivalues[j2]]; x2 *= t2*t2; break;
+				case 3: t2 = vrecords[i][graph.ivalues[j2]]; x2 *= t2*t2*t2; break;
+				}
+	
+			M[k1][k2] += x1*x2;	
+			}
 		}
 	}
+
 
 if(nr==0) nr = 1;
 ybar = ybar/nr;
 
-// compute inverse of M
 
-var d = new Array(n+1)
-var e = new Array(n+1)
-tred(M,d,e,n+1)
-tql2(M,d,e,n+1)
-
-var v2 = matrix(n+1,n+1)
-for(var i=0;i<=n;i++)
-	for(var j=0;j<=n;j++)
-		v2[i][j] += M[i][j]*1./d[j]
-
-var INV = matrix(n+1,n+1)
-for(var i=0;i<=n;i++)
-	for(var j=0;j<=n;j++)
-		for(var k=0;k<=n;k++)
-			INV[i][j] += v2[i][k]*M[j][k]	
+var MINV = powerM(M,-1);
 
 
 // diagonal elements are variances of coefficients
-var D = new Array(n+1);
-for(var i=0;i<=n;i++)
-	D[i] = INV[i][i];
+var D = new Array(n);
+for(var i=0;i<n;i++)
+	D[i] = MINV[i][i];
 
-var B = new Array(n+1);
-for(var i=0;i<=n;i++)
-	B[i] = 0;
+var B = vector(n);
 
+var x,t;
 for(var i=0;i<vrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue
-	B[0] += vrecords[i][graph.ivalue1];
-	for(var j=0;j<n;j++)
-		B[j+1] += vrecords[i][graph.ivalue1]*vrecords[i][graph.ivalues[j]];
+	for(var k=0;k<list.length;k++)
+		{
+		var x = 1;
+		for(var j=0;j<list[k].length;j++) switch(list[k][j])
+			{		
+			case 1 : t=vrecords[i][graph.ivalues[j]]; x *= t; break;
+			case 2 : t=vrecords[i][graph.ivalues[j]]; x *= t*t; break;
+			case 3 : t=vrecords[i][graph.ivalues[j]]; x *= t*t*t; break;
+			}
+		B[k] += x* vrecords[i][graph.ivalue1];
+		}
 	}
 
-var A = new Array(n+1);
-for(var i=0;i<=n;i++)
-	A[i] = 0;
+var A = multMV(MINV,B);
 
-for(var i=0;i<=n;i++)
-	for(var j=0;j<=n;j++)
-		A[i] += INV[i][j]*B[j];
-
+/*
+console.log("COEF");
+for(var i=0;i<n;i++)
+	console.log(A[i]+" "+JSON.stringify(list[i]));
+*/
 
 // explained and total variance
 var sce = 0;
@@ -14243,30 +14295,98 @@ for(var i=0;i<vrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue
 	var y = vrecords[i][graph.ivalue1];
-	sct += (y-ybar)*(y-ybar);
-	
-	var yc = A[0];
-	for(var j=0;j<n;j++)
-		yc += A[j+1]*vrecords[i][graph.ivalues[j]];
 
+	var yc = 0;	
+	for(var k=0;k<list.length;k++)
+		{
+		var x = 1;
+		for(var j=0;j<list[k].length;j++) switch(list[k][j])
+			{
+			case 1 : t = vrecords[i][graph.ivalues[j]]; x *= t; break;
+			case 2 : t = vrecords[i][graph.ivalues[j]]; x *= t*t; break;
+			case 3 : t = vrecords[i][graph.ivalues[j]]; x *= t*t*t; break;
+			}
+		yc += x*A[k];
+		}
+
+	sct += (y-ybar)*(y-ybar);
 	sce += (yc-ybar)*(yc-ybar);
 	scr += (yc-y)*(yc-y);
 	}
 
 var r2 = sce/sct;
-var n1 = graph.ivalues.length;
-var n2 = nr - n1 -1;
+var dof1 = list.length-1;
+var dof2 = nr - dof1 -1;
 
-// critical value
-var cv = Finv(0.0001,10*r2,0.05,n1,n2);
 
+var F = (r2/dof1)/((1-r2)/(dof2));
+
+var max = F;
+if(max==0) max = 1;
+var pmax = 1;
+while(pmax>0.001)
+    {
+    max *= 1.1;
+    pmax = Fspin(max,dof1,dof2);
+    }
+
+var cv = Finv(0.0001,max,0.05,dof1,dof2);
+
+var pvalue = Fspin(F,dof1,dof2);
+
+var sigma = Math.sqrt(scr/dof2);
+
+var pvalues = new Array(A.length);
+for(var i=0;i<A.length;i++)
+	{
+	var std = Math.sqrt(D[i]*sigma*sigma);
+	var p = pt(Math.abs(A[i]/std),dof2);
+	pvalues[i] = 2*(1-p);
+	}
+
+graph._z.list = list;
 graph._z.sce = sce;
 graph._z.sct = sct;
 graph._z.scr = scr;
 graph._z.nr = nr;
 graph._z.a = A;
 graph._z.d = D;
+graph._z.f = F;
 graph._z.cv = cv;
+graph._z.dof1 = dof1;
+graph._z.dof2 = dof2;
+graph._z.max = max;
+graph._z.pvalue = pvalue;
+graph._z.pvalues = pvalues;
+graph._z.sigma = sigma;
+}
+
+//*********************************************************************
+
+// generate all the possible combinations of exponents
+function generateExponents(nvariables,ndegrees)
+{
+var list = [];
+var expos = vector(nvariables);
+_gen(0,0);
+return list.reverse();
+
+    function _gen(sum,index)
+    {
+    if(index>=nvariables) return;
+
+	// try all possible exponents for index-th variable
+    for(var k=0;k<=ndegrees-sum;k++)
+        {
+        expos[index] = k;
+        if(index==nvariables-1)
+            list.push(expos.slice());
+        else
+            _gen(sum+k,index+1);
+        }
+
+    expos[index] = 0;
+    }
 }
 
 //*********************************************************************
@@ -14284,13 +14404,25 @@ function drawRegresIcon(ctx,x,y)
 
 function drawRegresGraph(ctx,graph)
 {
-try	{
+
 if((graph.ivalues.length>0)&&(graph.ivalue1>=0))
 	{
-	ctx.save();
+	var option = getGraphOption(graph);
+
 	ctx.translate(0,-graph.yshift);
 
-	var sigma = Math.sqrt(graph._z.scr/(graph._z.nr-graph.ivalues.length-1));
+	var list = graph._z.list;
+	var A = graph._z.a;
+	var D = graph._z.d;
+	var F = graph._z.f;
+	var cv = graph._z.cv;
+	var pvalue = graph._z.pvalue;
+	var dof1 = graph._z.dof1;
+	var dof2 = graph._z.dof2;
+	var max = graph._z.max;
+	var pvalues = graph._z.pvalues;
+
+	var sigma = Math.sqrt(graph._z.scr/(graph._z.nr-list.length-1));
 
 	ctx.fillStyle = "#000000";
 	ctx.strokeStyle = "#000000";
@@ -14299,132 +14431,191 @@ if((graph.ivalues.length>0)&&(graph.ivalue1>=0))
 
 	var y = graph.y+60;
 
-	ctx.textAlign = "left";
-	ctx.fillText("Attribute",graph.x+30,y);
-
-	ctx.textAlign = "right";
-	ctx.fillText("Coef.",graph.x+230,y);
-
-	ctx.fillText("Std deviation",graph.x+350,y);
-
-	ctx.fillRect(graph.x+30,y+10,340,2)
-
-	y += 30;
-	ctx.fillText(trunc(graph._z.a[0],4),graph.x+230,y);
-
-	var std = Math.sqrt(graph._z.d[0]*sigma*sigma);
-	ctx.fillText(trunc(std,4),graph.x+350,y);
-
-	for(var i=0;i<graph.ivalues.length;i++)
+	if(option==1)
 		{
-		y += 20;
-		ctx.textAlign = "left"
-		ctx.fillText(values[graph.ivalues[i]],graph.x+30,y);
-		ctx.textAlign = "right"
-		ctx.fillText(trunc(graph._z.a[i+1],4),graph.x+230,y);
+		ctx.textAlign = "left";
+		ctx.fillText("Term",graph.x+30,y);
 
-		var std = Math.sqrt(graph._z.d[i+1]*sigma*sigma);
-		ctx.fillText(trunc(std,4),graph.x+350,y);
+		var dx = graph.ivalues.length*25+100;
+		ctx.textAlign = "right";
+		ctx.fillText("Coef.",graph.x+dx+30,y);
+
+		ctx.fillText("Std dev",graph.x+dx+120,y);
+
+		ctx.fillText("T",graph.x+dx+200,y);
+		ctx.fillText("p-value",graph.x+dx+280,y);
+
+		ctx.fillRect(graph.x+30,y+10,dx+280,2)
+
+		y += 30;
+
+		var t;
+		for(var k=0;k<list.length;k++)
+			{
+			for(var j=0;j<list[k].length;j++) 
+				{
+				switch(list[k][j])
+					{
+					case 0 : t = ""; break;
+					case 1 : t = "x"+(j+1); break;
+					case 2 : t = "x"+(j+1)+"\u00B2"; break;
+					case 3 : t = "x"+(j+1)+"\u00B3"; break;
+					}
+				ctx.textAlign = "left";
+				ctx.fillText(t,graph.x+30+j*25,y);
+				}
+			ctx.textAlign = "right";
+			var a = Math.round(A[k]*10000)/10000;
+			ctx.fillText(""+a,graph.x+30+dx,y);
+
+			var std = Math.sqrt(D[k]*sigma*sigma);
+			std = Math.round(std*10000)/10000;	
+			ctx.fillText(""+std,graph.x+dx+120,y);
+
+			var z = Math.round(A[k]/std*10000)/10000;
+			ctx.fillText(""+z,graph.x+dx+200,y);
+			
+			z = Math.round(pvalues[k]*10000)/10000;
+			ctx.fillText(""+z,graph.x+dx+280,y);
+
+			drawBar(graph.x+dx+290,y-1,z);
+			y += 20;
+			}
 		}
 
-	y += 40;
-	ctx.textAlign = "left";
-	ctx.fillText("Source",graph.x+30,y);
-		
-	ctx.textAlign = "right";
-	ctx.fillText("\u03A3 squares",graph.x+230,y);
-	ctx.fillText("DoF",graph.x+350,y);
+	if(option==0)
+		{
+		y += 20;
+		ctx.textAlign = "left";
+		ctx.fillText("Source",graph.x+30,y);
+			
+		ctx.textAlign = "right";
+		ctx.fillText("\u03A3 squares",graph.x+230,y);
+		ctx.fillText("DoF",graph.x+350,y);
 
-	ctx.fillRect(graph.x+30,y+10,340,2)
+		ctx.fillRect(graph.x+30,y+10,340,2)
 
 
-	y += 30;
-	ctx.textAlign = "left";
-	ctx.fillText("Regression",graph.x+30,y);
-	ctx.textAlign = "right"
-	ctx.fillText(trunc(graph._z.sce,4),graph.x+230,y);
-	ctx.fillText(""+graph.ivalues.length,graph.x+350,y);
+		y += 30;
+		ctx.textAlign = "left";
+		ctx.fillText("Regression",graph.x+30,y);
+		ctx.textAlign = "right"
+		var z = Math.round(graph._z.sce*10000)/10000;
+		ctx.fillText(""+z,graph.x+230,y);
+		ctx.fillText(""+dof1,graph.x+350,y);
 
-	var scr = graph._z.sct - graph._z.sce;
-	y += 20;
-	ctx.textAlign = "left";
-	ctx.fillText("Residuals",graph.x+30,y);
-	ctx.textAlign = "right";
-	ctx.fillText(trunc(scr,4),graph.x+230,y);
-	ctx.fillText(""+(graph._z.nr-graph.ivalues.length-1),graph.x+350,y);
+		var scr = graph._z.sct - graph._z.sce;
+		y += 20;
+		ctx.textAlign = "left";
+		ctx.fillText("Residuals",graph.x+30,y);
+		ctx.textAlign = "right";
+		var z = Math.round(graph._z.scr*10000)/10000;
+		ctx.fillText(""+z,graph.x+230,y);
+		ctx.fillText(""+dof2,graph.x+350,y);
 
-	y += 20;
-	ctx.textAlign = "left";
-	ctx.fillText("Total",graph.x+30,y);
-	ctx.textAlign = "right";
-	ctx.fillText(trunc(graph._z.sct,4),graph.x+230,y);
-	ctx.fillText(""+(graph._z.nr-1),graph.x+350,y);
+		y += 20;
+		ctx.textAlign = "left";
+		ctx.fillText("Total",graph.x+30,y);
+		ctx.textAlign = "right";	
+		var z = Math.round(graph._z.sct*10000)/10000;
+		ctx.fillText(""+z,graph.x+230,y);
+		ctx.fillText(""+(graph._z.nr-1),graph.x+350,y);
 
-	ctx.fillStyle = BLUE;
-	drawRightArrow(ctx,graph.x+370,y-45);
-	drawRightArrow(ctx,graph.x+370,y-25);
+		ctx.fillStyle = BLUE;
+		drawRightArrow(ctx,graph.x+370,y-45);
+		drawRightArrow(ctx,graph.x+370,y-25);
 
-	ctx.fillStyle = "#000000";
+		ctx.fillStyle = "#000000";
 
-	y += 40;
-	ctx.textAlign = "left";
-	ctx.fillText("Global results",graph.x+30,y);
-	ctx.fillRect(graph.x+30,y+10,340,2)
+		y += 40;
+		ctx.textAlign = "left";
+		ctx.fillText("Global results",graph.x+30,y);
+		ctx.fillRect(graph.x+30,y+10,340,2)
 
-	y += 30;
-	ctx.textAlign = "left";
-	ctx.fillText("Observations",graph.x+30,y);
-	ctx.textAlign = "right";
-	ctx.fillText(""+graph._z.nr,graph.x+260,y);
+		y += 30;
+		ctx.textAlign = "left";
+		ctx.fillText("Observations",graph.x+30,y);
+		ctx.textAlign = "right";
+		ctx.fillText(""+graph._z.nr,graph.x+240,y);
 
-	var r2 = graph._z.sce/graph._z.sct;
-	y += 20;
-	ctx.textAlign = "left";
-	ctx.fillText("Determination coef R\u00B2",graph.x+30,y);
-	ctx.textAlign = "right";
-	ctx.fillText(trunc(r2,4),graph.x+260,y);
+		var r2 = graph._z.sce/graph._z.sct;
+		y += 20;
+		ctx.textAlign = "left";
+		ctx.fillText("Determ. coef. R\u00B2",graph.x+30,y);
+		ctx.textAlign = "right";
+		var z = Math.round(r2*10000)/10000;
+		ctx.fillText(""+z,graph.x+240,y);
 
-	var sigma = Math.sqrt(graph._z.scr/(graph._z.nr-graph.ivalues.length-1));
-	y += 20;
-	ctx.textAlign = "left";
-	ctx.fillText("Error \u03C3",graph.x+30,y);
-	ctx.textAlign = "right";
-	ctx.fillText(trunc(sigma,4),graph.x+260,y);	
+		var sigma = Math.sqrt(graph._z.scr/(graph._z.nr-graph.ivalues.length-1));
+		y += 20;
+		ctx.textAlign = "left";
+		ctx.fillText("Error \u03C3",graph.x+30,y);
+		ctx.textAlign = "right";	
+		var z = Math.round(sigma*10000)/10000;
+		ctx.fillText(""+z,graph.x+240,y);	
 
-	y += 20;
-	ctx.textAlign = "left";
-	ctx.fillText("Critical value",graph.x+30,y);
-	ctx.textAlign = "right"
-	ctx.fillText(trunc(graph._z.cv,4),graph.x+260,y);
-	ctx.fillText("(\u03B1="+0.05+")",graph.x+350,y);
+		y += 20;
+		ctx.textAlign = "left";
+		ctx.fillText("Critical value",graph.x+30,y);
+		ctx.textAlign = "right"
+		var z = Math.round(cv*10000)/10000;
+		ctx.fillText(""+z,graph.x+240,y);
+		ctx.fillText("(\u03B1="+0.05+")",graph.x+350,y);
 
-	var n1 = graph.ivalues.length;
-	var n2 = graph._z.nr - n1 -1;
-	var ftest = (r2/graph.ivalues.length)/((1-r2)/(graph._z.nr-graph.ivalues.length-1));
-	var pvalue = Fspin(ftest,n1,n2);
 
-	y += 20;
-	ctx.textAlign = "left";
-	ctx.fillText("Test-F ("+n1+","+n2+")",graph.x+30,y);
-	ctx.textAlign = "right"
-	ctx.fillText(trunc(ftest,4),graph.x+260,y);
-	ctx.fillText("(pvalue="+trunc(pvalue,4)+")",graph.x+350,y);
+		y += 20;
+		ctx.textAlign = "left";
+		ctx.fillText("Degrees of freedom",graph.x+30,y);
+		ctx.textAlign = "right";
+		ctx.fillText(dof1+","+dof2,graph.x+240,y);
 
-	y += 30;
-	ctx.textAlign = "left";
-	ctx.fillStyle = "#FF0000";
-	if(pvalue<0.05)
-		ctx.fillText(quote(values[graph.ivalue1])+" is dependent of attributes",graph.x+30,y);
-	else
-		ctx.fillText(quote(values[graph.ivalue1])+" is not dependent of attributes",graph.x+30,y);
+		y += 20;
+		ctx.textAlign = "left";
+		ctx.fillText("Test statistic F",graph.x+30,y);
+		ctx.textAlign = "right"
+		var z = Math.round(F*10000)/10000;	
+		ctx.fillText(""+z,graph.x+240,y);
+		z = Math.round(pvalue*10000)/10000;
+		ctx.fillText("(pvalue="+z+")",graph.x+350,y);
 
-	ctx.restore();
+		y += 30;
+		ctx.textAlign = "left";
+		ctx.fillStyle = "#FF0000";
+		if(pvalue<0.05)	
+			multiText(ctx,["#000000",values[graph.ivalue1],
+				"#FF0000" ," is dependent ",
+				"#000000", " of attributes"],graph.x+30,y);
+		else
+			multiText(ctx,["#000000",values[graph.ivalue1],
+				"#FF0000" ," is not dependent ",
+				"#000000", " of attributes"],graph.x+30,y);
+
+		y += 30;
+		drawFisherCurve(ctx,graph,y,dof1,dof2,0,max,F,"F",cv);
+
+		}
+
+	ctx.translate(0,graph.yshift);
 	}
-}
-catch(err) { console.log(""+err) }
 
-ctx.textAlign = "center";
+ctx.fillStyle = "#FFFFFF";
+ctx.fillRect(graph.x+graph.w-130,graph.y+graph.hbar+1,130,
+	30+graph.ivalues.length*25);
 
+ctx.fillStyle = "#000000";
+ctx.textAlign = "right";
+for(var j=0;j<graph.ivalues.length;j++)
+	ctx.fillText("x"+(j+1),graph.x+graph.w-110,graph.y+graph.hbar+19+j*25);
+
+drawMenu(ctx,graph,MENU.REGR,graph.regr,SELECT_REGR,menuindex);
+
+	function drawBar(x,y,z)
+	{
+	ctx.fillStyle = "#666666";
+	ctx.strokeStyle = "#666666";
+	ctx.fillRect(x,y-10,z*100,12);
+	ctx.strokeRect(x,y-10,100,12);
+	}
 }
 
 //*********************************************************************
@@ -14439,23 +14630,30 @@ setTableName("Regression of "+values[graph.ivalue1]);
 var row = 1;
 var sigma = Math.sqrt(graph._z.scr/(graph._z.nr-graph.ivalues.length-1));
 
-table(row,1,"Attribute");
+table(row,1,"Term");
 table(row,2,"Coefficient");
 table(row,3,"Std dev.");
 
-row++;
-table(row,2,round(graph._z.a[0]));
-var std = Math.sqrt(graph._z.d[0]*sigma*sigma);
-table(row,3,round(std));
+var list = graph._z.list;
+var A = graph._z.a;
+var D = graph._z.d;
 
-for(var i=0;i<graph.ivalues.length;i++)
+for(var k=0;k<list.length;k++)
 	{
 	row++;
-	table(row,1,values[graph.ivalues[i]]);
-	table(row,2,round(graph._z.a[i+1]));
-	var std = Math.sqrt(graph._z.d[i+1]*sigma*sigma);
-	table(row,3,round(std));
+	var t = [];
+	for(var j=0;j<list[k].length;j++) switch(list[k][j])
+		{
+		case 1: t.push("x"+(j+1)); break;
+		case 2: t.push("x"+(j+1)+"\u00B2"); break;
+		case 3: t.push("x"+(j+1)+"\u00B3"); break;
+		}
+	table(row,1,t.join("."));
+	table(row,2,Math.round(A[k]*10000)/10000);
+	var std = Math.sqrt(D[k]*sigma*sigma);
+	table(row,3,Math.round(std*10000)/10000);
 	}
+
 
 row += 2;
 table(row,1,"Source");
@@ -14464,33 +14662,65 @@ table(row,3,"DoF");
 
 row++;
 table(row,1,"Regression");
-table(row,2,round(graph._z.sce));
-table(row,3,graph.ivalues.length);
+table(row,2,Math.round(graph._z.sce*10000)/10000);
+table(row,3,graph._z.dof1);
 
 var scr = graph._z.sct - graph._z.sce;
 row++;
 table(row,1,"Residuals");
-table(row,2,round(scr));
-table(row,3,graph._z.nr-graph.ivalues.length-1);
+table(row,2,Math.round(scr*10000)/10000);
+table(row,3,graph._z.dof2);
 
 row++;
 table(row,1,"Total");
-table(row,2,round(graph._z.sct));
+table(row,2,Math.round(graph._z.sct*10000)/10000);
 table(row,3,graph._z.nr-1);
 
+row++;
+table(row,1,"Global results");
+
+row++;
+table(row,1,"Observations");
+table(row,2,graph._z.nr);
+
+row++;
+var r2 = graph._z.sce/graph._z.sct;
+table(row,1,"Determ. coef. R\u00B2");
+table(row,2,Math.round(r2*10000)/10000);
+
+row++;
+table(row,1,"Error \u03C3");
+table(row,2,Math.round(sigma*10000)/10000);
+
+row++;
+table(row,1,"Critical value");
+table(row,2,Math.round(graph._z.cv*10000)/10000);
+table(row,3,"(\u03B1="+0.05+")");
+
+row++;
+table(row,1,"Degrees of freedom");
+table(row,2,graph._z.dof1+","+graph._z.dof2);
+
+row++;
+table(row,1,"Test statistic F");
+table(row,2,Math.round(graph._z.f*10000)/10000);
+table(row,3,"(pvalue="+Math.round(graph._z.pvalue*10000)/10000+")");
+
+
 }
-
-
-	function round(value)
-	{
-	return Math.round(value*10000)/10000;
-	}
 
 //*********************************************************************
 
 function downRegresGraph(pt,graph)
 {
+var w = 150;
+var x = graph.x+graph.w/2-w/2;
+var y = graph.y+graph.hbar+5;
+if(inRect(pt,x,y,w,20))
+	return SELECT_REGR;
+
 if(graph.ivalues.length==0) return -1;
+if(graph.ivalue1<0) return -1;
 
 var y = graph.y + 160 + graph.ivalues.length*20 - graph.yshift;
 if(inRect(pt,graph.x+350,y-17,20,20)) 
@@ -14505,8 +14735,34 @@ if(inRect(pt,graph.x+350,y+10,20,20))
 	return DRAG_AXIS;
 	}
 
+
 return -1;
 
+}
+
+//*********************************************************************
+
+function dragRegresGraph(ptmove,graph)
+{
+if(faction==SELECT_REGR)
+	{
+	selectMenuItem(ptmove,graph,MENU.REGR);
+	}
+}
+
+//*********************************************************************
+
+function upRegresGraph(graph)
+{
+if(action==SELECT_REGR)
+	{
+	if(menuindex>=0)
+		{
+		graph = graphs[graphindex];
+		graph.regr = menuindex;
+		computeRegresData(graph);
+		}
+	}
 }
 
 //*********************************************************************
@@ -16302,7 +16558,7 @@ function createProjectionValue(graph,index)
 
 if(graph.type==TYPE.ACP)
 	{
-	values.push("PCA_"+values.length)
+	values.push("PCA."+(++newfield));
 
 	var n = graph.ivalues.length;
 	var x;
@@ -16323,7 +16579,7 @@ if(graph.type==TYPE.ACP)
 
 if(graph.type==TYPE.DISCRI)
 	{
-	values.push("DISCRI_"+values.length)
+	values.push("DISCRI"+(++newfield));
 
 	var n= graph.ivalues.length;
 	var x;
@@ -16358,7 +16614,7 @@ if(graph.type==TYPE.REGRES)
 		}
 	else
 		{
-		values.push("RES_"+values.length);
+		values.push("RES"+(++newfield));
 		for(var i=0;i<vrecords.length;i++)
 			{
 			var r = vrecords[i];
@@ -17761,15 +18017,6 @@ else if(action==SELECT_TEST)
 		computeTestData(graph);
 		}	
 	}
-else if(action==SELECT_LAW)
-	{
-	if(menuindex>=0)
-		{
-		graph = graphs[graphindex];
-		graph.law = menuindex;
-		computeProbaData(graph);
-		}
-	}
 else if(action==SELECT_CLUSTERING)
 	{	
 	if(menuindex>=0)
@@ -18649,6 +18896,7 @@ else if((index=inGraphSlice(ptmove,graphs[i]))>=0)
 		var key1 = graph._keys1[index1]
 		var key2 = graph._keys2[index2]
 		var value = graph._count[key1+"\t"+key2]
+		if(isNaN(value)) value = 0;
 		var pct = value*1000/graph.total
 		pct = Math.floor(pct)/10	
 
@@ -21062,7 +21310,7 @@ function pt(t,dof)
 {
 var area = 0;
 var k =0;
-var min = dof<5 ? -100 : -20;
+var min = dof<2 ? -100 : dof<5 ? -50: -20;
 for(var x=min;x<t;x+=0.0001)
 	area += dt(x,dof)*0.0001;
 return area;
@@ -22262,4 +22510,4 @@ for (var i = 0; i < n-1; i++) {
 //*********************************************************************
 
 var lasso = new Image();
-lasso.src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAAAAACo4kLRAAAAAXNSR0IArs4c6QAAAAJ0Uk5TAP9bkSK1AAAA1ElEQVR4nGL4jwUwgMkPG4t87RyCG4/8gQt+b9PQT+qcPa3GV95kDVTwhZ3Tvt8QfW+myOb+AQn+dM39izDuvnoTSHC9zV9kS87IPAUKFnSiWm28HShY3oAqaLgfKHjE8DOy2C6tjyDbc7zegHh/n4KoE4prwE76na83a3pitqmO6sprRSqLYT7aFyDMwFC9SZVNN+sOwpv/n27PkWFlKHmP7HcgmKK+YgfMwTDBJ1LH0UPp//+ZjhhB9/9/YS4WwdIULILr47EI/vuGJAgAAAD//wMA1AtUdzDuQegAAAAASUVORK5CYII=";
+lasso.src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAAAAACo4kLRAAAAAXNSR0IArs4c6QAAAAJ0Uk5TAP9bkSK1AAAAzElEQVR4nGL4jwUw4Bb8sLHI184huPHIH7jg9zYN/aTO2dNqfOVN1kAFX9g57fsN0fdmimzuH5DgT9fcvwjj7qs3gQTX2/xFtuSMzFOgYEEnqtXG24GC5Q2ogob7gYJHDD8ji+3S+giyPcfrDYj39ymIOqG4Buyk3/l6s6YnZpvqqK68VqSyGOajfQHCDAzVm1TZdLPuIPn96fYcGVaGkvdoATJFfcUOmINhgk+kjmMG3UxHjKD7/78wF4tgaQoWwfXxSIIAAAAA//8DAJa6VIGkfDaxAAAAAElFTkSuQmCC";
