@@ -57,6 +57,12 @@ else if(check(content,'['))
 else if(check(content,0x1F,0x8B))
 	process_gzip_content(content,callback);
 
+else if(check(content,'B','Z','h'))
+	process_bzip2_content(content,callback);
+
+else if(check(content,0xFD,'7','z','X','Z',0x00))
+	process_xz_content(content,callback);
+
 else if(check(content,'R','D','X','2'))
 	process_xdr_content(content,callback);
 
@@ -438,7 +444,6 @@ console.log("process tabular");
 
 function process_xdr_content(content,callback)
 {
-console.log("process xdr "+content.length);
 
 var offset = 19;
 var indent = "";
@@ -462,6 +467,7 @@ if(main==null)
 
 
 var mainid = get_id(main);
+
 if(!(main instanceof Array) )
 	{	
 	console.log("MAIN OBJECT NOT AN ARRAY");
@@ -1862,6 +1868,52 @@ check_data_type(callback);
 			}
 		obj.name = name;
 		return obj;
+	}
+}
+
+//****************************************************************************
+
+function process_bzip2_content(content,callback)
+{
+console.log("process bzip2 "+content.length);
+
+var unbzip2 = require("unbzip2")();
+var uncompressed = new Buffer(0);
+
+unbzip2.on("error", function(err) {
+	console.log("UNBZIP2 ERR "+err);
+	callback(null);
+	});
+
+unbzip2.on("data", function(chunk) {
+	uncompressed = Buffer.concat([uncompressed,chunk]);
+	});
+
+unbzip2.on("end", function() {
+	process_content(uncompressed,"",callback);
+	});
+
+unbzip2.write(content);
+unbzip2.end();
+
+}
+
+//****************************************************************************
+
+function process_xz_content(content,callback)
+{
+console.log("process xz "+content.length);
+
+
+try	{
+	var lzmajs = require("lzma-purejs");
+	var uncompressed = lzmajs.decompressFile(content);
+	process_content(uncompressed,"",callback);
+	}
+catch(e)
+	{
+	console.log("XZ ERROR "+e);
+	callback(null);
 	}
 }
 
