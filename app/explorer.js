@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.79";
+var VERSION = "1.80";
 
 /***************************************************************************/
 
@@ -8028,6 +8028,8 @@ if(graph.ivalue1<0) return;
 if(graph.ivalue2<0) return;
 
 
+var font = ctx.font;
+
 var display = getGraphDisplay(graph); 
 var option = getGraphOption(graph);
 
@@ -8150,6 +8152,14 @@ if(option==0)
 				}
 			}
 		}
+
+
+	ctx.fillStyle = "#000000";
+	ctx.textAlign = "left"
+	ctx.font = font;
+	var t = "SLOPE: "+(Math.round(graph._z.a*10000)/10000)+
+		"   INTERCEPT: "+(Math.round(graph._z.b*10000)/1000);
+	ctx.fillText(t,xleft+10,graph.y+graph.h-7);
 	}
 
 if((option==1)&&(graph.ilabel1<0))
@@ -14318,7 +14328,6 @@ var r2 = sce/sct;
 var dof1 = list.length-1;
 var dof2 = nr - dof1 -1;
 
-
 var F = (r2/dof1)/((1-r2)/(dof2));
 
 var max = F;
@@ -14338,10 +14347,11 @@ var sigma = Math.sqrt(scr/dof2);
 
 var pvalues = new Array(A.length);
 for(var i=0;i<A.length;i++)
-	{
+	{	
 	var std = Math.sqrt(D[i]*sigma*sigma);
-	var p = pt(Math.abs(A[i]/std),dof2);
-	pvalues[i] = 2*(1-p);
+	var zzz = Math.abs(A[i]/std);
+	var p = pt(zzz,dof2);
+	pvalues[i] = p > 1 ? 0 : 2*(1-p);
 	}
 
 graph._z.list = list;
@@ -14359,6 +14369,7 @@ graph._z.max = max;
 graph._z.pvalue = pvalue;
 graph._z.pvalues = pvalues;
 graph._z.sigma = sigma;
+
 }
 
 //*********************************************************************
@@ -14422,7 +14433,7 @@ if((graph.ivalues.length>0)&&(graph.ivalue1>=0))
 	var max = graph._z.max;
 	var pvalues = graph._z.pvalues;
 
-	var sigma = Math.sqrt(graph._z.scr/(graph._z.nr-list.length-1));
+	var sigma = Math.sqrt(graph._z.scr/dof2);
 
 	ctx.fillStyle = "#000000";
 	ctx.strokeStyle = "#000000";
@@ -14469,12 +14480,12 @@ if((graph.ivalues.length>0)&&(graph.ivalue1>=0))
 			ctx.fillText(""+a,graph.x+30+dx,y);
 
 			var std = Math.sqrt(D[k]*sigma*sigma);
-			std = Math.round(std*10000)/10000;	
-			ctx.fillText(""+std,graph.x+dx+120,y);
+			z = Math.round(std*10000)/10000;	
+			ctx.fillText(""+z,graph.x+dx+120,y);
 
 			var z = Math.round(A[k]/std*10000)/10000;
 			ctx.fillText(""+z,graph.x+dx+200,y);
-			
+		
 			z = Math.round(pvalues[k]*10000)/10000;
 			ctx.fillText(""+z,graph.x+dx+280,y);
 
@@ -14494,7 +14505,6 @@ if((graph.ivalues.length>0)&&(graph.ivalue1>=0))
 		ctx.fillText("DoF",graph.x+350,y);
 
 		ctx.fillRect(graph.x+30,y+10,340,2)
-
 
 		y += 30;
 		ctx.textAlign = "left";
@@ -14613,7 +14623,7 @@ drawMenu(ctx,graph,MENU.REGR,graph.regr,SELECT_REGR,menuindex);
 	{
 	ctx.fillStyle = "#666666";
 	ctx.strokeStyle = "#666666";
-	ctx.fillRect(x,y-10,z*100,12);
+	ctx.fillRect(x+(1-z)*100,y-10,z*100,12);
 	ctx.strokeRect(x,y-10,100,12);
 	}
 }
@@ -14722,14 +14732,16 @@ if(inRect(pt,x,y,w,20))
 if(graph.ivalues.length==0) return -1;
 if(graph.ivalue1<0) return -1;
 
-var y = graph.y + 160 + graph.ivalues.length*20 - graph.yshift;
-if(inRect(pt,graph.x+350,y-17,20,20)) 
+
+var y = graph.y + 85;
+if(inRect(pt,graph.x+360,y,20,20)) 
 	{
 	valueindex = 1;
 	return DRAG_AXIS;
 	}
 
-if(inRect(pt,graph.x+350,y+10,20,20)) 	
+var y = graph.y + 105;
+if(inRect(pt,graph.x+360,y,20,20)) 	
 	{
 	valueindex = 2;
 	return DRAG_AXIS;
@@ -14761,6 +14773,38 @@ if(action==SELECT_REGR)
 		graph = graphs[graphindex];
 		graph.regr = menuindex;
 		computeRegresData(graph);
+		}
+	}
+
+if(action==CREATE_PROJECTION)
+	{
+	if(valueindex==1)
+		values.push(values[graph.ivalue1]+"."+(++newfield));
+	else
+		values.push("RES"+"."+(++newfield));
+
+	var list = graph._z.list;
+	var A = graph._z.a;
+	var t;
+	for(var i=0;i<vrecords.length;i++)
+		{
+		var y = 0;	
+		for(var k=0;k<list.length;k++)
+			{
+			var x = 1;
+			for(var j=0;j<list[k].length;j++) switch(list[k][j])
+				{
+				case 1 : t = vrecords[i][graph.ivalues[j]]; x *= t; break;
+				case 2 : t = vrecords[i][graph.ivalues[j]]; x *= t*t; break;
+				case 3 : t = vrecords[i][graph.ivalues[j]]; x *= t*t*t; break;
+				}
+			y += x*A[k];	
+			}		
+		
+		if(valueindex==1)
+			vrecords[i].push(y);
+		else
+			vrecords[i].push(y-vrecords[i][graph.ivalue1]);
 		}
 	}
 }
@@ -15634,8 +15678,8 @@ if(isNaN(lin)) { console.log("TABLE ERR LIN="+lin+" "+value) ; return; }
 if(isNaN(col)) { console.log("TABLE ERR COL="+col+" "+value) ; return; }
 if(lin<=0) { console.log("TABLE ERR LIN="+lin+" "+value) ; return; }
 if(col<=0) { console.log("TABLE ERR COL="+col+" "+value) ; return; }
-if(lin>1000) return;
-if(col>1000) return;
+if(lin>5000) return;
+if(col>5000) return;
 
 if(!(lin in _table)) _table[lin] = {};
 _table[lin][col] = value;
@@ -16579,7 +16623,7 @@ if(graph.type==TYPE.ACP)
 
 if(graph.type==TYPE.DISCRI)
 	{
-	values.push("DISCRI"+(++newfield));
+	values.push("DISCRI."+(++newfield));
 
 	var n= graph.ivalues.length;
 	var x;
@@ -16598,33 +16642,6 @@ if(graph.type==TYPE.DISCRI)
 		}
 	}
 
-if(graph.type==TYPE.REGRES)
-	{
-	if(valueindex==1)
-		{
-		values.push(values[graph.ivalue1]+"_"+values.length);
-		for(var i=0;i<vrecords.length;i++)
-			{
-			var r = vrecords[i];
-			var x = graph._z.a[0];
-			for(var j=0;j<graph.ivalues.length;j++)
-				x += r[graph.ivalues[j]]*graph._z.a[j+1];
-			vrecords[i].push(x);
-			}
-		}
-	else
-		{
-		values.push("RES"+(++newfield));
-		for(var i=0;i<vrecords.length;i++)
-			{
-			var r = vrecords[i];
-			var x = graph._z.a[0];
-			for(var j=0;j<graph.ivalues.length;j++)
-				x += r[graph.ivalues[j]]*graph._z.a[j+1];
-			vrecords[i].push(x-r[graph.ivalue1]);
-			}
-		}	
-	}
 }
 
 //*********************************************************************
@@ -16973,9 +16990,9 @@ labels.push("CLUST."+(labels.length+1))
 function createDummyLabel()
 {
 for(var i=0;i<lrecords.length;i++)
-	lrecords[i].push("");
+	lrecords[i].push("R"+(i+1));
 
-labels.push("DUMMY");
+labels.push("ROW.NAMES");
 }
 
 //*********************************************************************
@@ -17076,6 +17093,9 @@ else
 
 function down(event)
 {
+var rightclick = false;
+if (event.which) rightclick = (event.which == 3);
+else if (event.button) rightclick = (event.button == 2);
 
 ptclick = getxy(event)
 
@@ -17096,7 +17116,7 @@ var index = -1;
 
 var movetotop = false;
 
-if(event.ctrlKey)
+if(event.ctrlKey||rightclick)
 	if((index=inFullGraph(ptclick))>=0)
 		{
 		faction = action = SELECT_OPTION;
@@ -21287,34 +21307,50 @@ return Math.exp(a);
 //*********************************************************************
 // student quantile
 
+
 function qt(t,dof)
 {
-if(t>=1) return 500;
-if(t<=0) return -500;
-
-var area = 0;
-var x = dof==1 ?-500 : -80;
-var dx = 0.001;
+var min = -100;
+var max = 100;
 while(true)
-	{
-	area += dt(x,dof)*dx;
-	if(area>t) break;
-	x += dx;	
-	}
-return x;
+    {
+    var med = (min+max)/2;
+    var p = pt(med,dof);
+    if(p<t)
+        min = med;
+    else
+        max = med;
+    if(Math.abs(max-min)<1e-6) break;
+    }
+return med;
 }
 
-//*********************************************************************
 
 function pt(t,dof)
 {
-var area = 0;
-var k =0;
-var min = dof<2 ? -100 : dof<5 ? -50: -20;
-for(var x=min;x<t;x+=0.0001)
-	area += dt(x,dof)*0.0001;
-return area;
+// Simpson's rule
+var n = Math.round(t)*2;
+if(n<500) n = 500;
+var b = t;
+var a = -100;
+var s = 0;
+for(var i=0;i<=n;i++)
+    {
+    var x = a+(b-a)*i/n;
+    if(i==0)
+        s += dt(x,dof);
+    else if(i==n)
+        s += dt(x,dof);
+    else if((i%2)==0)
+        s += 2*dt(x,dof);
+    else
+        s += 4*dt(x,dof);
+    }
+return s*(b-a)/3/n;
 }
+
+
+
 
 //*********************************************************************
 
