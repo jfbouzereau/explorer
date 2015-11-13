@@ -127,14 +127,21 @@ Launch the application, and drag a file containing a JSON array of records.
 ##### R file
 
 Launch the application, and drag a file containing a dataframe saved by R in binary format.
-
 ##### MINITAB file
 
 Launch the application, and drag a MINITAB file (extension mtw).
 
+##### MLwiN worksheet
+
+Launch the application, and drag a MLwiN uncompressed worksheet (extension ws)
+
 ##### SAS file
 
 Launch the application, and drag a SAS file (extension sas7bdat) in uncompressed format.
+
+##### SPLUS file
+
+Launch the application, and drag a SPLUS file (extension sdd).
 
 ##### SPSS file
 

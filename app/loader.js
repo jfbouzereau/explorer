@@ -25,6 +25,8 @@ if(filename.toLowerCase().indexOf(".dbf")==filename.length-4)
 	process_dbase_content(content,callback);
 else if(filename.toLowerCase().indexOf(".sdd")==filename.length-4)
 	process_sdd_content(content,callback);
+else if(filename.toLowerCase().indexOf(".ws")==filename.length-3)
+	process_mlwin_content(content,callback);
 else
 	process_content(content,filename,callback);
 }
@@ -1915,6 +1917,140 @@ catch(e)
 	console.log("XZ ERROR "+e);
 	callback(null);
 	}
+}
+
+//****************************************************************************
+
+function process_mlwin_content(content,callback)
+{
+console.log("process mlwin "+content.length);
+
+var offset = 9;
+
+var ncell = read_int();	// total number of cells
+var nf = read_int();	// number of fields
+
+var off = new Array(nf);
+for(var j=0;j<nf;j++)
+	off[j] = read_int();
+
+var len = new Array(nf);
+for(var j=0;j<nf;j++)
+	len[j] = read_int();
+
+var nv = 0;
+for(var j=0;j<nf;j++)
+	if(len[j]==0) { nv = j; break; }
+
+var nr = len[0];
+
+var version = content.readInt32LE(content.length-8);
+
+if(version==4)
+	{
+
+	var nam = new Array(nf);
+	for(var j=0;j<nf;j++)
+		{
+		nam[j] = read_str(8).trim();
+		offset+=1;
+		}
+
+	data = [];
+	var row = [];
+	for(var j=0;j<nv;j++)
+		row.push(nam[j]);
+
+	data.push(row);
+
+	var base = offset+4*nf+900;
+	for(var i=0;i<nr;i++)
+		{
+		var row = [];
+		for(var j=0;j<nv;j++)
+			{
+			if(len[j]==0) continue;
+			var v = Math.round(content.readFloatLE(base+nr*4*j+i*4)*10000)/10000;
+			row.push(v);
+			}
+		data.push(row);
+		}
+	}
+
+if(version==6)
+	{
+
+	var offset = ncell*4+174483+141332;
+
+	var ncat = read_int();
+	console.log("ncat = "+ncat);
+
+	var cat = {};
+	for(var i=0;i<ncat;i++)
+		{
+		var ifield = read_int();
+		var ivalue = read_int();
+		var ilen = read_int();
+		var istring = read_str(ilen);
+		offset++;
+		var iindex = read_int();	
+		if(!(ifield in cat)) cat[ifield] = {};
+		cat[ifield][ivalue] = istring;
+		}
+
+	console.log(cat);
+
+	offset += 55928;
+
+	var vnames = new Array(nv);
+	for(var j=0;j<nv;j++)
+		{
+		var ilen = read_int();
+		vnames[j] = read_str(ilen);
+		offset++;
+		}
+
+	data = [];		
+	data.push(vnames);
+	
+	var base = 0x6411;
+	
+	for(var i=0;i<nr;i++)		
+		{
+		var row = [];
+		for(var j=0;j<nv;j++)
+			{
+			if(len[j]==0) continue;
+			var v = Math.round(content.readFloatLE(base+nr*4*j+i*4)*10000)/10000;
+			if(j in cat)
+				v = cat[j][v];
+			row.push(v);
+			}
+		data.push(row);
+		}	
+
+	}
+	
+
+check_data_type(callback);
+return
+
+
+	function read_int()
+	{
+	var r = content.readUInt32LE(offset);
+	offset += 4;
+	return r;	
+	}
+	
+	function read_str(n)
+	{
+	var r = content.toString("utf8",offset,offset+n);
+	offset += n;
+	return r;
+	}
+
+
 }
 
 //****************************************************************************
