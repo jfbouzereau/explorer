@@ -78,6 +78,13 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Wilk's lambda
 * Lawley-Hotelling trace
 * Pillai trace
+* Non-parametric tests
+* Kolmogorov-Smirnov test
+* Kruskal-Wallis test
+* Jonckheere test
+* Cochran Q test
+* Durbin test
+* Friedman test
 * Principal components
 * Canonical correlation analysis
 * K-means
