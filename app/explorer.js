@@ -8,13 +8,13 @@ try	{
 	}
 catch(e)
 	{
-	var console = {log:function(){}};
+	console = {log:function(){}};
 	}
 
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.81";
+var VERSION = "1.82";
 
 /***************************************************************************/
 
@@ -638,6 +638,8 @@ this.ncontour = 0;
 this.stickers = [];
 
 this.iunit = 0;
+
+this.placeholder = {};
 }
 
 //*********************************************************************
@@ -2928,7 +2930,6 @@ graph._z.dist = dist
 
 function moveArcGraph(pt,graph)
 {
-if(graph.type!=TYPE.ARC) return false
 if(!inRect(pt,graph.x,graph.y,graph.w,graph.h)) return false
 if(typeof(graph._z.dist)=="undefined") return false
 
@@ -4965,6 +4966,7 @@ if(graph.w<480)
 	graph.w = 480;
 
 graph._z = {};
+graph.placeholder = {};
 
 switch(graph.nonparam)
 	{
@@ -5079,6 +5081,7 @@ console.log(graph._z);
 
 function computeKolmo(graph)
 {
+
 if(graph.ilabels.length<1) return;
 if(graph.ivalue1<0) return;
 
@@ -5167,6 +5170,7 @@ console.log(graph._z);
 
 function computeKruskal(graph)
 {
+
 if(graph.ilabels.length<1) return;
 if(graph.ivalue1<0) return;
 
@@ -5263,6 +5267,7 @@ console.log(graph._z);
 
 function computeJonck(graph)
 {
+
 if(graph.ilabels.length<1) return;
 if(graph.ivalue1<0) return;
 
@@ -5408,8 +5413,14 @@ graph._z.pvalue = 1-phi(z);
 function computeDurbin(graph)
 {
 
+graph.placeholder["ilabels0"] = "BLOCKS";
+graph.placeholder["ilabels1"] = "TREATMENTS";
+graph.placeholder["leftvalue"] = "RATINGS";
+
 if(graph.ilabels.length<2) return;
 if(graph.ivalue1<0) return;
+
+console.log("COMP DURBIN");
 
 var blocks = {};
 var treats = {};
@@ -5440,6 +5451,8 @@ for(var i=0;i<vrecords.length;i++)
 		}
 	done[key] = 1;
 	}
+
+console.log("A");
 
 // check balanced incomplete design
 var sumb = vector(nb);
@@ -5580,6 +5593,11 @@ console.log(graph._z);
 
 function computeFrieman(graph)
 {
+
+graph.placeholder["ilabels0"] = "BLOCKS";
+graph.placeholder["ilabels1"] = "TREATMENTS";
+graph.placeholder["leftvalue"] = "RATINGS";
+
 if(graph.ilabels.length<2) return;
 if(graph.ivalue1<0) return;
 
@@ -5707,6 +5725,11 @@ console.log(graph._z);
 
 function computeCochran(graph)
 {
+
+graph.placeholder["ilabels0"] = "BLOCKS";
+graph.placeholder["ilabels1"] = "TREATMENTS";
+graph.placeholder["leftvalue"] = "RATINGS";
+
 if(graph.ilabels.length<2) return;
 if(graph.ivalue1<0) return;
 
@@ -6172,13 +6195,6 @@ if(option==0)
 
 function drawFriedman(ctx,graph)
 {
-ctx.fillStyle = "#000000";
-ctx.textAlign = "right";
-ctx.fillText("Blocks:", graph.x+graph.w-110,graph.y+graph.hbar+20);
-
-if(graph.ilabels.length>0)
-	ctx.fillText("Treatments:", graph.x+graph.w-110,graph.y+graph.hbar+45);
-
 
 if(graph.ilabels.length<2) return;
 
@@ -6188,6 +6204,7 @@ if(graph._z.error)
 	{
 	var xc = graph.x+graph.w/2;
 	var yc = graph.y+graph.h/2;
+	ctx.fillStyle = "#000000";
 	ctx.textAlign = "center";
 	ctx.fillText(graph._z.error,xc,yc);
 	return;
@@ -6271,13 +6288,6 @@ drawChi2Curve(ctx,graph,y,graph._z.dof,0,max,graph._z.q,"Q",graph._z.cv);
 
 function drawCochran(ctx,graph)
 {
-ctx.fillStyle = "#000000";
-ctx.textAlign = "right";
-ctx.fillText("Blocks:", graph.x+graph.w-110,graph.y+graph.hbar+20);
-
-if(graph.ilabels.length>0)
-	ctx.fillText("Treatments:", graph.x+graph.w-110,graph.y+graph.hbar+45);
-
 if(graph.ilabels.length<2) return;
 
 if(graph.ivalue1<0) return;
@@ -6286,6 +6296,7 @@ if(graph._z.error)
 	{
 	var xc = graph.x+graph.w/2;
 	var yc = graph.y+graph.h/2;
+	ctx.fillStyle = "#000000";
 	ctx.textAlign = "center";
 	ctx.fillText(graph._z.error,xc,yc);
 	return;
@@ -6357,25 +6368,19 @@ drawChi2Curve(ctx,graph,y,graph._z.dof,0,max,graph._z.q,"W",graph._z.cv);
 
 function drawDurbin(ctx,graph)
 {
-ctx.fillStyle = "#000000";
-ctx.textAlign = "right";
-ctx.fillText("Blocks:", graph.x+graph.w-110,graph.y+graph.hbar+20);
-
-if(graph.ilabels.length>0)
-	ctx.fillText("Treatments:", graph.x+graph.w-110,graph.y+graph.hbar+45);
-
 if(graph.ilabels.length<2) return;
-
 if(graph.ivalue1<0) return;
 
 if(graph._z.error)
 	{
 	var xc = graph.x+graph.w/2;
 	var yc = graph.y+graph.h/2;
+	ctx.fillStyle = "#000000";
 	ctx.textAlign = "center";
 	ctx.fillText(graph._z.error,xc,yc);
 	return;
 	}
+
 
 var x = graph.x+50;
 var y = graph.y + graph.hbar + 50;
@@ -15288,18 +15293,21 @@ var x = graph.x+graph.w/2;
 var y = graph.y+graph.h/2;
 if(graph._z.ng<2)
 	{
+	ctx.textAlign = "center";
 	ctx.fillStyle = "#000000";
 	ctx.fillText("Less than two categories",x,y);
 	return;
 	}
 if(graph._z.nv<2)
 	{
+	ctx.textAlign = "center";
 	ctx.fillStyle = "#000000";
 	ctx.fillText("Less than two variables",x,y);
 	return;
 	}
 if(graph._z.onlyone)
-	{
+	{	
+	ctx.textAlign = "center";
 	ctx.fillStyle = "#000000";
 	ctx.fillText("One category with only one observation",x,y);
 	return;
@@ -17389,6 +17397,8 @@ catch(e)
 	}
 graph._z = {}
 
+graph.placeholder = {};
+
 if(graph.timerid)
 	{
 	clearTimeout(graph.timerid);
@@ -19100,6 +19110,7 @@ else if(action==SET_TYPE)
 		{
 		graph.type = typeindex
 		graph.option = 0
+		graph.placeholder = {};
 		}
 	computeGraphData(graph);
 	}
@@ -21118,7 +21129,7 @@ function scrollDesktop(dx,dy)
 
 //*********************************************************************
 
-function drawVLabel(ctx,x,y,title)
+function drawVLabel(ctx,x,y,title,alt)
 {
 var w = SLOTH;
 var h = SLOTW;
@@ -21145,7 +21156,18 @@ ctx.fillStyle = "#000000"
 ctx.save()
 ctx.translate(x+w,y+h)
 ctx.rotate(-Math.PI/2)
-ctx.fillText(title,h/2,-5)
+
+if(title)
+	ctx.fillText(title,h/2,-5)
+else if(alt)
+	{
+	var font = ctx.font;
+	ctx.font = "italic "+font;
+	ctx.fillStyle = "#CCCCCC";
+	ctx.fillText(alt,h/2,-5);
+	ctx.font = font;
+	}
+
 ctx.restore()
 
 ctx.restore();
@@ -21169,7 +21191,7 @@ ctx.lineTo(x,y+d)
 
 //*********************************************************************
 
-function drawVValue(ctx,x,y,title)
+function drawVValue(ctx,x,y,title,alt)
 {
 var w = SLOTH;
 var h = SLOTW;
@@ -21185,11 +21207,22 @@ pathValue(ctx,x,y,w,h,w/5)
 ctx.fill()
 ctx.stroke()
 
-ctx.fillStyle = "#000000"
-ctx.save()
-ctx.translate(x+w,y+h)
-ctx.rotate(-Math.PI/2)
-ctx.fillText(title,h/2,-5)
+ctx.fillStyle = "#000000";
+ctx.save();
+ctx.translate(x+w,y+h);
+ctx.rotate(-Math.PI/2);
+
+if(title)
+	ctx.fillText(title,h/2,-5)
+else if(alt)
+	{
+	var font = ctx.font;
+	ctx.font = "italic "+font;
+	ctx.fillStyle = "#CCCCCC";	
+	ctx.fillText(alt,h/2,-5);
+	ctx.font = font;
+	}
+
 ctx.restore()
 
 ctx.restore();
@@ -21197,7 +21230,7 @@ ctx.restore();
 
 //*********************************************************************
 
-function drawHValue(ctx,x,y,title)
+function drawHValue(ctx,x,y,title,alt)
 {
 var w = SLOTW;
 var h = SLOTH;
@@ -21213,15 +21246,26 @@ pathValue(ctx,x,y,w,h,h/5)
 ctx.fill()
 ctx.stroke()
 
-ctx.fillStyle = "#000000"
-ctx.fillText(title,x+w/2,y+h-5)
+if(title)
+	{
+	ctx.fillStyle = "#000000"
+	ctx.fillText(title,x+w/2,y+h-5)
+	}
+else if(alt)
+	{
+	var font = ctx.font;
+	ctx.font = "italic "+font;
+	ctx.fillStyle = "#CCCCCC";
+	ctx.fillText(alt,x+w/2,y+h-5)
+	ctx.font = font;
+	}
 
 ctx.restore();
 }
 
 //*********************************************************************
 
-function drawHLabel(ctx,x,y,title)
+function drawHLabel(ctx,x,y,title,alt)
 {
 var w = SLOTW;
 var h = SLOTH;
@@ -21244,8 +21288,19 @@ ctx.lineTo(x,y+h/3)
 ctx.fill()
 ctx.stroke()
 
-ctx.fillStyle = "#000000"
-ctx.fillText(title,x+w/2,y+h-5)
+if(title)
+	{
+	ctx.fillStyle = "#000000"
+	ctx.fillText(title,x+w/2,y+h-5)
+	}
+else if(alt)
+	{
+	var font = ctx.font;
+	ctx.font = "italic "+font;
+	ctx.fillStyle = "#CCCCCC";
+	ctx.fillText(alt,x+w/2,y+h-5);
+	ctx.font = font;
+	}
 
 ctx.restore();
 }
@@ -22595,24 +22650,34 @@ else
 
 //*********************************************************************
 
+function getGraphPlaceholder(graph,name)
+{
+return graph.placeholder[name] || "";
+}
+
+//*********************************************************************
+
 function drawGraphSlots(ctx,graph)
 {
 if(GINFO[graph.type].toplabel)
 	{
 	var title = getGraphLabel(graph,"toplabel");
-	drawHLabel(ctx,graph.x+graph.w-SLOTW-graph.topshift,graph.y+graph.hbar+5,title);
+	var alt = graph.placeholder["toplabel"];
+	drawHLabel(ctx,graph.x+graph.w-SLOTW-graph.topshift,graph.y+graph.hbar+5,title,alt);
 	}
 
 if(GINFO[graph.type].leftlabel)
 	{
 	var title = getGraphLabel(graph,"leftlabel");
-	drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.leftshift,title);
+	var alt = graph.placeholder["leftlabel"];
+	drawVLabel(ctx,graph.x+5,graph.y+graph.hbar+graph.leftshift,title,alt);
 	}
 
 if(GINFO[graph.type].bottomlabel)
 	{
 	var title = getGraphLabel(graph,"bottomlabel");
-	drawHLabel(ctx,graph.x+graph.w-SLOTW-graph.bottomshift,graph.y+graph.h-25,title);
+	var alt = graph.placeholder["bottomlabel"];
+	drawHLabel(ctx,graph.x+graph.w-SLOTW-graph.bottomshift,graph.y+graph.h-25,title,alt);
 	}
 
 if(GINFO[graph.type].ilabels)
@@ -22620,27 +22685,32 @@ if(GINFO[graph.type].ilabels)
 	for(var k=0;k<graph.ilabels.length;k++)
 		{
 		var title = labels[graph.ilabels[k]]
-		drawHLabel(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+25*k,title)
+		var alt = graph.placeholder["ilabels"+k];
+		drawHLabel(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+25*k,title,alt);
 		}
-	drawHLabel(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+25*graph.ilabels.length,"")
+	var alt = graph.placeholder["ilabels"+k];
+	drawHLabel(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+25*graph.ilabels.length,"",alt);
 	}
 
 if(GINFO[graph.type].topvalue)
 	{
 	var title = getGraphValue(graph,"topvalue");
-	drawHValue(ctx,graph.x+graph.w-SLOTW-graph.topshift,graph.y+graph.hbar+5,title);
+	var alt = graph.placeholder["topvalue"];
+	drawHValue(ctx,graph.x+graph.w-SLOTW-graph.topshift,graph.y+graph.hbar+5,title,alt);
 	}
 
 if(GINFO[graph.type].leftvalue)
 	{
 	var title = getGraphValue(graph,"leftvalue");
-	drawVValue(ctx,graph.x+5,graph.y+graph.hbar+graph.leftshift,title);
+	var alt = graph.placeholder["leftvalue"];
+	drawVValue(ctx,graph.x+5,graph.y+graph.hbar+graph.leftshift,title,alt);
 	}
 
 if(GINFO[graph.type].bottomvalue)
 	{
 	var title = getGraphValue(graph,"bottomvalue");
-	drawHValue(ctx,graph.x+graph.w-SLOTW-graph.bottomshift,graph.y+graph.h-25,title);
+	var alt = graph.placeholder["bottomvalue"];
+	drawHValue(ctx,graph.x+graph.w-SLOTW-graph.bottomshift,graph.y+graph.h-25,title,alt);
 	}
 
 var dy = SLOTH+5;
@@ -22648,11 +22718,12 @@ if(GINFO[graph.type].ivalues)
 	{
 	for(var k=0;k<graph.ivalues.length;k++)
 		{
-		var title = values[graph.ivalues[k]]
-		drawHValue(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+dy*k,title)
+		var title = values[graph.ivalues[k]]		
+		var alt = graph.placeholder["ivalues"+k];
+		drawHValue(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+dy*k,title,alt);
 		}
-
-	drawHValue(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+dy*graph.ivalues.length,"");
+	var alt = graph.placeholder["ivalues"+k];
+	drawHValue(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+dy*graph.ivalues.length,"",alt);
 	}
 
 if(GINFO[graph.type].jvalues)
@@ -22663,11 +22734,12 @@ if(GINFO[graph.type].jvalues)
 	for(var k=0;k<graph.jvalues.length;k++)
 		{
 		var title = values[graph.jvalues[k]];
-		drawHValue(ctx,graph.x+graph.w-SLOTW-5,y,title);
+		var alt = graph.placeholder["jvalues"+k];
+		drawHValue(ctx,graph.x+graph.w-SLOTW-5,y,title,alt);
 		y += dy;
 		}
-
-	drawHValue(ctx,graph.x+graph.w-SLOTW-5,y,"");
+	var alt = graph.placeholder["jvalues"+k];
+	drawHValue(ctx,graph.x+graph.w-SLOTW-5,y,"",alt);
 	}
 
 }
@@ -23112,7 +23184,7 @@ if((df1%2)==0) {return LJspin(1-x,df2,df1+df2-4,df2-2)*Math.pow(x,df2/2)}
 if((df2%2)==0){return 1-LJspin(x,df1,df1+df2-4,df1-2)*Math.pow(1-x,df1/2)}
 
 var tan = Math.atan(Math.sqrt(df1*f/df2));
-var a = tan*ipj2;
+var a = tan/ipj2;
 var sat = Math.sin(tan);
 var cot=Math.cos(tan);
 if(df2>1) {a=a+sat*cot*LJspin(cot*cot,2,df2-3,-1)*ipj2}
