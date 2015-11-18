@@ -78,6 +78,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Wilk's lambda
 * Lawley-Hotelling trace
 * Pillai trace
+* Two-way anova
 * Non-parametric tests
 * Kolmogorov-Smirnov test
 * Kruskal-Wallis test

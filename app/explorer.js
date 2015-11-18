@@ -223,7 +223,7 @@ _type("G3D","3D plot",{ivalues:1,leftlabel:1});
 var NBTYPE2 = KNUM; 		//  max plot types
 
 _type("DISCRI","Discriminant analysis",{ivalues:1,leftlabel:1,display:3,options:2});
-_type("TEST","Analysis of variance",{ivalues:1,leftlabel:1,menu:"test"});
+_type("TEST","Analysis of variance",{jvalues:1,ilabels:1,menu:"test",options:3});
 _type("NONPARAM","Non parametric tests",{ilabels:1,leftvalue:1,menu:"nonparam",options:2});
 _type("BOX","Box plot",{topvalue:1,leftlabel:1});
 _type("REGRES","Linear regression",{ivalues:1,leftvalue:1,options:2,menu:"regr"});
@@ -258,12 +258,16 @@ _menu("TEST","-","-");
 _menu("TEST","BARTLETT","Bartlett's test");
 _menu("TEST","LEVENE","Levene's test");
 _menu("TEST","BROWN","Brown-Forsythe test");
+_menu("TEST","-","-");
 _menu("TEST","BOXM","Box's M test");
 _menu("TEST","-","-");
 _menu("TEST","LAWLEY","Lawley-Hotelling's trace");
 _menu("TEST","PILLAI","Pillai's trace");
 //_menu("TEST","ROY","Roy's largest root");
 _menu("TEST","WILK","Wilk's lambda");
+_menu("TEST","-","-");
+_menu("TEST","TWO","Two-way ANOVA");
+
 
 _menu("CHI2","PEARSON","Pearson's \u03C72 test");
 _menu("CHI2","YATES","Yates' \u03C72 test");
@@ -639,7 +643,11 @@ this.stickers = [];
 
 this.iunit = 0;
 
-this.placeholder = {};
+this.placeholder = {};	// labelling the slots
+this.limit = {};		// limiting the slots
+this.limit.ivalues = 99;
+this.limit.jvalues = 99;
+this.limit.ilabels = 99;
 }
 
 //*********************************************************************
@@ -1291,11 +1299,18 @@ function inGraphLabeln(pt,graph)
 {
 if(!GINFO[graph.type].ilabels) return false;
 
-for(var k=0;k<=graph.ilabels.length;k++)	
+for(var k=0;k<graph.ilabels.length;k++)	
 	if(inRect(pt,graph.x+graph.w-105,graph.y+graph.hbar+5+25*k,100,20))
 		{
 		destlabelindex = k
 		return true
+		}
+
+if(graph.ilabels.length<graph.limit.ilabels)
+	if(inRect(pt,graph.x+graph.w-105,graph.y+graph.hbar+5+25*k,100,20))
+		{
+		destlabelindex = k;
+		return true;
 		}
 
 return false
@@ -1331,15 +1346,21 @@ function inGraphValuei(pt,graph,full)
 {
 if(!GINFO[graph.type].ivalues) return false;
 
-var n = full ? graph.ivalues.length : graph.ivalues.length-1;
-
-for(var k=0;k<=n;k++)	
+for(var k=0;k<graph.ivalues.length;k++)	
 	if(inRect(pt,graph.x+graph.w-105,graph.y+graph.hbar+5+25*k,100,20))
 		{
-		destvalueindex = k
+		destvalueindex = k;
 		return true;
 		}
 
+if(full)
+	if(graph.ivalues.length<graph.limit.ivalues)
+		if(inRect(pt,graph.x+graph.w-105,graph.y+graph.hbar+5+25*k,100,20))
+			{
+			destvalueindex = k;
+			return true;
+			}
+		
 return false;
 }
 
@@ -1349,21 +1370,30 @@ function inGraphValuej(pt,graph,full)
 {
 if(!GINFO[graph.type].jvalues) return false;
 
-var n = full ? graph.jvalues.length : graph.jvalues.length-1;
 
 var dy = SLOTH+5;
 
-var offset = GINFO[graph.type].ilabels ? dy*graph.ilabels.length :
-			GINFO[graph.type].ivalues ? dy*graph.ivalues.length : 0;
+var y = getListOffset(graph);
 
-var y = graph.y+graph.hbar+5+offset+dy+dy;
-for(var k=0;k<=n;k++)	
-	if(inRect(pt,graph.x+graph.w-105,y+25*k,100,20))
+for(var k=0;k<graph.jvalues.length;k++)	
+	if(inRect(pt,graph.x+graph.w-105,y+dy*k,100,20))
 		{
 		destvalueindex = k;
 		return true;
 		}
 
+if(full)	
+	{
+	if(graph.jvalues.length<graph.limit.jvalues)
+		{
+		if(inRect(pt,graph.x+graph.w-105,y+dy*k,100,20))
+			{
+			destvalueindex = k;
+			return true;
+			}
+		}
+	}
+		
 return false;
 }
 
@@ -5452,7 +5482,6 @@ for(var i=0;i<vrecords.length;i++)
 	done[key] = 1;
 	}
 
-console.log("A");
 
 // check balanced incomplete design
 var sumb = vector(nb);
@@ -5847,11 +5876,7 @@ var option = getGraphOption(graph);
 
 if(graph._z.error)
 	{
-	var xc = graph.x + graph.w/2;
-	var yc = graph.y + graph.h/2;
-	ctx.fillStyle = "#000000";
-	ctx.textAlign = "center";
-	ctx.fillText(graph._z.error,xc,yc);
+	drawGraphError(ctx,graph);
 	return;
 	}
 
@@ -6202,11 +6227,7 @@ if(graph.ivalue1<0) return;
 
 if(graph._z.error)
 	{
-	var xc = graph.x+graph.w/2;
-	var yc = graph.y+graph.h/2;
-	ctx.fillStyle = "#000000";
-	ctx.textAlign = "center";
-	ctx.fillText(graph._z.error,xc,yc);
+	drawGraphError(ctx,graph);
 	return;
 	}
 
@@ -6294,11 +6315,7 @@ if(graph.ivalue1<0) return;
 
 if(graph._z.error)
 	{
-	var xc = graph.x+graph.w/2;
-	var yc = graph.y+graph.h/2;
-	ctx.fillStyle = "#000000";
-	ctx.textAlign = "center";
-	ctx.fillText(graph._z.error,xc,yc);
+	drawGraphError(ctx,graph);
 	return;
 	}
 
@@ -6373,11 +6390,7 @@ if(graph.ivalue1<0) return;
 
 if(graph._z.error)
 	{
-	var xc = graph.x+graph.w/2;
-	var yc = graph.y+graph.h/2;
-	ctx.fillStyle = "#000000";
-	ctx.textAlign = "center";
-	ctx.fillText(graph._z.error,xc,yc);
+	drawGraphError(ctx,graph);
 	return;
 	}
 
@@ -13307,11 +13320,14 @@ for(var j=0;j<graph.ivalues.length;j++)
 	corr[j] = [xcorr,ycorr];
 	}
 
-var GV = computeIntraGroupVariances(graph,0);
+
+var NG = {};
+var VG ={};
+computeIntraGroupVariances(graph,0,VG,NG,graph.ilabel1,graph.ivalues);
 
 var ellipse = {};
-for(var key in GV)
-	ellipse[key] = compute_ellipse(GV[key],u,v);
+for(var key in VG)
+	ellipse[key] = compute_ellipse(VG[key],u,v);
 
 // compute bounds
 var xmin = Number.MAX_VALUE;
@@ -13474,18 +13490,18 @@ return V;
 
 //*********************************************************************
 
-function computeIntraGroupVariances(graph,bias,GV,count)
+function computeIntraGroupVariances(graph,bias,GV,count,ilabel,ivalues)
 {
 GV = GV || {};
 count = count || {};
 var sum = {};
 
-var nv = graph.ivalues.length;
+var nv = ivalues.length;
 
 for(var i=0;i<lrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue
-	var key = lrecords[i][graph.ilabel1];
+	var key = lrecords[i][ilabel];
 
 	if(!(key in count))
 		{
@@ -13498,12 +13514,12 @@ for(var i=0;i<lrecords.length;i++)
 
 	for(var j=0;j<nv;j++)
 		{
-		var xj = vrecords[i][graph.ivalues[j]] 
+		var xj = vrecords[i][ivalues[j]] 
 		sum[key][j] += xj
 
 		for(var k=0;k<nv;k++)
 			{
-			var xk = vrecords[i][graph.ivalues[k]]
+			var xk = vrecords[i][ivalues[k]]
 			GV[key][j][k] += xj*xk;
 			}
 		}	
@@ -13838,7 +13854,8 @@ switch(graph.test)
 	case TEST.F: computeTData(graph); break;
 	case TEST.LAWLEY: computeManovaData(graph); break;
 	case TEST.PILLAI: computeManovaData(graph); break;
-	case TEST.WILK: computeManovaData(graph); break;
+	case TEST.WILK: computeManovaData(graph); break;	
+	case TEST.TWO: computeTwoData(graph); break;
 	}
 }
 
@@ -13863,11 +13880,10 @@ function drawTestIcon(ctx,x,y)
 function drawTestGraph(ctx,graph)
 {
 
-
-if((graph.ivalues.length>0)&&(graph.ilabel1>=0))
+if((graph.jvalues.length>0)&&(graph.ilabels.length>0))
 	switch(graph.test)
 		{
-		case TEST.ANOVA: drawFisherGraph(ctx,graph); break;
+		case TEST.ANOVA: drawAnovaGraph(ctx,graph); break;
 		case TEST.BARTLETT: drawBartlettGraph(ctx,graph); break;
 		case TEST.LEVENE: drawLeveneGraph(ctx,graph); break;
 		case TEST.BROWN: drawLeveneGraph(ctx,graph); break;
@@ -13878,6 +13894,7 @@ if((graph.ivalues.length>0)&&(graph.ilabel1>=0))
 		case TEST.WILK: drawManovaGraph(ctx,graph); break;
 		case TEST.PILLAI: drawManovaGraph(ctx,graph); break;
 		case TEST.LAWLEY: drawManovaGraph(ctx,graph); break;
+		case TEST.TWO: drawTwoGraph(ctx,graph); break;
 		}
 
 
@@ -13887,9 +13904,9 @@ if((graph.ivalues.length>0)&&(graph.ilabel1>=0))
 
 function computeStudentData(graph)
 {
-if(graph.ivalues.length>1) graph.ivalues.splice(1,graph.ivalues.length-1);
-if(graph.ivalues.length<1) return;
-if(graph.ilabel1<0) return;
+if(graph.jvalues.length>1) graph.jvalues.splice(1,graph.jvalues.length-1);
+if(graph.jvalues.length<1) return;
+if(graph.ilabels.length<1) return;
 
 var nr = 0;
 var ng = 0;
@@ -13904,7 +13921,7 @@ for(var i=0;i<vrecords.length;i++)
 
 	nr++;
 	
-	var key = lrecords[i][graph.ilabel1];
+	var key = lrecords[i][graph.ilabels[0]];
 	if(!(key in means))
 		{
 		counts[key] = 0;
@@ -13914,7 +13931,7 @@ for(var i=0;i<vrecords.length;i++)
 		}
 
 	counts[key]++;
-	var x = vrecords[i][graph.ivalues[0]];
+	var x = vrecords[i][graph.jvalues[0]];
 	means[key] += x;
 	variances[key] += x*x;
 	}
@@ -13960,9 +13977,9 @@ graph._z.no = nr;
 
 function computeWelchData(graph)
 {
-if(graph.ivalues.length>1) graph.ivalues.splice(1,graph.ivalues.length-1);
-if(graph.ivalues.length<1) return;
-if(graph.ilabel1<0) return;
+if(graph.jvalues.length>1) graph.jvalues.splice(1,graph.jvalues.length-1);
+if(graph.jvalues.length<1) return;
+if(graph.ilabels.length<1) return;
 
 
 var nr = 0;
@@ -13977,7 +13994,7 @@ for(var i=0;i<vrecords.length;i++)
 
 	nr++;
 	
-	var key = lrecords[i][graph.ilabel1];
+	var key = lrecords[i][graph.ilabels[0]];
 	if(!(key in means))
 		{
 		counts[key] = 0;
@@ -13987,7 +14004,7 @@ for(var i=0;i<vrecords.length;i++)
 		}
 
 	counts[key]++;
-	var x = vrecords[i][graph.ivalues[0]];
+	var x = vrecords[i][graph.jvalues[0]];
 	means[key] += x;
 	variances[key] += x*x;
 	}
@@ -14032,9 +14049,11 @@ graph._z.no = nr;
 
 function computeBartlettData(graph)
 {
-if(graph.ivalues.length>1) graph.ivalues.splice(1,graph.ivalues.length-1);
-if(graph.ivalues.length<1) return;
-if(graph.ilabel1<0) return;
+graph.limit.jvalues = 1;
+graph.limit.ilabels = 1;
+if(graph.jvalues.length>1) graph.jvalues.splice(1,graph.jvalues.length-1);
+if(graph.jvalues.length<1) return;
+if(graph.ilabels.length<1) return;
 
 var stats = {};
 var ng = 0;
@@ -14046,8 +14065,8 @@ for(var i=0;i<vrecords.length;i++)
 
 	nr++;
 	
-	var x = vrecords[i][graph.ivalues[0]];
-	var g = lrecords[i][graph.ilabel1];
+	var g = lrecords[i][graph.ilabels[0]];
+	var x = vrecords[i][graph.jvalues[0]];
 
 	if(!(g in stats))
 		{
@@ -14098,9 +14117,11 @@ graph._z.level = level;
 
 function computeLeveneData(graph)
 {
-if(graph.ivalues.length>1) graph.ivalues.splice(1,graph.ivalues.length-1);
-if(graph.ilabel1<0) return;
-if(graph.ivalues.length<1) return;
+graph.limit.jvalues = 1;
+graph.limit.ilabels = 1
+if(graph.jvalues.length>1) graph.jvalues.splice(1,graph.jvalues.length-1);
+if(graph.jvalues.length<1) return;
+if(graph.ilabels.length<1) return;
 
 var stats = {};
 var ng = 0;
@@ -14111,8 +14132,8 @@ for(var i=0;i<vrecords.length;i++)
 	if(!recordMatch(i,graph)) continue;
 	nr++;
 
-	var x = vrecords[i][graph.ivalues[0]];
-	var g = lrecords[i][graph.ilabel1];
+	var g = lrecords[i][graph.ilabels[0]];
+	var x = vrecords[i][graph.jvalues[0]];
 
 	if(!(g in stats))
 		stats[g] = {zavg:0,median:0,values:[]};			
@@ -14149,8 +14170,8 @@ for(var i=0;i<vrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;
 	
-	var g = lrecords[i][graph.ilabel1];
-	var z = Math.abs(vrecords[i][graph.ivalues[0]]-stats[g].median);
+	var g = lrecords[i][graph.ilabels[0]];
+	var z = Math.abs(vrecords[i][graph.jvalues[0]]-stats[g].median);
 	stats[g].zavg += z;	
 	zavg += z;
 	}
@@ -14168,8 +14189,8 @@ for(var i=0;i<vrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;
 
-	var g = lrecords[i][graph.ilabel1];
-	var z = Math.abs(vrecords[i][graph.ivalues[0]]-stats[g].median);
+	var g = lrecords[i][graph.ilabels[0]];
+	var z = Math.abs(vrecords[i][graph.jvalues[0]]-stats[g].median);
 
 	sum2 += (z-stats[g].zavg)*(z-stats[g].zavg);
 	}
@@ -14186,9 +14207,12 @@ graph._z.w = w;
 
 function computeAnovaData(graph)
 {
-if(graph.ivalues.length>1) graph.ivalues.splice(1,graph.ivalues.length-1);
-if(graph.ivalues.length<1) return;
-if(graph.ilabel1<0) return;
+graph.limit.jvalues = 1;
+graph.limit.ilabels = 1;
+if(graph.ilabels.length>1) graph.ilabels.splice(1,graph.ilabels.length-1);
+if(graph.jvalues.length>1) graph.jvalues.splice(1,graph.jvalues.length-1);
+if(graph.ilabels.length<1) return;
+if(graph.jvalues.length<1) return;
 
 var sums = {}
 var counts = {}
@@ -14205,14 +14229,14 @@ for(var i=0;i<lrecords.length;i++)
 
 	no++;
 
-	var key1 = lrecords[i][graph.ilabel1]	
+	var key1 = lrecords[i][graph.ilabels[0]];
 	if(!(key1 in sums))
 		{
 		ng++;
 		counts[key1] = sums[key1] = sums2[key1] = 0
 		}
 	
-	var x = vrecords[i][graph.ivalues[0]];
+	var x = vrecords[i][graph.jvalues[0]];
 
 	counts[key1] += 1;
 	sums[key1] += x;
@@ -14222,15 +14246,18 @@ for(var i=0;i<lrecords.length;i++)
 	gsum2 += x*x;
 	}
 
+
 // inter-class and intra-class variance
-var vinter = 0
-var vintra = 0
+var vinter = 0;
+var vintra = 0;
 for(var x in sums)
 	{
 	var dif = sums[x]/counts[x] - gsum/gcount
 	vinter += counts[x]*dif*dif
 	vintra += sums2[x] - sums[x]*sums[x]/counts[x]
 	}
+
+var vtotal = gsum2-gsum*gsum/gcount;
 
 // degrees of freedom
 var ninter = -1
@@ -14240,6 +14267,7 @@ for(var x in sums)
 	ninter += 1
 	nintra += counts[x]-1
 	}
+
 
 var F = (vinter/ninter)/(vintra/nintra)	
 var pvalue = Fspin(F,ninter,nintra)	
@@ -14262,6 +14290,7 @@ graph._z.gsum2 = gsum2;
 graph._z.counts = counts;
 graph._z.sums = sums;
 graph._z.sums2 = sums2;
+graph._z.vtotal = vtotal;
 graph._z.vinter = vinter;
 graph._z.vintra = vintra;
 graph._z.ninter = graph._z.dof1 = ninter;
@@ -14281,15 +14310,17 @@ graph._z.no = nintra+ninter+1;
 
 function computeBoxmData(graph)
 {
-if(graph.ilabel1<0) return;
-if(graph.ivalues.length<1) return;
+graph.limit.ilabels = 1;
+if(graph.ilabels.length<1) return;
+if(graph.ilabels.length>1) graph.ilabels.splice(1,graph.ilabels.length-1);
+if(graph.jvalues.length<1) return;
 
-var nv = graph.ivalues.length;
+var nv = graph.jvalues.length;
 
 var VG = {};
 var NG = {};
 
-computeIntraGroupVariances(graph,1,VG,NG);
+computeIntraGroupVariances(graph,1,VG,NG,graph.ilabels[0],graph.jvalues);
 
 var s = 0;
 var nr = 0;
@@ -14306,10 +14337,17 @@ for(var key in NG)
 	{
 	if(NG[key]==1)
 		{
-		graph._z.onlyone = 1;
+		graph._z.error = "Only one observation in group "+key;
 		return;
 		}
 	}
+
+if(ng<2)
+	{
+	graph._z.error = "Less than two categories";
+	return;
+	}
+
 
 // pooled covariance
 var V = matrix(nv,nv);
@@ -14380,16 +14418,18 @@ graph._z.max = max;
 
 function computeHotellingData(graph)
 {
-if(graph.ilabel1<0) return;
-if(graph.ivalues.length<1) return;
+graph.limit.ilabels = 1;
+if(graph.ilabels.length>1) graph.ilabels.splice(1,graph.ilabels.length-1);
+if(graph.ilabels.length<1) return;
+if(graph.jvalues.length<1) return;
 
 
-var nv = graph.ivalues.length;
+var nv = graph.jvalues.length;
 
 var VG = {};
 var NG = {};
 
-computeIntraGroupVariances(graph,1,VG,NG);
+computeIntraGroupVariances(graph,1,VG,NG,graph.ilabels[0],graph.jvalues);
 
 var nr = 0;
 var ng = 0;
@@ -14419,11 +14459,11 @@ var means = {};
 for(var i=0;i<vrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;	
-	var key = lrecords[i][graph.ilabel1];
+	var key = lrecords[i][graph.ilabels[0]];
 	if(!(key in means)) means[key] = vector(nv);
 	
 	for(var j=0;j<nv;j++)
-		means[key][j] += vrecords[i][graph.ivalues[j]];
+		means[key][j] += vrecords[i][graph.jvalues[j]];
 	}
 
 for(var key in means)
@@ -14490,10 +14530,16 @@ else
 
 function computeManovaData(graph)
 {
-if(graph.ilabel1<0) return;
-if(graph.ivalues.length<2) return;
+graph.limit.ilabels = 1;
+if(graph.ilabels.length>1) graph.ilabels.splice(1,graph.ilabels.length-1);
+if(graph.ilabels.length<1) return;
+if(graph.jvalues.length<2) 
+	{
+	graph._z.error = "Less than two variables";
+	return;
+	}
 
-var nv = graph.ivalues.length;
+var nv = graph.jvalues.length;
 
 var H = matrix(nv,nv);
 var E = matrix(nv,nv);
@@ -14602,7 +14648,7 @@ graph._z.rmax = max;
 
 function computeMatrices(graph,H,E)
 {
-var nv = graph.ivalues.length;
+var nv = graph.jvalues.length;
 
 var gcount = 0;
 var gsum = vector(nv);
@@ -14617,7 +14663,7 @@ for(var i=0;i<vrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;
 	nr++;
-	var key =lrecords[i][graph.ilabel1];
+	var key =lrecords[i][graph.ilabels[0]];
 	if(!(key in sum))
 		{
 		ng++;
@@ -14626,11 +14672,11 @@ for(var i=0;i<vrecords.length;i++)
 		}
 	count[key]++;
 	for(var j=0;j<nv;j++)
-		sum[key][j] += vrecords[i][graph.ivalues[j]];
+		sum[key][j] += vrecords[i][graph.jvalues[j]];
 	
 	gcount++;
 	for(var j=0;j<nv;j++)
-		gsum[j] += vrecords[i][graph.ivalues[j]];
+		gsum[j] += vrecords[i][graph.jvalues[j]];
 	}
 
 
@@ -14649,14 +14695,14 @@ for(var key in sum)
 for(var i=0;i<vrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;
-	var key =lrecords[i][graph.ilabel1];
+	var key =lrecords[i][graph.ilabels[0]];
 
 	for(var j=0;j<nv;j++)
 		{
-		var xj = vrecords[i][graph.ivalues[j]];
+		var xj = vrecords[i][graph.jvalues[j]];
 		for(var k=0;k<nv;k++)
 			{
-			var xk = vrecords[i][graph.ivalues[k]];
+			var xk = vrecords[i][graph.jvalues[k]];
 			E[j][k] += (xj-sum[key][j])*(xk-sum[key][k]);
 			}
 		}
@@ -14667,8 +14713,216 @@ return [nr,ng];
 
 //*********************************************************************
 
+function computeTwoData(graph)
+{
+graph.placeholder.ilabels0 = "ROWS";
+graph.placeholder.ilabels1 = "COLUMNS";
+
+graph.limit.ilabels = 2;
+if(graph.ilabels.length>2) graph.ilables.splice(2,graph.ilabels.length-2);
+if(graph.ilabels.length<1) return;
+
+graph.limit.jvalues = 1;
+if(graph.jvalues.length<1) return;
+if(graph.jvalues.length<1) graph.jvalues.splice(1,graph.jvalues.length-1);
+
+
+var ng1 = 0;
+var ng2 = 0;
+
+var keys1 = {};
+var keys2 = {};
+
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+
+	var key1 = lrecords[i][graph.ilabels[0]];
+	var key2 = lrecords[i][graph.ilabels[1]];
+
+	if(!(key1 in keys1))
+		keys1[key1] = ng1++;
+
+	if(!(key2 in keys2))
+		keys2[key2] = ng2++;
+	}
+
+
+if(ng1<2)
+	{
+	graph._z.error = "Less than 2 categories in "+labels[graph.ilabels[0]];
+	return;
+	}
+
+if(ng2<2)
+	{
+	graph._z.error = "Less than 2 categories in "+labels[graph.ilabels[1]];
+	return;	
+	}
+
+var names1 = new Array(ng1);
+var names2 = new Array(ng2);
+
+for(var key in keys1)
+	names1[keys1[key]] = key;
+
+for(var key in keys2)
+	names2[keys2[key]] = key;
+
+
+var count = 0;
+var sum = 0;
+
+var count1 = vector(ng1);
+var sum1 = vector(ng1);
+
+var count2 = vector(ng2);
+var sum2 = vector(ng2);
+
+var count12 = matrix(ng1,ng2);
+var sum12 = matrix(ng1,ng2);
+var car12 = matrix(ng1,ng2);
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+
+	var i1 = keys1[lrecords[i][graph.ilabels[0]]];
+	var i2 = keys2[lrecords[i][graph.ilabels[1]]];
+
+	var v = vrecords[i][graph.jvalues[0]];
+
+	count ++;
+	sum += v;
+
+	count1[i1]++;
+	sum1[i1] += v;	
+
+	count2[i2]++;
+	sum2[i2] += v;
+
+	count12[i1][i2]++;	
+	sum12[i1][i2] += v;
+	car12[i1][i2] += v*v;
+	}
+
+console.log(count12);
+
+for(var i1=0;i1<ng1;i1++)	
+	for(var i2=0;i2<ng2;i2++)
+		if(count12[i1][i2]!=count12[0][0])		
+			{
+			graph._z.error = "Different sample sizes";
+			return;
+			}
+
+var m = count12[0][0];
+
+sum /= count;
+
+for(var i1=0;i1<ng1;i1++)
+	sum1[i1] /= count1[i1];
+
+for(var i2=0;i2<ng2;i2++)
+	sum2[i2] /= count2[i2];
+
+
+for(var i1=0;i1<ng1;i1++)
+	for(var i2=0;i2<ng2;i2++)
+		sum12[i1][i2] /= m;
+
+
+var ssi = 0;
+for(var i1=0;i1<ng1;i1++)
+	for(var i2=0;i2<ng2;i2++)
+		ssi += (sum12[i1][i2]-sum1[i1]-sum2[i2]+sum)*
+				(sum12[i1][i2]-sum1[i1]-sum2[i2]+sum);
+ssi *= m;
+
+var ssw = 0;
+for(var i1=0;i1<ng1;i1++)
+	for(var i2=0;i2<ng2;i2++)
+		{
+		ssw += car12[i1][i2];
+		ssw -= sum12[i1][i2]*sum12[i1][i2]*m;
+		}
+
+var ssa = 0;
+for(var i1=0;i1<ng1;i1++)
+	ssa += (sum1[i1]-sum)*(sum1[i1]-sum);
+ssa *= m*ng2;
+
+var ssb = 0;
+for(var i2=0;i2<ng2;i2++)
+	ssb += (sum2[i2]-sum)*(sum2[i2]-sum);
+ssb *= m*ng1;
+
+graph._z.m = m;
+graph._z.ng1 = ng1;
+graph._z.ng2 = ng2;
+
+graph._z.names1 = names1;
+graph._z.names2 = names2;
+
+graph._z.table = sum12;
+
+graph._z.ssa = ssa;
+graph._z.ssb = ssb;
+graph._z.ssi = ssi;
+graph._z.ssw = ssw;
+
+graph._z.dfa = ng1-1;
+graph._z.dfb = ng2-1;
+graph._z.dfi = (ng1-1)*(ng2-1);
+graph._z.dfw = count-ng1*ng2;
+
+graph._z.msa = graph._z.ssa/graph._z.dfa;
+graph._z.msb = graph._z.ssb/graph._z.dfb;
+graph._z.msi = graph._z.ssi/graph._z.dfi;
+graph._z.msw = graph._z.ssw/graph._z.dfw;
+
+if(m>1)
+	{
+	graph._z.fa = graph._z.msa/graph._z.msw;
+	graph._z.fb = graph._z.msb/graph._z.msw;
+	graph._z.fi = graph._z.msi/graph._z.msw;
+
+	graph._z.cva = Finv(0.001,1000,0.05,graph._z.dfa,graph._z.dfw);
+	graph._z.cvb = Finv(0.001,1000,0.05,graph._z.dfb,graph._z.dfw);
+	graph._z.cvi = Finv(0.001,1000,0.05,graph._z.dfi,graph._z.dfw);
+
+	graph._z.pvaluea = Fspin(graph._z.fa,graph._z.dfa,graph._z.dfw);
+	graph._z.pvalueb = Fspin(graph._z.fb,graph._z.dfb,graph._z.dfw);
+	graph._z.pvaluei = Fspin(graph._z.fi,graph._z.dfi,graph._z.dfw);
+	}
+else
+	{
+	graph._z.fa = graph._z.msa/graph._z.msi;
+	graph._z.fb = graph._z.msb/graph._z.msi;
+
+	graph._z.cva = Finv(0.001,1000,0.05,graph._z.dfa,graph._z.dfi);
+	graph._z.cvb = Finv(0.001,1000,0.05,graph._z.dfb,graph._z.dfi);
+
+	graph._z.pvaluea = Fspin(graph._z.fa,graph._z.dfa,graph._z.dfi);
+	graph._z.pvalueb = Fspin(graph._z.fb,graph._z.dfb,graph._z.dfi);
+	}
+
+
+console.log(graph._z);
+
+}
+
+//*********************************************************************
+
 function drawManovaGraph(ctx,graph)
 {
+if(graph._z.error)
+	{
+	drawGraphError(ctx,graph);
+	return;
+	}
+
 var level = graph._z.level;
 var ng = graph._z.ng;
 var no = graph._z.no;
@@ -14802,7 +15056,7 @@ drawFisherCurve(ctx,graph,y,dof1,dof2,0,max,F,"F",cv);
 
 //*********************************************************************
 
-function drawFisherGraph(ctx,graph)
+function drawAnovaGraph(ctx,graph)
 {
 var F = graph._z.f;
 var pvalue = graph._z.pvalue;
@@ -14821,53 +15075,86 @@ ctx.lineWidth = 1
 var y = graph.y+graph.hbar+80;
 
 
+ctx.textAlign = "left";
 ctx.fillText("Number of groups",graph.x+40,y);
+ctx.textAlign = "right";
 ctx.fillText(""+ng,graph.x+240,y);
 
 y += 20;
+ctx.textAlign = "left";
 ctx.fillText("Number of observations", graph.x+40,y);
+ctx.textAlign = "right";
 ctx.fillText(""+no, graph.x+240,y);
 
+y += 40;
+ctx.textAlign = "right";
+ctx.fillText("SS",graph.x+240,y);
+ctx.fillText("DF",graph.x+290,y);
+ctx.fillText("MS",graph.x+380,y);
+
 y += 20;
+ctx.textAlign = "left";
+ctx.fillText("Treatment",graph.x+40,y);
+ctx.textAlign = "right";
+var z = Math.round(graph._z.vinter*10000)/10000;
+ctx.fillText(""+z,graph.x+240,y);
+ctx.fillText(""+graph._z.ninter,graph.x+290,y);
+z = Math.round((graph._z.vinter/graph._z.ninter)*10000)/10000;
+ctx.fillText(""+z,graph.x+380,y);
+
+y += 20;
+ctx.textAlign = "left";
+ctx.fillText("Error",graph.x+40,y);
+ctx.textAlign = "right";
+z = Math.round(graph._z.vintra*10000)/10000;
+ctx.fillText(""+z,graph.x+240,y);
+ctx.fillText(""+graph._z.nintra,graph.x+290,y);
+z = Math.round((graph._z.vintra/graph._z.nintra)*10000)/10000;
+ctx.fillText(""+z,graph.x+380,y);
+
+y += 20;
+ctx.textAlign = "left";
+ctx.fillText("Total",graph.x+40,y);
+ctx.textAlign = "right";
+z = Math.round(graph._z.vtotal*10000)/10000;
+ctx.fillText(""+z,graph.x+240,y);
+
+
+y += 40;
+ctx.textAlign = "left";
 ctx.fillText("Degrees of freedom",graph.x+40,y);
+ctx.textAlign = "right";
 ctx.fillText(graph._z.dof1+","+graph._z.dof2,graph.x+240,y)
 
 y += 20;	
+ctx.textAlign = "left";
 cv = Math.round(cv*10000)/10000;
 ctx.fillText("Critical value C", graph.x+40,y);
+ctx.textAlign = "right";
 ctx.fillText(""+cv,graph.x+240,y);
-ctx.fillText("(\u03B1="+level+")",graph.x+360,y);
+ctx.fillText("(\u03B1="+level+")",graph.x+380,y);
 
 y += 20;
+ctx.textAlign = "left";
 F = Math.round(F*10000)/10000;
 pvalue = Math.round(pvalue*10000)/10000;
 ctx.fillText("Test statistic F",graph.x+40,y);
+ctx.textAlign = "right";
 ctx.fillText(""+F,graph.x+240,y);
-ctx.fillText("(pvalue="+pvalue+")",graph.x+360,y);
+ctx.fillText("(pvalue="+pvalue+")",graph.x+380,y);
 
 y += 30;
+ctx.textAlign = "left";
 ctx.fillStyle= "#FF0000";
 if(pvalue<0.05)
 	{
-	ctx.fillText("At least one mean is different from the others",
-		graph.x+40,y);
-
-	/*
-	multiText(ctx,["#000000",labels[graph.ilabel1],
-		"#FF0000"," has influence on ",
-		"#000000",values[graph.ivalues[0]]],graph.x+40,y+20);
-	*/
+	multiText(ctx,["#000000","F > C : the means ",
+		"#FF0000","are not equal"],graph.x+40,y);
 	}
 else
 	{
-	ctx.fillText("All the means are equals",
-		graph.x+40,y);
-
-	/*
-	multiText(ctx,["#000000",labels[graph.ilabel1],
-		"#FF0000"," has no influence on ",
-		"#000000",values[graph.ivalues[0]]],graph.x+40,y+20);
-	*/
+	multiText(ctx,["#000000","F < C : the means ",
+		"#FF0000","are equals"],graph.x+40,y);
 	}
 
 
@@ -14875,6 +15162,243 @@ y += 20;
 ctx.fillStyle = "#000000";
 
 drawFisherCurve(ctx,graph,y,graph._z.dof1,graph._z.dof2,0,max,F,"F",cv);
+
+}
+
+//*********************************************************************
+
+function drawTwoGraph(ctx,graph)
+{
+if(graph.ilabels.length<2) return;
+if(graph.jvalues.length<1) return;
+
+if(graph._z.error)
+	{
+	drawGraphError(ctx,graph);
+	return;
+	}
+
+var option = getGraphOption(graph);
+
+if(option==0)
+	drawTwoResults(ctx,graph);
+else 
+	drawTwoCurves(ctx,graph);
+}
+
+//*********************************************************************
+
+function drawTwoResults(ctx,graph)
+{
+
+var x = graph.x+40;
+var y = graph.y + graph.hbar + 50;
+
+ctx.fillStyle = "#000000";
+
+ctx.textAlign = "left";
+ctx.fillText("Sample size",x,y);
+ctx.textAlign = "right";
+ctx.fillText(""+graph._z.m,x+200,y);
+ctx.textAlign= "left";
+if(graph._z.m>1)
+	ctx.fillText("(with replication)",x+210,y);
+else
+	ctx.fillText("(without replication)",x+210,y);
+
+y += 20;
+ctx.fillText(labels[graph.ilabels[0]],x,y);
+ctx.textAlign = "right";
+ctx.fillText(""+graph._z.ng1,x+200,y);
+ctx.textAlign = "left";
+ctx.fillText("groups",x+210,y);
+
+y += 20;
+ctx.fillText(labels[graph.ilabels[1]],x,y);
+ctx.textAlign = "right";
+ctx.fillText(""+graph._z.ng2,x+200,y);
+ctx.textAlign = "left";
+ctx.fillText("groups",x+210,y);
+
+y += 40;
+
+ctx.textAlign = "left";
+ctx.fillText("Source",x,y);
+
+ctx.textAlign = "right";
+ctx.fillText("SS",x+200,y);
+ctx.fillText("DF",x+230,y);
+ctx.fillText("MS",x+310,y);
+ctx.fillText("F",x+380,y);
+ctx.fillText("pvalue",x+460,y);
+ctx.fillText("Crit. Val.",x+520,y);
+
+ctx.fillRect(x,y+10,520,1);
+
+y += 30;
+
+ctx.textAlign = "left";
+ctx.fillText(labels[graph.ilabels[0]],x,y);
+ctx.textAlign = "right";
+ctx.fillText(""+round(graph._z.ssa),x+200,y);
+ctx.fillText(""+graph._z.dfa,x+230,y);
+ctx.fillText(""+round(graph._z.msa),x+310,y);
+ctx.fillText(""+round(graph._z.fa),x+380,y);
+ctx.fillText(""+round(graph._z.pvaluea),x+460,y);
+ctx.fillText(""+round(graph._z.cva),x+520,y);
+if(graph._z.fa>graph._z.cva)
+	{
+	ctx.textAlign = "left";
+	ctx.fillStyle = "#FF0000";
+	ctx.fillText("F > C",x+540,y);
+	ctx.fillStyle = "#000000";
+	}
+
+y += 20;
+ctx.textAlign = "left";
+ctx.fillText(labels[graph.ilabels[1]],x,y);
+ctx.textAlign = "right";
+ctx.fillText(""+round(graph._z.ssb),x+200,y);
+ctx.fillText(""+graph._z.dfb,x+230,y);
+ctx.fillText(""+round(graph._z.msb),x+310,y);
+ctx.fillText(""+round(graph._z.fb),x+380,y);
+ctx.fillText(""+round(graph._z.pvalueb),x+460,y);
+ctx.fillText(""+round(graph._z.cvb),x+520,y);
+if(graph._z.fb>graph._z.cvb)
+	{
+	ctx.textAlign = "left";
+	ctx.fillStyle = "#FF0000";
+	ctx.fillText("F > C",x+540,y);
+	ctx.fillStyle = "#000000";
+	}
+
+y += 20;
+
+if(graph._z.m>1)
+	{
+	ctx.textAlign = "left";
+	ctx.fillText("Interaction",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+round(graph._z.ssi),x+200,y);
+	ctx.fillText(""+graph._z.dfi,x+230,y);
+	ctx.fillText(""+round(graph._z.msi),x+310,y);
+	ctx.fillText(""+round(graph._z.fi),x+380,y);
+	ctx.fillText(""+round(graph._z.pvaluei),x+460,y);
+	ctx.fillText(""+round(graph._z.cvi),x+520,y);
+	if(graph._z.fi>graph._z.cvi)
+		{
+		ctx.textAlign = "left";
+		ctx.fillStyle = "#FF0000";
+		ctx.fillText("F > C",x+540,y);
+		ctx.fillStyle = "#000000";
+		}
+
+	y += 20;
+	ctx.textAlign = "left";
+	ctx.fillText("Within",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+round(graph._z.ssw),x+200,y);
+	ctx.fillText(""+graph._z.dfw,x+230,y);
+	ctx.fillText(""+round(graph._z.msw),x+310,y);
+	}
+else
+	{
+	ctx.textAlign = "left";
+	ctx.fillText("Error",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+round(graph._z.ssi),x+200,y);
+	ctx.fillText(""+graph._z.dfi,x+230,y);
+	ctx.fillText(""+round(graph._z.msi),x+310,y);
+	}
+
+	function round(x) { return Math.round(x*10000)/10000; }
+}
+
+//*********************************************************************
+
+function drawTwoCurves(ctx,graph)
+{
+var option = getGraphOption(graph);
+
+var xleft = graph.x + 30;
+var xright = graph.x + graph.w -110;
+var ytop = graph.y + graph.hbar +30
+var ybottom = graph.y + graph.h -10;
+
+var ng1 = graph._z.ng1;
+var ng2 = graph._z.ng2;
+var table = graph._z.table;
+
+var min = Number.MAX_VALUE;
+var max = -Number.MAX_VALUE;
+for(var i1=0;i1<ng1;i1++)	
+	for(var i2=0;i2<ng2;i2++)
+		{
+		if(table[i1][i2]<min) min = table[i1][i2];
+		if(table[i1][i2]>max) max = table[i1][i2];
+		}
+
+var step = Math.pow(10,Math.floor(Math.log(max-min)/Math.log(10)));
+
+ctx.strokeStyle = "#000000";
+ctx.strokeRect(xleft,ytop,xright-xleft,ybottom-ytop);
+ctx.textAlign = "center";
+
+ctx.fillStyle = dotted;
+var z = Math.floor(min/step)*step;
+
+for(var k=z;k<max;k+=step)
+	{
+	if(k<=min) continue;
+	var y = ybottom -(ybottom-ytop)*(k-min)/(max-min);
+	ctx.fillRect(xleft,y,xright-xleft,1);			
+	}
+
+
+ctx.lineWidth = 2;
+
+if(option==1)
+	{
+	for(var i1=0;i1<ng1;i1++)		
+		{
+		ctx.fillStyle = ctx.strokeStyle = getColor(graph.hue+i1*1.0/ng1,1,1);
+		ctx.beginPath();
+		for(var i2=0;i2<ng2;i2++)
+			{
+			var x = xleft+(xright-xleft)*i2/(ng2-1);
+			var y = ybottom - (ybottom-ytop)*(table[i1][i2]-min)/(max-min);
+			if(i2==0)
+				ctx.moveTo(x,y);
+			else
+				ctx.lineTo(x,y);
+			}
+		ctx.stroke();
+		ctx.fillText(graph._z.names1[i1],(xright+graph.x+graph.w)/2,ybottom-20*i1);
+		}
+	}
+
+
+if(option==2)
+	{
+	for(var i2=0;i2<ng2;i2++)
+		{
+		ctx.fillStyle = ctx.strokeStyle = getColor(graph.hue+i2*1.0/ng2,1,1);
+		ctx.beginPath();
+		for(var i1=0;i1<ng1;i1++)
+			{
+			var x = xleft+(xright-xleft)*i1/(ng1-1);
+			var y = ybottom - (ybottom-ytop)*(table[i1][i2]-min)/(max-min);
+			if(i1==0)			
+				ctx.moveTo(x,y);
+			else
+				ctx.lineTo(x,y);	
+			}
+		ctx.stroke();
+		ctx.fillText(graph._z.names2[i2],(xright+graph.x+graph.w)/2,ybottom-20*i2);
+		}	
+	}
+
+ctx.lineWidth = 1;
 
 }
 
@@ -15019,24 +15543,14 @@ if(isNaN(t))
 	}
 else if(graph._z.t>graph._z.cv)
 	{
-	ctx.fillText("At least one variance is different from the others",
-		graph.x+40,y);
-	/*
-	multiText(ctx,["#000000",labels[graph.ilabel1],	
-		"#FF0000"," has influence on ",
-		"#000000",values[graph.ivalues[0]]],graph.x+40,y+20);
-	*/
+	multiText(ctx,["#000000","T > C : variances ",
+		"#FF0000","are not equals"],graph.x+40,y);
 	y += 20;
 	}
 else	
 	{
-	ctx.fillText("All the variances are equal",
-		graph.x+40,y);
-	/*
-	multiText(ctx,["#000000",labels[graph.ilabel1],
-		"#FF0000"," has no influence on ",
-		"#000000",values[graph.ivalues[0]]],graph.x+40,y+20);
-	*/
+	multiText(ctx,["#000000","T < C : variances ",
+		"#FF0000","are equals"],graph.x+40,y);
 	y += 20;
 	}
 
@@ -15190,24 +15704,14 @@ function drawLeveneGraph(ctx,graph)
 	ctx.fillStyle= "#FF0000";
 	if(pvalue<0.05)
 		{
-		ctx.fillText("At least one variance is different from the others",
-			graph.x+40,y);	
-		/*
-		multiText(ctx,["#000000",labels[graph.ilabel1],
-			"#FF0000"," has influence on ",
-			"#000000",values[graph.ivalues[0]]],graph.x+40,y+20);	
-		*/
+		multiText(ctx,["#000000","W > C : variances ",
+			"#FF0000","are not equal"],graph.x+40,y);
 		y += 20;
 		}
 	else
 		{
-		ctx.fillText("All the variances are equals",
-			graph.x+40,y);
-		/*
-		multiText(ctx,["#000000",labels[graph.ilabel1],
-			"#FF0000"," has no influence on ",
-			"#000000",values[graph.ivalues[0]]],graph.x+40,y+20);
-		*/
+		multiText(ctx,["#000000","W < C : variances ",
+			"#FFFFFF","are equal"],graph.x+40,y);
 		y += 20;
 		}
 
@@ -15291,28 +15795,11 @@ function drawBoxmGraph(ctx,graph)
 {
 var x = graph.x+graph.w/2;
 var y = graph.y+graph.h/2;
-if(graph._z.ng<2)
+if(graph._z.error)	
 	{
-	ctx.textAlign = "center";
-	ctx.fillStyle = "#000000";
-	ctx.fillText("Less than two categories",x,y);
+	drawGraphError(ctx,graph);
 	return;
 	}
-if(graph._z.nv<2)
-	{
-	ctx.textAlign = "center";
-	ctx.fillStyle = "#000000";
-	ctx.fillText("Less than two variables",x,y);
-	return;
-	}
-if(graph._z.onlyone)
-	{	
-	ctx.textAlign = "center";
-	ctx.fillStyle = "#000000";
-	ctx.fillText("One category with only one observation",x,y);
-	return;
-	}
-
 
 ctx.fillStyle = "#000000";
 ctx.strokeStyle = "#000000";
@@ -15349,24 +15836,14 @@ y += 30;
 ctx.fillStyle= "#FF0000";
 if(pvalue<0.001)
 	{
-	ctx.fillText("At least one covariance is different from the others",
-		graph.x+40,y);
-	/*
-	multiText(ctx,["#000000",labels[graph.ilabel1],
-		"#FF0000"," has influence ",
-		"#000000"," on the attributes"],graph.x+40,y+20);
-	*/
+	multiText(ctx,["#000000","F > C : covariances ",
+		"#FF0000","are not equal"],graph.x+40,y);
 	y += 20;
 	}
 else
 	{
-	ctx.fillText("All the covariances  are equals",
-		graph.x+40,y);
-	/*
-	multiText(ctx,["#000000",labels[graph.ilabel1],
-		"#FF0000"," has no influence",
-		"#000000"," on the attributes"],graph.x+40,y+20);
-	*/
+	multiText(ctx,["#000000","F < C : covariances ",
+		"#FF0000","are equal"],graph.x+40,y);
 	y += 20;
 	}
 
@@ -15612,6 +16089,7 @@ if(ng<2)
 	{
 	var x = graph.x+graph.w/2;
 	var y = graph.y+graph.h/2;
+	ctx.textAlign = "center";
 	ctx.fillText("Less than two categories",x,y);
 	return;
 	}
@@ -15619,6 +16097,7 @@ if(ng>2)
 	{
 	var x = graph.x+graph.w/2;
 	var y = graph.y+graph.h/2;
+	ctx.textAlign = "center";
 	ctx.fillText("More than two categories",x,y);
 	return;
 	}
@@ -15720,56 +16199,80 @@ else
 
 function buildTestTable(graph)
 {
+if(graph.ilabels.length<1) return;
+if(graph.jvalues.length<1) return;
+
 switch(graph.test)
 	{
-	/*
-	case TEST.FISHER: buildFisherTable(graph); break;
-	case TEST.BARTLETT : buildBartlettTable(graph); break;
-	case TEST.LEVENE: buildLeveneTable(graph); break;
-	case TEST.BROWN: buildLeveneTable(graph); break;
-	case TEST.BOXM: buildBoxmTable(graph); break;
-	*/
+	case TEST.ANOVA: buildAnovaTable(graph); break;
+/*
+	case TEST.BARTLETT: drawBartlettGraph(ctx,graph); break;
+	case TEST.LEVENE: drawLeveneGraph(ctx,graph); break;
+	case TEST.BROWN: drawLeveneGraph(ctx,graph); break;
+	case TEST.BOXM: drawBoxmGraph(ctx,graph); break;
+	case TEST.WELCH: drawTGraph(ctx,graph,false); break;
+	case TEST.STUDENT: drawTGraph(ctx,graph,true); break;
+	case TEST.HOTELLING:  drawHotellingGraph(ctx,graph); break;
+	case TEST.WILK: drawManovaGraph(ctx,graph); break;
+	case TEST.PILLAI: drawManovaGraph(ctx,graph); break;
+	case TEST.LAWLEY: drawManovaGraph(ctx,graph); break;
+*/
 	}
+
 }
 
 //*********************************************************************
 
-function buildFisherTable(graph)
+function buildAnovaTable(graph)
 {
-setTableName("Fisher test");
+
+setTableName("ANOVA "+labels[graph.ilabels[0]]+" - "+values[graph.jvalues[0]]);
 
 var row = 1;
-table(row,1,"Fisher test");
 
-var ng = graph._z.ninter+1;
-row++;
 table(row,1,"Number of groups");
-table(row,2,ng);
+table(row,2,graph._z.ng);
 
-var no = graph._z.nintra+ng;
 row++;
 table(row,1,"Number of observations");
-table(row,2,no);
+table(row,2,graph._z.no);
 
-var dof = graph._z.ninter+","+graph._z.nintra;
+row++;
+table(row,2,"SS");
+table(row,3,"DF");
+table(row,4,"MS");
+
+row++;
+table(row,1,"Treatment");
+table(row,2,Math.round(graph._z.vinter*10000)/10000);
+table(row,3,graph._z.ninter);
+table(row,4,Math.round((graph._z.vinter/graph._z.ninter)*10000)/10000);
+
+row++;
+table(row,1,"Error");
+table(row,2,Math.round(graph._z.vintra*10000)/10000);
+table(row,3,graph._z.nintra);
+table(row,4,Math.round((graph._z.vintra/graph._z.nintra)*10000)/10000);
+
+row++;
+table(row,1,"Total");
+table(row,2,Math.round(graph._z.vtotal*10000)/10000);
+
+row++;
 row++;
 table(row,1,"Degrees of freedom");
-table(row,2,dof);
+table(row,2,graph._z.dof1);
+table(row,3,graph._z.dof2);
 
-var level = graph._z.level;
-var cv = graph._z.cv;
 row++;
-table(row,1,"Critical value");
-table(row,2,Math.round(cv*10000)/10000);
-table(row,3,"(\u03B1="+level+")");
+table(row,1,"Critical value C");
+table(row,2,Math.round(graph._z.cv*10000)/10000);
+table(row,3,"(\u03B1="+graph._z.level+")");
 
-
-var F = graph._z.F;
-var pvalue = graph._z.pvalue;
 row++;
 table(row,1,"Test statistic F");
-table(row,2,Math.round(F*10000)/10000);
-table(row,3,"(pvalue="+(Math.round(pvalue*10000)/10000)+")");
+table(row,2,Math.round(graph._z.f*10000)/10000);
+table(row,3,"(pvalue="+(Math.round(graph._z.pvalue*10000)/10000)+")");
 
 }
 
@@ -15801,6 +16304,7 @@ if(action==SELECT_MENUITEM)
 		{
 		graph = graphs[graphindex];
 		graph.test = menuindex;
+		clearSpecific(graph);
 		computeTestData(graph);
 		}
 	}
@@ -16322,7 +16826,6 @@ row++;
 table(row,1,"Test statistic F");
 table(row,2,Math.round(graph._z.f*10000)/10000);
 table(row,3,"(pvalue="+Math.round(graph._z.pvalue*10000)/10000+")");
-
 
 }
 
@@ -17398,6 +17901,10 @@ catch(e)
 graph._z = {}
 
 graph.placeholder = {};
+
+graph.limit.ivalues = 99;
+graph.limit.jvalues = 99;
+graph.limit.ilabels = 99;
 
 if(graph.timerid)
 	{
@@ -22164,9 +22671,7 @@ if(action==SET_VALUEJ)
 	{
 	var graph = graphs[graphindex]
 	ctx.fillStyle = GRAY;
-	var offset = GINFO[graph.type].ilabels ? (SLOTH+5)*graph.ilabels.length :
-				GINFO[graph.type].ivalues ? (SLOTH+5)*graph.ivalues.length : 0;
-	var y = graph.y+graph.hbar+5+offset+50+25*destvalueindex;
+	var y = getListOffset(graph)+(SLOTH+5)*destvalueindex;
 	ctx.fillRect(graph.x+graph.w-105,y,100,20)	;
 	}
 
@@ -22336,9 +22841,7 @@ else if((action==SWAP_VALUEJ)||(action==SWAP_VALUEIJ))
 	{
 	ctx.fillStyle = GRAY;
 	var graph = graphs[graphindex];
-	var offset = GINFO[graph.type].ilabels ? (SLOTH+5)*graph.ilabels.length :
-				GINFO[graph.type].ivalues ? (SLOTH+5)*graph.ivalues.length : 0;
-	var y = graph.y+graph.hbar+5+offset+50+25*destvalueindex;
+	var y =  getListOffset(graph) + (SLOTH+5)*destvalueindex;
 	ctx.fillRect(graph.x+graph.w-105,y,100,20);
 	}
 else if(action==DOCK_GRAPH)
@@ -22566,6 +23069,18 @@ for(var i=0;i<max;i++)
 
 //*********************************************************************
 
+function drawGraphError(ctx,graph)
+{
+var xc = graph.x+graph.w/2;
+var yc = graph.y+graph.h/2;
+
+ctx.textAlign = "center";
+ctx.fillStyle = "#000000";
+ctx.fillText(graph._z.error,xc,yc);
+}
+
+//*********************************************************************
+
 function drawGraphMenu(ctx,graph)
 {
 if(!GINFO[graph.type].menu) return;
@@ -22688,8 +23203,11 @@ if(GINFO[graph.type].ilabels)
 		var alt = graph.placeholder["ilabels"+k];
 		drawHLabel(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+25*k,title,alt);
 		}
-	var alt = graph.placeholder["ilabels"+k];
-	drawHLabel(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+25*graph.ilabels.length,"",alt);
+	if(graph.ilabels.length<graph.limit.ilabels)
+		{
+		var alt = graph.placeholder["ilabels"+k];
+		drawHLabel(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+25*graph.ilabels.length,"",alt);
+		}
 	}
 
 if(GINFO[graph.type].topvalue)
@@ -22722,15 +23240,16 @@ if(GINFO[graph.type].ivalues)
 		var alt = graph.placeholder["ivalues"+k];
 		drawHValue(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+dy*k,title,alt);
 		}
-	var alt = graph.placeholder["ivalues"+k];
-	drawHValue(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+dy*graph.ivalues.length,"",alt);
+	if(graph.ivalues.length<graph.limit.ivalues)
+		{
+		var alt = graph.placeholder["ivalues"+k];
+		drawHValue(ctx,graph.x+graph.w-SLOTW-5,graph.y+graph.hbar+5+dy*graph.ivalues.length,"",alt);
+		}
 	}
 
 if(GINFO[graph.type].jvalues)
 	{
-	var offset = GINFO[graph.type].ivalues ? dy*graph.ivalues.length : 
-				GINFO[graph.type].ilabels ? dy*graph.ilabels.length : 0;
-	var y = graph.y+graph.hbar+5+offset+dy+dy;
+	var y =  getListOffset(graph);
 	for(var k=0;k<graph.jvalues.length;k++)
 		{
 		var title = values[graph.jvalues[k]];
@@ -22738,10 +23257,39 @@ if(GINFO[graph.type].jvalues)
 		drawHValue(ctx,graph.x+graph.w-SLOTW-5,y,title,alt);
 		y += dy;
 		}
-	var alt = graph.placeholder["jvalues"+k];
-	drawHValue(ctx,graph.x+graph.w-SLOTW-5,y,"",alt);
+	if(graph.jvalues.length<graph.limit.jvalues)
+		{
+		var alt = graph.placeholder["jvalues"+k];
+		drawHValue(ctx,graph.x+graph.w-SLOTW-5,y,"",alt);
+		}
 	}
 
+}
+
+//*********************************************************************
+
+function getListOffset(graph)
+{
+var offset = 0;
+
+if(GINFO[graph.type].ilabels)
+	{
+	offset += graph.ilabels.length;
+	if(graph.ilabels.length<graph.limit.ilabels)
+		offset++;
+	}
+
+if(GINFO[graph.type].ivalues)
+	{
+	offset += graph.ivalues.length;
+	if(graph.ivalues.length<graph.limit.ivalues)
+		offset++;
+	}
+
+offset *= (SLOTH+5);
+offset += graph.y + graph.hbar + 5 + (SLOTH+5);
+
+return offset;
 }
 
 //*********************************************************************
@@ -23178,13 +23726,14 @@ return o;
 var ipj2 = 2.0/Math.PI; 
 var pi = Math.PI;
 
+/*
 function Fspin(f,df1,df2) {
 var x=df2/(df1*f+df2);
 if((df1%2)==0) {return LJspin(1-x,df2,df1+df2-4,df2-2)*Math.pow(x,df2/2)}
 if((df2%2)==0){return 1-LJspin(x,df1,df1+df2-4,df1-2)*Math.pow(1-x,df1/2)}
 
 var tan = Math.atan(Math.sqrt(df1*f/df2));
-var a = tan/ipj2;
+var a = tan*ipj2;
 var sat = Math.sin(tan);
 var cot=Math.cos(tan);
 if(df2>1) {a=a+sat*cot*LJspin(cot*cot,2,df2-3,-1)*ipj2}
@@ -23198,9 +23747,60 @@ while(k<=(df2-1)/2) {c=c*k/(k-.5); k=k+1 }
 return 1-a+c;
 
 }
+*/
+
+function Fspin(f,df1,df2)  {
+
+    var LJspin = function(q, i, j, b) {
+        var zz = 1;
+        var z = zz;
+        var k = i;
+        while (k <= j) {
+            zz = zz * q * k / (k - b);
+            z = z + zz;
+            k = k + 2
+        }
+        return z
+    };
+
+
+    var pj2 = Math.PI / 2;
+    var x = df2 / (df1 * f + df2);
+    if ((df1 % 2) == 0) {
+        return  LJspin(1 - x, df2, df1 + df2 - 4, df2 - 2) * Math.pow(x, df2 / 2)
+    }
+    if ((df2 % 2) == 0) {
+        return 1-LJspin(x, df1, df1 + df2 - 4, df1 - 2) * Math.pow(1 - x, df1 / 2)
+    }
+
+    var tan = Math.atan(Math.sqrt(df1 * f / df2));
+    var a = tan / pj2;
+    var sat = Math.sin(tan);
+    var cot = Math.cos(tan);
+    if (df2 > 1) {
+        a = a + sat * cot * LJspin(cot * cot, 2, df2 - 3, -1) / pj2
+    }
+    if (df1 == 1) {
+        return 1- a
+    }
+
+
+    var c = 4 * LJspin(sat * sat, df2 + 1, df1 + df2 - 4, df2 - 2) * sat * Math.pow(cot, df2) / Math.PI;
+    if (df2 == 1) {
+        return  1-(a - c / 2);
+    }
+    var k = 2;
+    while (k <= (df2 - 1) / 2) {
+        c = c * k / (k - .5);
+        k = k + 1
+    }
+
+        return  1-(a - c);
+}
 
 //*********************************************************************
 
+/*
 function LJspin(q,i,j,b) {
 var zz=1;
 var z=zz;
@@ -23208,12 +23808,13 @@ var k=i;
 while(k<=j) { zz=zz*q*k/(k-b); z=z+zz; k=k+2 }
     return z
 }
+*/
 
 //*********************************************************************
 
 function Finv(min,max,value,d1,d2)
 {
-for(var i=0;i<20;i++)
+for(var i=0;i<40;i++)
 	{
 	var med = (min+max)/2;
 	var x = Fspin(med,d1,d2);
@@ -23223,6 +23824,7 @@ for(var i=0;i<20;i++)
 		max = med;
 	}
 
+console.log("returning "+med);
 return med;
 }
 
