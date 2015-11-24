@@ -2068,9 +2068,6 @@ function guess_field_separator(line) {
 	if(line.split("|").length>1) return "|";
 	if(line.split(",").length>1) return ",";
 
-	line = line.replace(/  */g,"\u0001");
-	if(line.split("\u0001").length>1) return "\u0001";
-
 	return null;
 }
 
