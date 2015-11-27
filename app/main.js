@@ -8,19 +8,22 @@ var clipboard = require("clipboard");
 wreader = null;
 wexplorer = null;
 
-if(typeof(console)=="undefined")
-	var console = {log:function(){}};
 
 //****************************************************************************
 
-
 app.on("ready", function() {
-	wreader = new BrowserWindow({width:600,height:300});
-	wreader.loadUrl("file://"+__dirname+"/reader.html");
+	if(process.argv.length>2)
+		{
+		read_file(process.argv[2]);
+		}
+	else
+		{
+		wreader = new BrowserWindow({width:600,height:300});
+		wreader.loadUrl("file://"+__dirname+"/reader.html");
+		}
 })
 
 ipc.on("reader", function() {
-	console.log("received reader message");
 	// reopen reader window
 	wreader = new BrowserWindow({width:600,height:300});
 	wreader.loadUrl("file://"+__dirname+"/reader.html");
@@ -49,25 +52,22 @@ ipc.on("help", function(event, name) {
 	whelp.loadUrl("file://"+__dirname+"/help/"+name+".html");
 });
 
+
 //****************************************************************************
 
 function read_clipboard() {
 
 var content = clipboard.readText() || "";
-console.log("clipboard content "+content.length);
 
 wexplorer = new BrowserWindow({width:800,height:800});
 wexplorer.loadUrl("file://"+__dirname+"/explorer.html");
 
 wexplorer.on("closed", function() {
-	console.log("explorer closed");
 	wexplorer = null;
 	});
 
 wexplorer.webContents.on("did-finish-load", function() {
-	console.log("did-finish-load");
 	wexplorer.webContents.send("clipboard",content);
-	console.log("clipboard sent");
 	});	
 }
 
@@ -80,14 +80,11 @@ wexplorer = new BrowserWindow({width:800,height:800});
 wexplorer.loadUrl("file://"+__dirname+"/explorer.html");
 
 wexplorer.on("closed", function() {
-	console.log("explorer closed");
 	wexplorer = null;
 	});
 
 wexplorer.webContents.on("did-finish-load", function() {
-	console.log("did-finish-load");
 	wexplorer.webContents.send("start",filename);
-	console.log("start sent");
 	});
 }
 
