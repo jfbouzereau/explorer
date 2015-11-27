@@ -1779,7 +1779,13 @@ var nf = pdata.length;
 var nr = 0;
 for(var j=0;j<nf;j++)
 	{
-	var n = pdata[j][".Data"].length;
+	if(pdata[j][".Data"]) 
+		var n = pdata[j][".Data"].length;
+	else if(pdata[j].length)
+		var n = pdata[j].length;
+	else
+		var n = 0;
+
 	if(nr==0)
 		nr = n;	
 	else if(nr!=n)
@@ -1794,8 +1800,9 @@ for(var j=0;j<nf;j++)
 // check if field is factor
 for(var j=0;j<nf;j++)
 	{
+	if(!pdata[j][".Data"]) continue;
 	if(!pdata[j].class) continue;
-	if(!(pdata[j].class instanceof Array)) continue;
+	if(!(pdata[j].class instanceof Array)) continue;	
 	if(pdata[j].class.indexOf("factor")<0) continue;
 	var label = pdata[j][".Label"];
 	if(!label) continue;
@@ -1808,17 +1815,20 @@ for(var j=0;j<nf;j++)
 	}
 
 data = [];
+
 var row = [];
 for(var i=0;i<nf;i++)	
 	row.push(pdata[i].name);
-
 data.push(row);
 
 for(var i=0;i<nr;i++)
 	{
-	var row = new Array(nf);
+	var row = [];
 	for(var j=0;j<nf;j++)
-		row[j] = pdata[j][".Data"][i];
+		if(pdata[j][".Data"])
+			row.push(pdata[j][".Data"][i]);
+		else 
+			row.push(pdata[j][i]);
 	data.push(row);
 	}
 
@@ -1839,9 +1849,10 @@ check_data_type(callback);
 				break;
 
 			case "integer":
+			case "numeric":
 				var obj = [];
 				for(var i=0;i<size;i++)
-					obj.push(parseInt(content[offset++]));
+					obj.push(parseFloat(content[offset++]));
 				break;
 
 			case "structure":
@@ -1868,7 +1879,8 @@ check_data_type(callback);
 			default:	
 				console.log("UNKNWON TYPE "+type);
 			}
-		obj.name = name;
+		if(obj)
+			obj.name = name;
 		return obj;
 	}
 }
@@ -2090,7 +2102,7 @@ for(var i=1;i<data.length;i++)
 	{
 	for(var j=0;j<nv;j++)
 		if(isnum[j])
-			if(isNaN(parseFloat(data[i][j])))
+			if(isNaN(Number(data[i][j])))
 				isnum[j] = false;
 	}
 
