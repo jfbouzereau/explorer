@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.84";
+var VERSION = "1.85";
 
 /***************************************************************************/
 
@@ -162,6 +162,10 @@ _action("SAVE_VALUESET","Save set");
 _action("SELECT_MENUITEM","");
 _action("SELECT_TYPE","Select graph type");
 _action("REORDER_KEY","Reorder key");
+_action("SCROLL_LABELS","");
+_action("SCROLL_VALUES","");
+_action("RESIZE_LABELS","Extend list");
+_action("RESIZE_VALUES","Extend list");
 
 // actions that gray the graph
 var GACTIONS = {}
@@ -352,16 +356,24 @@ var vdotted = null;
 var mywidth = 0;
 var myheight = 0;
 
-var barshift = 0;
-
 var graphs = [];		// all the active graphs
 var dock = [];			// all the docked graphs
 var formulas = [];		// all the formulas
 
 var lrecords = [];		// records with the labels (textual)
 var vrecords = [];		// records with the values (numerical)
+
 var labels = [];
+var alabel = 0;			// first visible label
+var zlabel = 0;			// last visible label +1
+var slabel = false;		// mouse in scrollbar
+var hlabel = false;		// mouse in handle
+
 var values = [];
+var avalue = 0;			// first visible value
+var zvalue = 0;			// last visivle value +1
+var svalue = false;		// mouse in scrollbar
+var hvalue = false;		// mouse in handle
 
 var sets = {}
 var nset = 0;
@@ -667,7 +679,6 @@ this.ncontour = 0;
 this.stickers = [];
 
 this.iunit = 0;
-this.acceptunit = true;
 
 this.placeholder = {};	// labelling the slots
 this.limit = {};		// limiting the slots
@@ -681,6 +692,7 @@ this.limit.ilabels = 99;
 function loadData(data) {
 
 graphs = [];
+
 labels = [];
 values = ["1"];
 lrecords = [];
@@ -734,6 +746,12 @@ for(var k=1;k<data.length;k++)
 
 if(labels.length==0)	
 	createDummyLabel();
+
+alabel = 0;
+zlabel = Math.min(labels.length,10);
+
+avalue = 0;
+zvalue = Math.min(values.length,10);
 }
 
 //*********************************************************************
@@ -1045,7 +1063,7 @@ return true
 
 function inSticker(pt)
 {
-var y = pt.y+barshift
+var y = pt.y;
 
 if(pt.x<mywidth-100) return false
 
@@ -1129,6 +1147,54 @@ return index
 
 //*********************************************************************
 
+function inLabelScrollBar(pt)
+{
+if(zlabel-alabel>=labels.length) return false;
+
+if(pt.x<mywidth-20) return false;
+if(pt.y>(zlabel-alabel)*SLOTH) return false;
+return true;
+}
+
+//*********************************************************************
+
+function inLabelHandle(pt)
+{
+if(pt.x<mywidth-60) return false;
+if(pt.x>mywidth-40) return false;
+if(pt.y<(zlabel-alabel)*SLOTH) return false;
+if(pt.y>(zlabel-alabel)*SLOTH+20) return false;
+return true;
+}
+
+//*********************************************************************
+
+function inValueScrollBar(pt)
+{
+if(zvalue-avalue>=values.length) return false;
+
+var ni = Math.ceil(NBTYPE3/5)
+if(pt.x<mywidth-20) return false;
+var y = (zlabel-alabel)*SLOTH+20+20*ni+20;
+if(pt.y<y) return false;
+if(pt.y>y+(zvalue-avalue)*SLOTH) return false;
+return true;
+}
+
+//*********************************************************************
+
+function inValueHandle(pt)
+{
+if(pt.x<mywidth-60) return false;
+if(pt.x>mywidth-40) return false;
+var ni = Math.ceil(NBTYPE3/5)
+var y = (zlabel-alabel)*20+20+ni*20+20+(zvalue-avalue)*20;
+if(pt.y<y) return false;
+if(pt.y>y+20) return false;
+return true;
+}
+
+//*********************************************************************
 
 function inDock(pt)
 {
@@ -1143,14 +1209,14 @@ return Math.floor((pt.x-20)/20)
 
 function inType1(pt)
 {
-var y = pt.y + barshift
+var y = pt.y;
 
 var ni = Math.ceil(NBTYPE3/5)
 if(pt.x<mywidth-100) return -1
-if(y<labels.length*20+20) return -1
-if(y>=labels.length*20+20+20*ni) return -1
+if(y<(zlabel-alabel)*20+20) return -1
+if(y>=(zlabel-alabel)*20+20+20*ni) return -1
 var i = Math.floor((pt.x-mywidth+100)/20)
-var j = Math.floor((y-labels.length*20-20)/20)
+var j = Math.floor((y-(zlabel-alabel)*20-20)/20)
 var k = i+5*j
 return (k<NBTYPE1) ? k : -1
 }
@@ -1159,14 +1225,14 @@ return (k<NBTYPE1) ? k : -1
 
 function inType2(pt)
 {
-var y = pt.y + barshift
+var y = pt.y ;
 
 var ni = Math.ceil(NBTYPE3/5)
 if(pt.x<mywidth-100) return -1
-if(y<labels.length*20+20) return -1
-if(y>=labels.length*20+20+ni*20) return -1
+if(y<(zlabel-alabel)*20+20) return -1
+if(y>=(zlabel-alabel)*20+20+ni*20) return -1
 var i = Math.floor((pt.x-mywidth+100)/20)
-var j = Math.floor((y-labels.length*20-20)/20)
+var j = Math.floor((y-(zlabel-alabel)*20-20)/20)
 var k = i+5*j
 
 return k<NBTYPE1 ? -1 : k>=NBTYPE3 ? -1 : k;
@@ -1218,23 +1284,23 @@ return inRect(pt,mywidth-120,myheight-40,20,20);
 
 function inLabel(pt)
 {
-var y = pt.y+barshift
-if(pt.x<mywidth-100) return -1
-if(y>=labels.length*20) return -1
-return Math.floor(y/20)
+var y = pt.y;
+if(pt.x<mywidth-100) return -1;
+if(y>=(zlabel-alabel)*SLOTH) return -1;
+return Math.floor(y/SLOTH)+alabel;
 }
 
 //*********************************************************************
 
 function inValue(pt)
 {
-var y = pt.y+barshift
+var y = pt.y;
 
 var ni = Math.ceil(NBTYPE3/5)
 if(pt.x<mywidth-100) return -1
-if(y<labels.length*20+20+ni*20+20) return -1
-if(y>=labels.length*20+20+ni*20+20+20*values.length) return -1
-return Math.floor((y-labels.length*20-20-20*ni-20)/20)
+if(y<(zlabel-alabel)*20+20+ni*20+20) return -1;
+if(y>=(zlabel-alabel)*20+20+ni*20+20+20*(zvalue-avalue)) return -1;
+return Math.floor((y-(zlabel-alabel)*20-20-20*ni-20)/20)+avalue;
 }
 
 //*********************************************************************
@@ -4842,7 +4908,7 @@ delete(X)
 delete(W)
 
 }
-catch(e) { debug(e) }
+catch(e) { console.log(e.stack); }
 }
 
 //*********************************************************************
@@ -8627,7 +8693,7 @@ line("Kurtosis",graph._z.stats.kurtosis);
 	function line(title,value)
 	{
 	table(row,1,title);
-	table(row,2,round(value));
+	table(row,2,Math.round(value*10000)/10000);
 	row++;
 	}
 }
@@ -10906,7 +10972,6 @@ function computeCorrData(graph)
 if(graph.ivalues.length<2) return;
 
 graph._z.cov = computeGlobalVariance(graph);
-console.log(graph._z);
 
 }
 
@@ -11086,12 +11151,21 @@ var cov = graph._z.cov;
 var nv = cov.length;
 var d = dx/nv;
 
+// draw grid
+ctx.fillStyle = "#DDDDDD";
+for(var j=0;j<=nv;j++)
+	{
+	ctx.fillRect(x1+j*d,y1+j*d,1,y2-y1-j*d);
+	ctx.fillRect(x1,y1+j*d,j*d,1);
+	}
+
 if(option==0)
 	{
 	// correlations
 
+
 	for(var j=0;j<nv;j++)
-		for(var k=0;k<nv;k++)
+		for(var k=j+1;k<nv;k++)
 			{
 			var c = cov[j][k]/Math.sqrt(cov[j][j]*cov[k][k]);
 			if(c<0)
@@ -14489,7 +14563,6 @@ if((graph.jvalues.length>0)&&(graph.ilabels.length>0))
 		case TEST.TWO: drawTwoGraph(ctx,graph); break;
 		}
 
-
 }
 
 //*********************************************************************
@@ -16306,7 +16379,7 @@ function drawLeveneGraph(ctx,graph)
 	else
 		{
 		multiText(ctx,["#000000","W < C : variances ",
-			"#FFFFFF","are equal"],graph.x+40,y);
+			"#FF0000","are equal"],graph.x+40,y);
 		y += 20;
 		}
 
@@ -16317,71 +16390,6 @@ function drawLeveneGraph(ctx,graph)
 
 drawFisherCurve(ctx,graph,y,dof1,dof2,0,max,w,"W",cv);
 
-/*
-	ctx.strokeStyle = "#000000";
-	ctx.lineWidth = 1;
-	ctx.beginPath();
-
-	// max value along x
-	
-	var dy = 200;
-	var dx = graph.w-40;
-	var x = graph.x+20;	
-	y += 220;
-
-	var dmax = 0;
-	for(var i=0;i<=100;i++)
-		{
-		var d = fisherdensity(max*i/100,dof1,dof2);
-		if(d>dmax) dmax = d;
-		}
-
-	for(var i=0;i<=100;i++)
-		{
-		var d = fisherdensity(max*i/100,dof1,dof2);
-		if(i==0)
-			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
-		else
-			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
-		}
-	ctx.stroke();
-
-	ctx.beginPath();
-	ctx.moveTo(x,y);
-	ctx.lineTo(x+dx,y);
-	ctx.stroke();
-
-	ctx.fillStyle = "#000000";
-	var j = Math.round(cv*100/max);	
-
-	ctx.beginPath();
-	for(var i=j;i<=100;i++)
-		{
-		var d = fisherdensity(max*i/100,dof1,dof2);
-		if(i==0)
-			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
-		else
-			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
-		}
-	ctx.lineTo(x+dx,y);
-	ctx.lineTo(x+dx*j/100,y);
-	ctx.fill();
-
-	ctx.textAlign = "center";
-
-	ctx.fillText("W",x+dx*w/max,y+25);	
-	ctx.beginPath();
-	ctx.moveTo(x+dx*w/max,y+2);
-	ctx.lineTo(x+dx*w/max,y+12);
-	ctx.stroke();
-
-	ctx.fillText("C",x+dx*cv/max,y+25);	
-	ctx.beginPath();
-	ctx.moveTo(x+dx*cv/max,y+2);
-	ctx.lineTo(x+dx*cv/max,y+12);
-	ctx.stroke();
-*/
-	
 }
 
 //*********************************************************************
@@ -16917,8 +16925,6 @@ function computeRegresData(graph)
 if(graph.w<460)
 	graph.w = 460;
 
-graph.acceptunit = false;
-
 graph.placeholder.leftvalue = "RESPONSE";
 graph.placeholder.bottomlabel = "COLOR";
 graph.placeholder.rightlabel = "LABEL";
@@ -17215,8 +17221,8 @@ sumq /= nr;
 var vsq = sumsq/nr-sums*sumq;
 var vqq = sumqq/nr-sumq*sumq;
 
-graph._z.a = vsq/vqq;
-graph._z.b = sums - sumq*vsq/vqq;
+graph._z.slope = vsq/vqq;
+graph._z.intersect = sums - sumq*vsq/vqq;
 
 }
 
@@ -17611,8 +17617,8 @@ if((graph.ivalues.length>0)&&(graph.ivalue1>=0))
 
 		// draw line
 		ctx.strokeStyle = "#000000";
-		var sa = qmin*graph._z.a+graph._z.b;
-		var sb = qmax*graph._z.a+graph._z.b;
+		var sa = qmin*graph._z.slope+graph._z.intersect;
+		var sb = qmax*graph._z.slope+graph._z.intersect;
 		ctx.beginPath();
 		ctx.moveTo(xleft+25,ybottom-25-(sa-smin)*sscale);
 		ctx.lineTo(xleft+25+(qmax-qmin)*qscale,ybottom-25-(sb-smin)*sscale);
@@ -18869,8 +18875,6 @@ catch(e)
 	}
 graph._z = {}
 
-graph.acceptunit = true;
-
 graph.progress = null;
 
 graph.placeholder = {};
@@ -18912,7 +18916,7 @@ else
 
 try	{
 	GINFO[graph.type].comp(graph);
-	} catch(err) { console.log(err) }
+	} catch(err) { console.log(err.stack);  }
 
 }
 
@@ -20214,6 +20218,32 @@ if(event.ctrlKey||rightclick)
 		return;
 		}
 
+if(inLabelScrollBar(ptclick))
+	{
+	faction = action = SCROLL_LABELS;
+	return;
+	}
+
+if(inLabelHandle(ptclick))	
+	{
+	faction = action = RESIZE_LABELS;
+	document.body.style.cursor = "row-resize";
+	return;
+	}
+
+if(inValueScrollBar(ptclick))
+	{
+	faction = action = SCROLL_VALUES;
+	return;
+	}
+
+if(inValueHandle(ptclick))
+	{
+	faction = action = RESIZE_VALUES;
+	document.body.style.cursor = "row-resize";
+	return;
+	}
+
 if(inDustbinIcon(ptclick))
 	{
 	faction = action = DRAG_DUSTBIN;
@@ -20451,7 +20481,7 @@ if(i>=0)
 		}
 	}
 
-} catch(err) { console.log("down error "+err) }
+} catch(err) { console.log(err.stack);  }
 
 
 
@@ -20483,10 +20513,6 @@ var graph;
 
 ptmove = getxy(event)
 
-if(action==DRAG_SIDEBAR)
-	{
-	barshift = Math.round(barshift/20)*20
-	}
 if(action==SHOW_TABLE)
 	{
 	showGraphTable();
@@ -21202,13 +21228,37 @@ if(index>=0)
 	graph.yshift -= Math.round(event.wheelDelta/10);
 	if(graph.yshift<0) graph.yshift = 0;
 	}
-else if(ptmove.x>mywidth-100)
+else if((inLabel(ptmove)>=0)&&(zlabel-alabel<labels.length))
 	{
-	barshift -= Math.round(event.wheelDelta/10);
-	if(barshift<0)		
-		barshift = 0;
-	if(barshift>20*labels.length+20*values.length+140)
-		barshift = 20*labels.length+20*values.length+140;	
+	var delta = Math.round(event.wheelDelta/100);		
+	alabel -= delta;
+	zlabel -= delta;
+	if(alabel<0) 
+		{
+		alabel = 0;
+		zlabel = 10;
+		}
+	else if(zlabel >= labels.length)
+		{
+		zlabel = labels.length;
+		alabel = zlabel - 10;
+		}
+	}
+else if((inValue(ptmove)>=0)&&(zvalue-avalue<values.length))
+	{
+	var delta = Math.round(event.wheelDelta/100);
+	avalue -= delta;
+	zvalue -= delta;
+	if(avalue<0)
+		{
+		avalue = 0;
+		zvalue = 10;
+		}
+	else if(zvalue>=values.length)
+		{
+		zvalue = values.length;
+		avalue = zvalue -10;
+		}
 	}
 else
 	scrollDesktop(0,Math.round(event.wheelDelta/10));
@@ -21786,6 +21836,19 @@ overkey2 = null;
 
 message = "";
 
+if(slabel = inLabelScrollBar(ptmove))
+	message = "Scroll field list";
+
+if(hlabel = inLabelHandle(ptmove))
+	message = "Extend field list";
+
+if(svalue = inValueScrollBar(ptmove))
+	message = "Scroll field list";
+
+if(hvalue = inValueHandle(ptmove))
+	message = "Extend field list";
+
+
 // check if over dock
 gindex = inDock(ptmove)
 if(gindex>=0)
@@ -21820,14 +21883,16 @@ if(index>=0)
 index = inLabel(ptmove);
 if(index>=0)
 	{
-	message = labels[index];
+	if(message=="")
+		message = labels[index];
 	return;
 	}
 
 index = inValue(ptmove);
 if(index>=0)
 	{
-	message = values[index];
+	if(message=="")
+		message = values[index];
 	return;	
 	}
 
@@ -21872,7 +21937,6 @@ var i = inFullGraph(ptmove);
 
 if(i<0)
 	{
-	message = "";
 	return;
 	}
 else if(inGraphTitle(ptmove,graphs[i]))
@@ -22021,10 +22085,6 @@ else if((index=inGraphSlice(ptmove,graphs[i]))>=0)
 		return
 		}
 	}
-else
-	{
-	message = ""
-	}
 
 }
 
@@ -22044,19 +22104,71 @@ if(action==0)
 var  i;
 
 
-if(faction==DRAG_SIDEBAR)
+if(faction==SCROLL_LABELS)
 	{
-	var ni = Math.ceil(NBTYPE3/5)
-	var yy = labels.length*20 + 20 + ni*20 + 20 + values.length*20 + 20
-
-	barshift += ptclick.y - ptmove.y
-	if(barshift<0)
-		barshift =0
-	else if(barshift>yy)
-		barshift = yy
-
-	ptclick = ptmove
-	draw()
+	var d = (ptmove.y-ptclick.y)/((zlabel-alabel)*SLOTH)*labels.length;
+	d = Math.round(d);
+	if(d!=0)
+		{	
+		var dif = zlabel-alabel;
+		alabel += d;		
+		zlabel += d;
+		if(alabel<0) { alabel = 0; zlabel = alabel + dif; }
+		if(zlabel>labels.length) { zlabel = labels.length; alabel = zlabel-dif }
+		ptclick = ptmove;
+		draw();
+		}
+	}
+else if(faction==SCROLL_VALUES)
+	{
+	var d = (ptmove.y-ptclick.y)/((zvalue-avalue)*SLOTH)*labels.length;
+	d = Math.round(d);
+	if(d!=0)
+		{
+		var dif = zvalue-avalue;
+		avalue += d;		
+		zvalue += d;
+		if(avalue<0) { avalue = 0; zvalue = avalue + dif; }
+		if(zvalue>values.length) { zvalue = values.length; avalue = zvalue-dif }
+		ptclick = ptmove;
+		draw();
+		}
+	}
+else if(faction==RESIZE_LABELS)
+	{
+	var d = (ptmove.y-ptclick.y)/20;
+	var sign = d > 0 ? 1 : d < 0 ? -1 : 0;
+	d = Math.floor(Math.abs(d))*sign;
+	if(d!=0)
+		{
+		zlabel += d;
+		if(zlabel<=alabel) zlabel = alabel+1;
+		if(zlabel>labels.length) 
+			{	
+			zlabel = labels.length;
+			if(alabel>0) alabel--;
+			}
+		ptclick = ptmove;	
+		draw();
+		}
+	}
+else if(faction==RESIZE_VALUES)
+	{
+	var d = (ptmove.y-ptclick.y)/20;	
+	var sign = d > 0 ? 1 : d < 0 ? -1 : 0;
+	d = Math.floor(Math.abs(d))*sign;
+	if(d!=0)
+		{
+		zvalue += d;
+		if(zvalue<=avalue) zvalue = avalue+1;
+		if(zvalue>values.length)
+			{
+			zvalue = values.length;
+			if(avalue>0) avalue--;
+			}
+		ptclick = ptmove;
+		draw();
+		}
 	}
 else if(faction==DRAG_ADD)
 	{
@@ -22325,7 +22437,7 @@ else if(faction==DRAG_VALUE)
 		}
 	else
 		{
-		if(graphs[i].acceptunit)
+		if(graphs[i].type<NBTYPE1)
 			{
 			graphindex = i;
 			action = SET_GRAPH_UNIT;
@@ -23287,7 +23399,8 @@ ctx.moveTo(graph.x+graph.w-20,graph.y+graph.hbar+15)
 ctx.lineTo(graph.x+graph.w-20,graph.y+graph.h)
 ctx.stroke()
 	}
-catch(e) {  }
+catch(e) { 
+	console.log(e.stack);  }
 
 ctx.restore()
 }
@@ -23446,12 +23559,13 @@ function draw()
 {
 try 	{
 
-
 mywidth = window.innerWidth;
 myheight = window.innerHeight;
 
 canvas.width = mywidth;
 canvas.height = myheight;
+
+var ni = Math.ceil(NBTYPE3/5);
 
 var ctx = canvas.getContext("2d")
 
@@ -23533,7 +23647,8 @@ for(var i=0;i<graphs.length;i++)
 		{
 		ctx.save();	
 		ctx.textAlign = "left";
-		try { GINFO[graph.type].draw(ctx,graph); } catch(e) { console.log(e) }
+		try { GINFO[graph.type].draw(ctx,graph); }
+		 catch(e) { console.log(e.stack) ; }
 		ctx.restore();
 		}
 	drawGraphMenu(ctx,graph);
@@ -23556,22 +23671,27 @@ for(var i=0;i<graphs.length;i++)
         }
 	}
 
-var y = -barshift;
+var y = 0;
 
 // labels
 ctx.font = "14px helvetica"
 ctx.textAlign = "center"
 
+for(var i=alabel;i<zlabel;i++)
+	drawHLabel(ctx,mywidth-SLOTW,y+(i-alabel)*SLOTH,labels[i]);
 
-for(var i=0;i<labels.length;i++)
-	drawHLabel(ctx,mywidth-SLOTW,y+i*SLOTH,labels[i])
-y += labels.length*SLOTH;
+if(slabel)
+	drawScrollBar(y,alabel,zlabel,labels.length);
+
+y += (zlabel-alabel)*SLOTH;
+
+if(hlabel)
+	drawHandle(y);
 
 y += SLOTH;
 
 // icons
-var ni = Math.ceil(NBTYPE3/5)*5
-for(var i=0;i<ni;i++)	
+for(var i=0;i<ni*5;i++)	
 	{	
 	var x = mywidth-100+20*(i%5);
 	ctx.fillStyle = i<NBTYPE1 ? PINK : BLUE;
@@ -23588,10 +23708,17 @@ for(var i=0;i<ni;i++)
 y += SLOTH;
 
 // values
-for(var i=0;i<values.length;i++)
-	drawHValue(ctx,mywidth-SLOTW,y+i*SLOTH,values[i])
-y += values.length*SLOTH;
 
+for(var i=avalue;i<zvalue;i++)
+	drawHValue(ctx,mywidth-SLOTW,y+(i-avalue)*SLOTH,values[i])
+
+if(svalue)
+	drawScrollBar(y,avalue,zvalue,values.length);
+
+y += (zvalue-avalue)*SLOTH;
+
+if(hvalue)
+	drawHandle(y);
 
 y += SLOTH;
 
@@ -23605,20 +23732,21 @@ if(action==REMOVE_LABEL)
 	{
 	ctx.fillStyle = GRAY;
 	ctx.fillRect(mywidth-20,myheight-40,20,20);
-	ctx.fillRect(mywidth-100,20*labelindex-barshift,100,20);
+	ctx.fillRect(mywidth-100,20*(labelindex-alabel),100,20);
 	}
 else if(action==REMOVE_VALUE)
 	{
-	var ni = Math.ceil(NBTYPE3/5)
 	ctx.fillStyle = GRAY;
 	ctx.fillRect(mywidth-20,myheight-40,20,20);
 	ctx.fillRect(mywidth-100,
-		labels.length*20+20+ni*20+20+20*valueindex-barshift,100,20);
+		(zlabel-alabel)*20+20+ni*20+20+20*(valueindex-avalue),100,20);
 	}
 
 // if dragging a label
-if((action==DRAG_LABEL)||(action==SET_TOPLABEL)||(action==SET_LEFTLABEL))
+if(faction==DRAG_LABEL)
 	{
+	ctx.fillStyle = GRAY;
+	ctx.fillRect(mywidth-100,(labelindex-alabel)*SLOTH,100,20);
 	if(!informula) {
 		ctx.strokeStyle = GRAY
 		ctx.strokeRect(ptmove.x-50,ptmove.y-10,100,20)
@@ -23631,13 +23759,16 @@ if(action==DRAG_SET)
 	ctx.strokeRect(ptmove.x-10,ptmove.y-10,20,20)
 	}
 
-if((action==DRAG_VALUE)||(action==SET_TOPVALUE)||(action==SET_LEFTVALUE))
+if(faction==DRAG_VALUE)
 	{
+	ctx.fillStyle = GRAY;
+	var y = (zlabel-alabel)*20+20+ni*20+20+(valueindex-avalue)*20;
+	ctx.fillRect(mywidth-100,y,100,20);
 	if(!informula)
 		{
 		ctx.strokeStyle = GRAY
 		ctx.strokeRect(ptmove.x-50,ptmove.y-10,100,20)
-		}
+		}	
 	}
 
 if((action==SET_TOPLABEL)||(action==SET_TOPVALUE)||(action==SWAP_VALUE_LT))
@@ -23706,13 +23837,13 @@ if((action==DRAG_TABLE)||(action==DRAG_DUSTBIN)||(action==DRAG_HELP)||(action==D
 if((action==ADD_LABEL)||(action==SHOW_LABEL))
 	{
 	ctx.fillStyle = GRAY;
-	ctx.fillRect(mywidth-100,0-barshift,100,labels.length*20);
+	ctx.fillRect(mywidth-100,0,100,(zlabel-alabel)*20);
 	}
 if((action==SORT_DATA)&&(labelindex>=0))
 	{
 	ctx.fillStyle = GRAY;
 	ctx.fillRect(mywidth-120,myheight-40,20,20);
-	ctx.fillRect(mywidth-100,labelindex*20-barshift,100,20);
+	ctx.fillRect(mywidth-100,(labelindex-alabel)*20,100,20);
 	}
 if((action==DRAG_TYPE)||(action==SET_TYPE))
 	{
@@ -23895,26 +24026,25 @@ else if((action==CREATE_GRAPH1)||(action==CREATE_GRAPH2))
 	ctx.fillStyle = GRAY
 	var i = typeindex % 5
 	var j = Math.floor(typeindex/5)
-	ctx.fillRect(mywidth-100+i*20,labels.length*20+20+j*20,20,20)
+	ctx.fillRect(mywidth-100+i*20,(zlabel-alabel)*20+20+j*20,20,20)
 	}
 else if((action==CONVERT_LABEL)||(action==ADD_VALUE)||(action==CREATE_PROJECTION)||(action==CREATE_VBOOLEAN)||(action==SHOW_VALUE)||(action==SAVE_VALUESET))
 	{	
-	var ni = Math.ceil(NBTYPE3/5)
 	ctx.fillStyle = GRAY
-	ctx.fillRect(mywidth-100,labels.length*20+20+ni*20+20-barshift,100,values.length*20)
+	ctx.fillRect(mywidth-100,(zlabel-alabel)*20+20+ni*20+20,100,
+		(zvalue-avalue)*20);
 	}
 else if((action==SORT_DATA)&&(valueindex>=0))
 	{
-	var ni = Math.ceil(NBTYPE3/5)
 	ctx.fillStyle = GRAY;
 	ctx.fillRect(mywidth-120,myheight-40,20,20);
 	ctx.fillRect(mywidth-100,
-		labels.length*20+20+ni*20+20+20*valueindex-barshift,100,20);
+		(zlabel-alabel)*20+20+ni*20+20+20*(valueindex-avalue),100,20);
 	}
 else if((action==CREATE_LABEL)||(action==CREATE_KGROUP)||(action==CREATE_LBOOLEAN)||(action==CONVERT_VALUE)||(action==SAVE_LABELSET))
 	{
 	ctx.fillStyle = GRAY
-	ctx.fillRect(mywidth-100,0,100,labels.length*20)
+	ctx.fillRect(mywidth-100,0,100,(zlabel-alabel)*20)
 	}
 else if(action==DRAG_TITLE)
 	{
@@ -23963,7 +24093,7 @@ else if(action==ASSIGN_STICKER)
 else if(action==PIVOT_DATA)
 	{
 	ctx.fillStyle = GRAY;
-	ctx.fillRect(mywidth-100,0,100,labels.length*20);
+	ctx.fillRect(mywidth-100,0,100,(zlabel-alabel)*20);
 	}
 
 // type menu if needed
@@ -24017,7 +24147,34 @@ else
 
 }
 catch(e) {
-	alert("draw error "+e)
+	console.log(e.stack); 
+	}
+
+
+	function drawHandle(y)
+	{
+	ctx.fillStyle = "rgba(0,0,0,0.3)";
+	ctx.beginPath();
+	ctx.moveTo(mywidth-30,y);
+	ctx.arc(mywidth-50,y,20,0,Math.PI,false);
+	ctx.closePath();
+	ctx.fill();
+	}
+
+	function drawScrollBar(y,a,z,l)
+	{	
+	var h = (z-a)*SLOTH;
+
+	ctx.fillStyle = "rgba(0,0,0,0.1)";
+	ctx.fillRect(mywidth-20,y,20,h);
+
+	var y1 = h*a/l+y;
+	var y2 = h*z/l+y;
+	ctx.fillStyle = "rgba(0,0,0,0.3)";
+	ctx.fillRect(mywidth-20,y1,20,y2-y1);
+
+	ctx.strokeStyle = "rgba(0,0,0,0.3)";
+	ctx.strokeRect(mywidth-20,y,20,h);
 	}
 }
 

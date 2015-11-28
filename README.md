@@ -183,13 +183,13 @@ There are two kinds of fields :
 
 * Drag an icon to the workspace to create a new graph.
 
-* Comtrol-Click on the workspace to create a new graph.
+* Right-click or control-Click on the workspace to create a new graph.
 
 * Drag a icon to an existing graph to change its type.
 
 * Drag a icon to a graph of same type to change its option.
 
-* Control-click on a graph to change its option.
+* Right-click or control-click on a graph to change its option.
 
 * Drag a qualitative (pink) field or a quantitative (blue) field to the corresponding slot of a graph to change its definition.
 
@@ -223,7 +223,11 @@ There are two kinds of fields :
 
 * Use the mouse wheel to scroll the workspace vertically.
 
-* Use the mouse wheel in the right side of the window to scroll the tools.
+* Use the mouse wheel on a field list to scroll it.
+
+* Move the mouse at the right of a field list to scroll it.
+
+* Move the mouse under a field list to resize it.
 
 ## Installation
 
