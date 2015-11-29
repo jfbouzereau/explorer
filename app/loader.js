@@ -585,7 +585,7 @@ return;
 	{
 	var d = content.readDoubleBE(offset);
 	offset += 8;
-	return Math.round(d*10000)/10000;
+	return Math.round(d*1000000)/1000000;
 	}
 
 	function read_object()

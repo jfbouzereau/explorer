@@ -164,8 +164,8 @@ _action("SELECT_TYPE","Select graph type");
 _action("REORDER_KEY","Reorder key");
 _action("SCROLL_LABELS","");
 _action("SCROLL_VALUES","");
-_action("RESIZE_LABELS","Extend list");
-_action("RESIZE_VALUES","Extend list");
+_action("RESIZE_LABELS","Resize list");
+_action("RESIZE_VALUES","Resize list");
 
 // actions that gray the graph
 var GACTIONS = {}
@@ -6471,7 +6471,7 @@ y += 20;
 
 var max = Math.max(graph._z.cv,graph._z.q)*1.2;
 	
-drawChi2Curve(ctx,graph,y,graph._z.dof,0,max,graph._z.q,"W",graph._z.cv);
+drawChi2Curve(ctx,graph,y,graph._z.dof,0,max,graph._z.q,"Q",graph._z.cv);
 }
 
 
@@ -6550,7 +6550,7 @@ ctx.fillText("(pvalue="+z+")",x+350,y);
 y += 40;
 
 ctx.textAlign = "left";
-if(graph._z.q<graph._z.cv)	
+if(graph._z.t2<graph._z.cv)	
 	multiText(ctx,["#000000","T2 < C : the ratings of treatments ",
 		"#FF0000","are equal"],x,y);
 else
@@ -8052,7 +8052,8 @@ if((action==SET_ADD)||(action==SET_REMOVE))
 	}
 
 if(action==SAVE_LABELSET)
-	{
+	{	
+	if(zlabel==labels.length) zlabel++;
 	newfield++;
 	var name = "DUMMY."+newfield;
 	labels.push(name);
@@ -8062,6 +8063,7 @@ if(action==SAVE_LABELSET)
 
 if(action==SAVE_VALUESET)
 	{
+	if(zvalue==values.length) zvalue++;
 	newfield++;
 	var name = "DUMMY."+newfield;
 	values.push(name);
@@ -11397,7 +11399,6 @@ for(var j=0;j<n;j++)
 		I[j][k] = graph._z.corr[j][k]
 
 
-
 // compute eigenvectors and eigenvalues
 var d = new Array(n)
 var e = new Array(n)
@@ -11405,76 +11406,27 @@ tred(I,d,e,n)
 tql2(I,d,e,n)
 
 
-var verif = matrix(n,n)
-for(var i=0;i<n;i++)
-	{
-	for(var j=0;j<n;j++)
-		{
-		verif[i][j] = 0
-		for(var k=0;k<n;k++)
-			if(j==k)
-				verif[i][j] += I[i][k]*1./d[k]
-		}
-	}
-
-var v2 = matrix(n,n)
-for(var i=0;i<n;i++)
-	{
-	for(var j=0;j<n;j++)
-		{
-		v2[i][j] = 0
-		for(var k=0;k<n;k++)
-			v2[i][j] += verif[i][k]*I[j][k]	
-		}
-	}
-
-var v3 = matrix(n,n)
-for(var i=0;i<n;i++)
-	{
-	for(var j=0;j<n;j++)
-		{
-		v3[i][j] = 0
-		for(var k=0;k<n;k++)
-			v3[i][j] += v2[i][k]*graph._z.corr[k][j]
-		}
-	}
-
 graph._z.lambda = d;
+graph._z.I = I;
 
-/*
-dumpM(graph._z.corr)
-dumpM(I)
-*/
-
-// coefficients of principal components
-var xcoef = []
-var ycoef = []
-for(var j=0;j<n;j++)
-	{
-	xcoef[j] = I[j][0]
-	ycoef[j] = I[j][1]
-	}
-
-graph._z.xcoef = xcoef
-graph._z.ycoef = ycoef
-
-//  projections  on the first two factors
-
-var xrow = []
-var yrow = []
+var nr = lrecords.length;
+var rows = matrix(nr,n);
 
 var zmin = Number.MAX_VALUE;
 var zmax = -Number.MAX_VALUE;
 
+// principal components
+
 for(var i=0;i<lrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;
-	xrow[i] = yrow[i] = 0
+	count++;
+
 	for(var j=0;j<n;j++)
 		{
 		var y = (vrecords[i][graph.ivalues[j]]-graph._z.avg[j])/graph._z.std[j]
-		xrow[i] += y*I[j][0]
-		yrow[i] += y*I[j][1]
+		for(var k=0;k<n;k++)
+			rows[i][k] += y*I[j][k];
 		}
 
 	if(graph.iunit>1)
@@ -11487,55 +11439,40 @@ for(var i=0;i<lrecords.length;i++)
 
 
 // projection of variables
-var xsumxy = []
-var xsumxx = []
-var xsumyy = []
-var ysumxy = []
-var ysumxx = []
-var ysumyy = []
-for(var j=0;j<n;j++)
-	{
-	xsumxy.push(0)
-	xsumxx.push(0)
-	xsumyy.push(0)
-	ysumxy.push(0)
-	ysumxx.push(0)
-	ysumyy.push(0)
-	}
-
+var sumxy = matrix(n,n);
+var count = 0;
 for(var i=0;i<lrecords.length;i++)
 	{
-	if(typeof(xrow[i])=="undefined") continue;
+	if(!recordMatch(i,graph)) continue;
+	count ++;
+
 	for(var j=0;j<n;j++)
 		{
-		var y = (vrecords[i][graph.ivalues[j]]-graph._z.avg[j])/graph._z.std[j]
-		xsumxy[j] += y*xrow[i]
-		xsumxx[j] += y*y
-		xsumyy[j] += xrow[i]*xrow[i]
-		ysumxy[j] += y*yrow[i]
-		ysumxx[j] += y*y
-		ysumyy[j] += yrow[i]*yrow[i]
+		var x = (vrecords[i][graph.ivalues[j]]-graph._z.avg[j])/graph._z.std[j]
+		for(var k=0;k<n;k++)
+			{
+			var y = rows[i][k]/Math.sqrt(graph._z.lambda[k]);
+			sumxy[j][k] += x*y;
+			}
 		}
 	}
 
+
 for(var j=0;j<n;j++)
-	{
-	xsumxy[j] = xsumxy[j]/Math.sqrt(xsumxx[j]*xsumyy[j])
-	ysumxy[j] = ysumxy[j]/Math.sqrt(ysumxx[j]*ysumyy[j])
-	}
+	for(var k=0;k<n;k++)
+		sumxy[j][k] = sumxy[j][k]/count;
 
-graph._z.xrow = xrow
-graph._z.yrow = yrow
 
-graph._z.xproj = xsumxy
-graph._z.yproj = ysumxy
+graph._z.rows = rows
+
+graph._z.proj = sumxy;
 
 graph._z.zmin = zmin;
 graph._z.zmax = zmax;
 
-xsumxx = xsumyy = ysumxx = ysumyy = null
-
 computeGraphData1(graph);
+
+
 }
 
 //*********************************************************************
@@ -11582,12 +11519,14 @@ if(graph.ivalues.length>=2)
 		zmin = graph._z.zmin;
 		zmax = graph._z.zmax;
 
-		for(var i=0;i<graph._z.xrow.length;i++)
+		var rows = graph._z.rows;
+
+		for(var i=0;i<rows.length;i++)
 			{
-			if(graph._z.xrow[i]<xmin) xmin = graph._z.xrow[i]
-			if(graph._z.xrow[i]>xmax) xmax = graph._z.xrow[i]
-			if(graph._z.yrow[i]<ymin) ymin = graph._z.yrow[i]
-			if(graph._z.yrow[i]>ymax) ymax = graph._z.yrow[i]
+			if(rows[i][0]<xmin) xmin = rows[i][0];
+			if(rows[i][0]>xmax) xmax = rows[i][0];
+			if(rows[i][1]<ymin) ymin = rows[i][1];
+			if(rows[i][1]>ymax) ymax = rows[i][1];
 			}
 
 		var scale = (x2-x1)/(xmax-xmin)
@@ -11629,10 +11568,10 @@ if(graph.ivalues.length>=2)
 
 		for(var i=0;i<lrecords.length;i++)
 			{		
-			if(typeof(graph._z.xrow[i])=="undefined") continue;
+			if(!recordMatch(i,graph)) continue;
 
-			var x = x1+scale*(graph._z.xrow[i]-xmin)
-			var y = y2-scale*(graph._z.yrow[i]-ymin)
+			var x = x1+scale*(rows[i][0]-xmin)
+			var y = y2-scale*(rows[i][1]-ymin)
 
 			if(graph.ilabel1<0)
 				ctx.fillStyle = "#000000";
@@ -11661,11 +11600,11 @@ if(graph.ivalues.length>=2)
 			ctx.lineWidth = 1
 			for(var i=0;i<lrecords.length;i++)
 				{
-				if(typeof(graph._z.xrow[i])=="undefined") continue;
+				if(typeof(rows[i][0])=="undefined") continue;
 				if(!recordHilite(lrecords[i])) continue
 
-				var x = x1+scale*(graph._z.xrow[i]-xmin)
-				var y = y2-scale*(graph._z.yrow[i]-ymin)
+				var x = x1+scale*(rows[i][0]-xmin)
+				var y = y2-scale*(rows[i][1]-ymin)
 
 				if(display>=0)
 					{
@@ -11687,6 +11626,8 @@ if(graph.ivalues.length>=2)
 
 	if(option==1)
 		{
+		// CORRELATION CIRCLE
+
 		var x1 = graph.x+5
 		var x2 = graph.x + graph.w -115
 		var xc = (x1+x2)/2
@@ -11696,6 +11637,8 @@ if(graph.ivalues.length>=2)
 		var y2 = graph.y + graph.h -5
 		var yc = (y1+y2)/2
 		var dy = y2-y1
+
+		var proj = graph._z.proj;
 
 		var scale = (x2-x1)/2
 		if(2*scale>y2-y1)
@@ -11711,8 +11654,8 @@ if(graph.ivalues.length>=2)
 		ctx.beginPath();
 		for(var i=0;i<graph.ivalues.length;i++)
 			{
-			var x = xc + scale*graph._z.xproj[i]
-			var y = yc - scale*graph._z.yproj[i]	
+			var x = xc + scale*proj[i][0];
+			var y = yc - scale*proj[i][1];
 			ctx.moveTo(xc,yc);
 			ctx.lineTo(x,y);
 			}
@@ -11726,8 +11669,8 @@ if(graph.ivalues.length>=2)
 
 		for(var i=0;i<graph.ivalues.length;i++)
 			{
-			var x = xc + scale*graph._z.xproj[i]
-			var y = yc - scale*graph._z.yproj[i]
+			var x = xc + scale*proj[i][0];
+			var y = yc - scale*proj[i][1];
 			ctx.fillText(values[graph.ivalues[i]],x,y+3)
 			}
 
@@ -11735,6 +11678,8 @@ if(graph.ivalues.length>=2)
 
 	if(option==2)
 		{
+		// VARIANCES
+
 		var x1 = graph.x+40
 		var x2 = graph.x + graph.w -115
 		var xc = (x1+x2)/2
@@ -11796,6 +11741,91 @@ if(inRect(pt,graph._z.yaxis.x-10,graph._z.yaxis.y-10,20,20))
 	}
 
 return -1;
+}
+
+//*********************************************************************
+
+function buildAcpTable(graph)
+{
+if(graph.ivalues.length<2) return;
+
+var n = graph.ivalues.length;
+
+setTableName("Principal component analysis");
+
+var row = 1;
+for(var i=0;i<n;i++)
+	table(row,2+i,"PC"+(i+1));
+
+row++;
+table(row,1,"Standard deviation");
+for(var i=0;i<n;i++)
+	table(row,2+i,round(Math.sqrt(graph._z.lambda[i])));
+row++;
+table(row,1,"Variance");
+for(var i=0;i<n;i++)
+	table(row,2+i,round(graph._z.lambda[i]));
+
+var sum = 0;
+for(var i=0;i<n;i++)
+	sum += graph._z.lambda[i];
+
+row++;
+table(row,1,"Percentage");
+for(var i=0;i<n;i++)
+	table(row,2+i,round(graph._z.lambda[i]*100/sum));
+
+var cum = 0;
+row++;
+table(row,1,"Cumulative pct");
+for(var i=0;i<n;i++)
+	{
+	cum += graph._z.lambda[i]*100/sum;
+	table(row,2+i,round(cum));
+	}
+
+row++;
+row++;
+table(row,1,"Rotation");
+
+row++;
+for(var k=0;k<n;k++)
+	{
+	table(row,1,values[graph.ivalues[k]]);
+	for(var i=0;i<n;i++)
+		table(row,2+i,round(graph._z.I[k][i]));
+	row++;
+	}
+
+row++;
+table(row,1,"Correlations");
+
+row++;
+for(var k=0;k<n;k++)
+	{
+	table(row,1,values[graph.ivalues[k]]);
+	for(var i=0;i<n;i++)
+		table(row,2+i,round(graph._z.proj[k][i]));
+	row++;
+	}
+
+row++;
+table(row,1,"Coordinates");
+row++;
+
+var num = 0;
+for(var i=0;i<graph._z.rows.length;i++)
+	{
+	if(graph._z.rows[i][0]==void 0) continue;
+	num++;
+	table(row,1,""+num);
+	for(var j=0;j<n;j++)
+		table(row,2+j,round(graph._z.rows[i][j]));
+	row++;
+	}
+
+
+	function round(x) { return Math.round(x*100000)/100000; }
 }
 
 //*********************************************************************
@@ -16069,98 +16099,6 @@ ctx.lineWidth = 1;
 
 //*********************************************************************
 
-function drawFisherCurve(ctx,graph,y,dof1,dof2,min,max,f,letter,cv)
-{
-var dy = 200;
-var dx = graph.w-55;
-var x = graph.x+20;	
-y += 220;
-
-ctx.strokeStyle = "#000000";
-ctx.strokeRect(x,y-dy,dx,dy);
-
-ctx.lineWidth = 1;
-
-// max value along x
-var dmax = 0;
-for(var i=0;i<=100;i++)
-	{
-	var d = fisherdensity(max*i/100,dof1,dof2);
-	if(d>dmax) dmax = d;
-	}
-
-var bstep = 0.1;
-if(dmax<0.2) bstep = 0.05;
-ctx.fillStyle = hdotted;
-for(var bar=bstep;bar<=dmax;bar+=bstep)
-	ctx.fillRect(x,y-bar*dy/dmax,dx,1);
-
-ctx.save();
-ctx.font = "8px helvetica";
-ctx.textAlign = "right";
-ctx.fillStyle = "#CCCCCC";
-for(var bar=bstep;bar<dmax;bar+=bstep)
-	ctx.fillText(""+(Math.round(bar*20)/20),x-4,y-bar*dy/dmax+4);
-ctx.restore();
-
-
-ctx.fillStyle = "#CCCCCC";
-ctx.textAlign = "center";
-var d1 = Math.round(dof1*100)/100;
-var d2 = Math.round(dof2*100)/100;
-ctx.fillText("F("+d1+","+d2+")",x+dx/2,y-dy-5);
-
-ctx.strokeStyle = "#000000";
-ctx.beginPath();
-for(var i=0;i<=100;i++)
-	{
-	var d = fisherdensity(max*i/100,dof1,dof2);
-	if(i==0)
-		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
-	else
-		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
-	}
-ctx.stroke();
-
-ctx.beginPath();
-ctx.moveTo(x,y);
-ctx.lineTo(x+dx,y);
-ctx.stroke();
-
-ctx.fillStyle = "#000000";
-var j = Math.round(cv*100/max);	
-
-ctx.beginPath();
-for(var i=j;i<=100;i++)
-	{
-	var d = fisherdensity(max*i/100,dof1,dof2);
-	if(i==0)
-		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
-	else
-		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
-	}
-ctx.lineTo(x+dx,y);
-ctx.lineTo(x+dx*j/100,y);
-ctx.fill();
-
-ctx.textAlign = "center";
-
-ctx.fillText(letter,x+dx*f/max,y+24);	
-ctx.beginPath();
-ctx.moveTo(x+dx*f/max,y+2);
-ctx.lineTo(x+dx*f/max,y+12);
-ctx.stroke();
-
-ctx.fillText("C",x+dx*cv/max,y+24);
-ctx.beginPath();
-ctx.moveTo(x+dx*cv/max,y+2);
-ctx.lineTo(x+dx*cv/max,y+12);
-ctx.stroke();
-
-}
-
-//*********************************************************************
-
 function drawBartlettGraph(ctx,graph)
 {
 var level = graph._z.level;
@@ -16226,93 +16164,6 @@ y += 20;
 
 drawChi2Curve(ctx,graph,y,graph._z.dof,0,max,graph._z.t,"T",graph._z.cv);
 
-}
-
-//*********************************************************************
-
-function drawChi2Curve(ctx,graph,y,dof,min,max,t,letter,cv)
-{
-
-ctx.strokeStyle = "#000000";
-ctx.lineWidth = 1;
-
-
-var dy = 200;
-var dx = graph.w-40;
-
-var x = graph.x+20;	
-y += 220;
-
-var dmax = 0;
-for(var i=1;i<=100;i++)
-	{
-	var d = dchisq(max*i/100,dof);
-	if(d>dmax) dmax = d;
-	}
-
-ctx.fillStyle = "#000000";
-ctx.strokeRect(x,y-dy,dx,dy);
-
-ctx.fillStyle = hdotted;
-var barstep = dmax< 1? 0.1 : dmax < 5 ? 0.2 : 0.5;
-for(var bar=0.1;bar<dmax;bar+=barstep)
-	ctx.fillRect(x,y-bar*dy/dmax,dx,1);
-
-ctx.save();
-ctx.font = "8px helvetica";
-ctx.textAlign = "right";
-ctx.fillStyle = "#CCCCCC";
-for(var bar=0.1;bar<dmax;bar+=barstep)
-	ctx.fillText(""+(Math.round(bar*10)/10),x-4,y-bar*dy/dmax+4);
-ctx.restore();
-
-ctx.fillStyle = "#CCCCCC";
-ctx.textAlign = "center";
-ctx.fillText("\u03C72("+dof+")",x+dx/2,y-dy-5);
-
-ctx.strokeStyle = "#000000";
-ctx.beginPath();
-for(var i=1;i<=100;i++)
-	{
-	var d = dchisq(max*i/100,dof);
-	if(i==0)
-		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
-	else
-		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
-	}
-ctx.stroke();
-
-ctx.beginPath();
-ctx.moveTo(x,y);
-ctx.lineTo(x+dx,y);
-ctx.stroke();
-
-ctx.fillStyle = "#000000";
-var j = Math.round(cv*100/max);
-ctx.beginPath();
-for(var i=j;i<=100;i++)
-	{
-	var d = dchisq(max*i/100,dof);
-	if(i==0)
-		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
-	else
-		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
-	}
-ctx.lineTo(x+dx,y);
-ctx.lineTo(x+dx*j/100,y);
-ctx.fill();
-
-ctx.fillText(letter,x+dx*t/max,y+25);	
-ctx.beginPath();
-ctx.moveTo(x+dx*t/max,y+2);
-ctx.lineTo(x+dx*t/max,y+12);
-ctx.stroke();
-
-ctx.fillText("C",x+dx*cv/max,y+25);
-ctx.beginPath();
-ctx.moveTo(x+dx*cv/max,y+2);
-ctx.lineTo(x+dx*cv/max,y+12);
-ctx.stroke();
 }
 
 //*********************************************************************
@@ -16564,119 +16415,6 @@ var max = Math.max(Math.abs(cv),Math.abs(t))*1.2;
 var min = -max;
 
 drawTCurve(ctx,graph,y,dof,min,max,t,"T",cv);
-
-}
-
-//*********************************************************************
-
-function drawTCurve(ctx,graph,y,dof,min,max,t,letter,cv)
-{
-
-var dy = 200;
-var dx = graph.w-40;
-var x = graph.x+20;	
-y += 220;
-
-ctx.strokeStyle = "#000000";
-ctx.strokeRect(x,y-dy,dx,dy);
-
-var dmax = 0
-for(var i=0;i<=100;i++)
-	{
-	var d = dt(min+(max-min)*i/100,dof);
-	if(d>dmax) dmax = d;
-	}
-
-ctx.save();
-ctx.fillStyle = "#CCCCCC";
-ctx.strokeStyle = "#CCCCCC";
-ctx.textAlign = "center";
-ctx.fillText("T("+dof+")",x+dx/2,y-dy-5);
-ctx.font = "8px helvetica";
-ctx.textAlign = "right";
-
-for(var bar=0.1;bar<dmax;bar+=0.1)
-	ctx.fillText(""+(Math.round(bar*10)/10),x-4,y-bar*dy/dmax+4);
-
-ctx.fillStyle = hdotted;
-for(var bar=0.1;bar<dmax;bar+=0.1)
-	ctx.fillRect(x,y-bar*dy/dmax,dx,1);
-
-ctx.restore();
-
-ctx.strokeStyle = "#000000";
-ctx.lineWidth = 1;
-ctx.beginPath();
-for(var i=0;i<=100;i++)
-	{
-	var d = dt(min+(max-min)*i/100,dof);
-	if(i==0)
-		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
-	else
-		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
-	}
-ctx.stroke();
-
-ctx.beginPath();
-ctx.moveTo(x,y);
-ctx.lineTo(x+dx,y);
-ctx.stroke();
-
-ctx.fillStyle = "#000000";
-var j = Math.round((cv-min)*100/(max-min));
-
-ctx.beginPath();
-for(var i=j;i<=100;i++)
-	{	
-	var d = dt(min+(max-min)*i/100,dof);
-	if(i==j)
-		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
-	else
-		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
-	}
-ctx.lineTo(x+dx,y);
-ctx.lineTo(x+dx*j/100,y);
-ctx.closePath();
-ctx.fill();
-
-
-ctx.beginPath();
-for(var i=0;i<=100-j;i++)
-	{	
-	var d = dt(min+(max-min)*i/100,dof);
-	if(i==0)
-		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
-	else
-		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
-	}
-ctx.lineTo(x+dx*(100-j)/100,y);
-ctx.lineTo(x,y);
-ctx.closePath();
-ctx.fill();
-
-
-ctx.textAlign = "center";
-
-var ratio = (t-min)/(max-min);
-ctx.fillText("T",x+dx*ratio,y+25);	
-ctx.beginPath();
-ctx.moveTo(x+dx*ratio,y+2);
-ctx.lineTo(x+dx*ratio,y+12);
-ctx.stroke();
-
-var ratio = (cv-min)/(max-min);
-ctx.fillText("C",x+dx*ratio,y+25);
-ctx.beginPath();
-ctx.moveTo(x+dx*ratio,y+2);
-ctx.lineTo(x+dx*ratio,y+12);
-ctx.stroke();
-
-ratio = (-cv-min)/(max-min);
-ctx.fillText("C",x+dx*ratio,y+25);
-ctx.beginPath();
-ctx.moveTo(x+dx*ratio,y+2);
-ctx.lineTo(x+dx*ratio,y+12);
-ctx.stroke();
 
 }
 
@@ -17818,6 +17556,7 @@ if(action==SELECT_MENUITEM)
 
 if(action==CREATE_PROJECTION)
 	{
+	if(zvalue==values.length) zvalue++;
 	if(valueindex==1)
 		values.push(values[graph.ivalue1]+"."+(++newfield));
 	else
@@ -19696,6 +19435,7 @@ function createProjectionValue(graph,index)
 
 if(graph.type==TYPE.ACP)
 	{
+	if(zvalue==values.length) zvalue++;
 	values.push("PCA."+(++newfield));
 
 	var n = graph.ivalues.length;
@@ -19716,7 +19456,8 @@ if(graph.type==TYPE.ACP)
 	}
 
 if(graph.type==TYPE.DISCRI)
-	{
+	{	
+	if(zvalue==values.length) zvalue++;
 	values.push("DISCRI."+(++newfield));
 
 	var n= graph.ivalues.length;
@@ -19891,6 +19632,7 @@ skeys.sort()
 for(var k=0;k<skeys.length;k++)
 	{
 	var x = skeys[k];
+	if(zvalue==values.length) zvalue++;
 	values.push(x);
 	for(var i=0;i<lrecords.length;i++)
 		{	
@@ -19994,9 +19736,15 @@ if(graph.ilabel3>=0)
 		}
 
 	if(option==0)		
+		{
+		if(zlabel==labels.length) zlabel++;
 		labels.push(key1+"-"+key2+"-"+key3);
-	else
-		values.push(key1+"_"+key2+"_"+key3);
+		}
+	else	
+		{
+		if(zvalue==values.length) zvalue++;
+		values.push(key1+"_"+key2+"_"+key3);		
+		}
 	}
 else if((graph.ilabel2>=0)&&(graph.type!=TYPE.FAC))
 	{
@@ -20018,9 +19766,15 @@ else if((graph.ilabel2>=0)&&(graph.type!=TYPE.FAC))
 		}
 
 	if(option==0)
+		{		
+		if(zlabel==labels.length) zlabel++;
 		labels.push(key1+"_"+key2);
+		}
 	else
+		{
+		if(zvalue==values.length) zvalue++;
 		values.push(key1+"_"+key2);
+		}
 	}
 else if(graph.ilabel1>=0)
 	{
@@ -20038,9 +19792,15 @@ else if(graph.ilabel1>=0)
 		}
 
 	if(option==0)
+		{	
+		if(zlabel==labels.length) zlabel++;
 		labels.push(key1);
+		}
 	else
+		{		
+		if(zvalue==values.length) zvalue++;
 		values.push(key1);
+		}
 	}
 
 }
@@ -21297,9 +21057,12 @@ for(var i=0;i<lrecords.length;i++)
 lrecords = newlrecords;
 vrecords = newvrecords;
 
+if(zlabel==labels.length) zlabel++;
 labels.push("PIVOT");
+
 values.splice(1,values.length-1);
 values.push("COUNT");
+if(zvalue>values.length) zvalue = values.length;
 }
 
 //*********************************************************************
@@ -21773,12 +21536,14 @@ var nerr = 0;
 
 if(action==1)
 	{
+	if(zlabel==labels.length) zlabel++;
 	labels.push(nom);
 	for(var i=0;i<lrecords.length;i++)
 		lrecords[i].push(evaluate_label(lrecords[i],vrecords[i],i+1,i+1));
 	}
 else if(action==2)
-	{
+	{	
+	if(zvalue==values.length) zvalue++;
 	values.push(nom);
 	for(var i=0;i<vrecords.length;i++)
 		vrecords[i].push(evaluate_value(lrecords[i],vrecords[i],i+1,i+1));
@@ -21840,13 +21605,13 @@ if(slabel = inLabelScrollBar(ptmove))
 	message = "Scroll field list";
 
 if(hlabel = inLabelHandle(ptmove))
-	message = "Extend field list";
+	message = "Resize field list";
 
 if(svalue = inValueScrollBar(ptmove))
 	message = "Scroll field list";
 
 if(hvalue = inValueHandle(ptmove))
-	message = "Extend field list";
+	message = "Resize field list";
 
 
 // check if over dock
@@ -23516,28 +23281,6 @@ else
 
 function trunc(s,ndigits)
 {
-/*
-s = ""+s;
-
-var i = s.indexOf("e")
-if(i>0)
-	{
-	var suffix = s.substring(i)
-	s = s.substring(0,i)
-	}
-else
-	{
-	var suffix = ""
-	}
-
-var i = s.indexOf(".")
-
-if(i<0) return s+suffix;
-
-if(s.length-i<ndigits) return s+suffix;
-
-return s.substring(0,i+ndigits+1)+suffix
-*/
 var p = 1;
 for(var i=0;i<ndigits;i++)
 	p*=10;
@@ -24602,96 +24345,11 @@ return x/Math.sqrt(y*z);
 }
 
 //*********************************************************************
-
-function poz(z) {
-	var y, x, w;
-	var Z_MAX = 6.0;              /* Maximum meaningful z value */
-	
-	if (z == 0.0) {
-		x = 0.0;
-	} else {
-		y = 0.5 * Math.abs(z);
-		if (y >= (Z_MAX * 0.5)) {
-			x = 1.0;
-		} else if (y < 1.0) {
-			w = y * y;
-			x = ((((((((0.000124818987 * w
-					 - 0.001075204047) * w + 0.005198775019) * w
-					 - 0.019198292004) * w + 0.059054035642) * w
-					 - 0.151968751364) * w + 0.319152932694) * w
-					 - 0.531923007300) * w + 0.797884560593) * y * 2.0;
-		} else {
-			y -= 2.0;
-			x = (((((((((((((-0.000045255659 * y
-						   + 0.000152529290) * y - 0.000019538132) * y
-						   - 0.000676904986) * y + 0.001390604284) * y
-						   - 0.000794620820) * y - 0.002034254874) * y
-						   + 0.006549791214) * y - 0.010557625006) * y
-						   + 0.011630447319) * y - 0.009279453341) * y
-						   + 0.005353579108) * y - 0.002141268741) * y
-						   + 0.000535310849) * y + 0.999936657524;
-		}
-	}
-	return z > 0.0 ? ((x + 1.0) * 0.5) : ((1.0 - x) * 0.5);
-}
-
+//*********************************************************************
+//			C U R V E S 
+//*********************************************************************
 //*********************************************************************
 
-
-var BIGX = 20.0;                  /* max value to represent exp(x) */
-
-function ex(x) {
-	return (x < -BIGX) ? 0.0 : Math.exp(x);
-}
-
-//*********************************************************************
-
-function pochisq(x, df) {
-	var a, y, s;
-	var e, c, z;
-	var even;                     /* True if df is an even number */
-
-	var LOG_SQRT_PI = 0.5723649429247000870717135; /* log(sqrt(pi)) */
-	var I_SQRT_PI = 0.5641895835477562869480795;   /* 1 / sqrt(pi) */
-	
-	if (x <= 0.0 || df < 1) {
-		return 1.0;
-	}
-	
-	a = 0.5 * x;
-	even = !(df & 1);
-	if (df > 1) {
-		y = ex(-a);
-	}
-	s = (even ? y : (2.0 * poz(-Math.sqrt(x))));
-	if (df > 2) {
-		x = 0.5 * (df - 1.0);
-		z = (even ? 1.0 : 0.5);
-		if (a > BIGX) {
-			e = (even ? 0.0 : LOG_SQRT_PI);
-			c = Math.log(a);
-			while (z <= x) {
-				e = Math.log(z) + e;
-				s += ex(c * z - a - e);
-				z += 1.0;
-			}
-			return s;
-		} else {
-			e = (even ? 1.0 : (I_SQRT_PI / Math.sqrt(a)));
-			c = 0.0;
-			while (z <= x) {
-				e = e * (a / z);
-				c = c + e;
-				z += 1.0;
-			}
-			return c * y + s;
-		}
-	} else {
-		return s;
-	}
-}
-
-//*********************************************************************
 
 function drawNormalCurve(ctx,graph,y,min,max,t,letter,cv)
 {
@@ -24774,6 +24432,298 @@ ctx.fillText("C",xx,y+24);
 ctx.beginPath();
 ctx.moveTo(xx,y+2);
 ctx.lineTo(xx,y+12);
+ctx.stroke();
+
+}
+
+//*********************************************************************
+
+function drawTCurve(ctx,graph,y,dof,min,max,t,letter,cv)
+{
+
+var dy = 200;
+var dx = graph.w-40;
+var x = graph.x+20;	
+y += 220;
+
+ctx.strokeStyle = "#000000";
+ctx.strokeRect(x,y-dy,dx,dy);
+
+var dmax = 0
+for(var i=0;i<=100;i++)
+	{
+	var d = dt(min+(max-min)*i/100,dof);
+	if(d>dmax) dmax = d;
+	}
+
+ctx.save();
+ctx.fillStyle = "#CCCCCC";
+ctx.strokeStyle = "#CCCCCC";
+ctx.textAlign = "center";
+ctx.fillText("T("+dof+")",x+dx/2,y-dy-5);
+ctx.font = "8px helvetica";
+ctx.textAlign = "right";
+
+for(var bar=0.1;bar<dmax;bar+=0.1)
+	ctx.fillText(""+(Math.round(bar*10)/10),x-4,y-bar*dy/dmax+4);
+
+ctx.fillStyle = hdotted;
+for(var bar=0.1;bar<dmax;bar+=0.1)
+	ctx.fillRect(x,y-bar*dy/dmax,dx,1);
+
+ctx.restore();
+
+ctx.strokeStyle = "#000000";
+ctx.lineWidth = 1;
+ctx.beginPath();
+for(var i=0;i<=100;i++)
+	{
+	var d = dt(min+(max-min)*i/100,dof);
+	if(i==0)
+		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+	else
+		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+	}
+ctx.stroke();
+
+ctx.beginPath();
+ctx.moveTo(x,y);
+ctx.lineTo(x+dx,y);
+ctx.stroke();
+
+ctx.fillStyle = "#000000";
+var j = Math.round((cv-min)*100/(max-min));
+
+ctx.beginPath();
+for(var i=j;i<=100;i++)
+	{	
+	var d = dt(min+(max-min)*i/100,dof);
+	if(i==j)
+		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+	else
+		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+	}
+ctx.lineTo(x+dx,y);
+ctx.lineTo(x+dx*j/100,y);
+ctx.closePath();
+ctx.fill();
+
+
+ctx.beginPath();
+for(var i=0;i<=100-j;i++)
+	{	
+	var d = dt(min+(max-min)*i/100,dof);
+	if(i==0)
+		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+	else
+		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+	}
+ctx.lineTo(x+dx*(100-j)/100,y);
+ctx.lineTo(x,y);
+ctx.closePath();
+ctx.fill();
+
+
+ctx.textAlign = "center";
+
+var ratio = (t-min)/(max-min);
+ctx.fillText("T",x+dx*ratio,y+25);	
+ctx.beginPath();
+ctx.moveTo(x+dx*ratio,y+2);
+ctx.lineTo(x+dx*ratio,y+12);
+ctx.stroke();
+
+var ratio = (cv-min)/(max-min);
+ctx.fillText("C",x+dx*ratio,y+25);
+ctx.beginPath();
+ctx.moveTo(x+dx*ratio,y+2);
+ctx.lineTo(x+dx*ratio,y+12);
+ctx.stroke();
+
+ratio = (-cv-min)/(max-min);
+ctx.fillText("C",x+dx*ratio,y+25);
+ctx.beginPath();
+ctx.moveTo(x+dx*ratio,y+2);
+ctx.lineTo(x+dx*ratio,y+12);
+ctx.stroke();
+
+}
+
+//*********************************************************************
+
+function drawChi2Curve(ctx,graph,y,dof,min,max,t,letter,cv)
+{
+
+ctx.strokeStyle = "#000000";
+ctx.lineWidth = 1;
+
+
+var dy = 200;
+var dx = graph.w-40;
+
+var x = graph.x+20;	
+y += 220;
+
+var dmax = 0;
+for(var i=1;i<=100;i++)
+	{
+	var d = dchisq(max*i/100,dof);
+	if(d>dmax) dmax = d;
+	}
+
+ctx.fillStyle = "#000000";
+ctx.strokeRect(x,y-dy,dx,dy);
+
+ctx.fillStyle = hdotted;
+var barstep = dmax< 1? 0.1 : dmax < 5 ? 0.2 : 0.5;
+for(var bar=0.1;bar<dmax;bar+=barstep)
+	ctx.fillRect(x,y-bar*dy/dmax,dx,1);
+
+ctx.save();
+ctx.font = "8px helvetica";
+ctx.textAlign = "right";
+ctx.fillStyle = "#CCCCCC";
+for(var bar=0.1;bar<dmax;bar+=barstep)
+	ctx.fillText(""+(Math.round(bar*10)/10),x-4,y-bar*dy/dmax+4);
+ctx.restore();
+
+ctx.fillStyle = "#CCCCCC";
+ctx.textAlign = "center";
+ctx.fillText("\u03C72("+dof+")",x+dx/2,y-dy-5);
+
+ctx.strokeStyle = "#000000";
+ctx.beginPath();
+for(var i=1;i<=100;i++)
+	{
+	var d = dchisq(max*i/100,dof);
+	if(i==0)
+		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+	else
+		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+	}
+ctx.stroke();
+
+ctx.beginPath();
+ctx.moveTo(x,y);
+ctx.lineTo(x+dx,y);
+ctx.stroke();
+
+ctx.fillStyle = "#000000";
+var j = Math.round(cv*100/max);
+ctx.beginPath();
+for(var i=j;i<=100;i++)
+	{
+	var d = dchisq(max*i/100,dof);
+	if(i==0)
+		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+	else
+		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+	}
+ctx.lineTo(x+dx,y);
+ctx.lineTo(x+dx*j/100,y);
+ctx.fill();
+
+ctx.fillText(letter,x+dx*t/max,y+25);	
+ctx.beginPath();
+ctx.moveTo(x+dx*t/max,y+2);
+ctx.lineTo(x+dx*t/max,y+12);
+ctx.stroke();
+
+ctx.fillText("C",x+dx*cv/max,y+25);
+ctx.beginPath();
+ctx.moveTo(x+dx*cv/max,y+2);
+ctx.lineTo(x+dx*cv/max,y+12);
+ctx.stroke();
+}
+
+//*********************************************************************
+
+function drawFisherCurve(ctx,graph,y,dof1,dof2,min,max,f,letter,cv)
+{
+var dy = 200;
+var dx = graph.w-55;
+var x = graph.x+20;	
+y += 220;
+
+ctx.strokeStyle = "#000000";
+ctx.strokeRect(x,y-dy,dx,dy);
+
+ctx.lineWidth = 1;
+
+// max value along x
+var dmax = 0;
+for(var i=0;i<=100;i++)
+	{
+	var d = df(max*i/100,dof1,dof2);
+	if(d>dmax) dmax = d;
+	}
+
+var bstep = 0.1;
+if(dmax<0.2) bstep = 0.05;
+ctx.fillStyle = hdotted;
+for(var bar=bstep;bar<=dmax;bar+=bstep)
+	ctx.fillRect(x,y-bar*dy/dmax,dx,1);
+
+ctx.save();
+ctx.font = "8px helvetica";
+ctx.textAlign = "right";
+ctx.fillStyle = "#CCCCCC";
+for(var bar=bstep;bar<dmax;bar+=bstep)
+	ctx.fillText(""+(Math.round(bar*20)/20),x-4,y-bar*dy/dmax+4);
+ctx.restore();
+
+
+ctx.fillStyle = "#CCCCCC";
+ctx.textAlign = "center";
+var d1 = Math.round(dof1*100)/100;
+var d2 = Math.round(dof2*100)/100;
+ctx.fillText("F("+d1+","+d2+")",x+dx/2,y-dy-5);
+
+ctx.strokeStyle = "#000000";
+ctx.beginPath();
+for(var i=0;i<=100;i++)
+	{
+	var d = df(max*i/100,dof1,dof2);
+	if(i==0)
+		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+	else
+		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+	}
+ctx.stroke();
+
+ctx.beginPath();
+ctx.moveTo(x,y);
+ctx.lineTo(x+dx,y);
+ctx.stroke();
+
+ctx.fillStyle = "#000000";
+var j = Math.round(cv*100/max);	
+
+ctx.beginPath();
+for(var i=j;i<=100;i++)
+	{
+	var d = df(max*i/100,dof1,dof2);
+	if(i==0)
+		ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+	else
+		ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+	}
+ctx.lineTo(x+dx,y);
+ctx.lineTo(x+dx*j/100,y);
+ctx.fill();
+
+ctx.textAlign = "center";
+
+ctx.fillText(letter,x+dx*f/max,y+24);	
+ctx.beginPath();
+ctx.moveTo(x+dx*f/max,y+2);
+ctx.lineTo(x+dx*f/max,y+12);
+ctx.stroke();
+
+ctx.fillText("C",x+dx*cv/max,y+24);
+ctx.beginPath();
+ctx.moveTo(x+dx*cv/max,y+2);
+ctx.lineTo(x+dx*cv/max,y+12);
 ctx.stroke();
 
 }
@@ -25080,14 +25030,37 @@ function pchisq(x,df) {
 }
 
 //*********************************************************************
-//		FISHER DISTRIBUTION
 
-function fisherdensity(x,d1,d2)
-{
-var a = d1*Math.log(d1*x)/2+d2*Math.log(d2)/2-(d1+d2)*Math.log(d1*x+d2)/2;
-var b = Math.exp(a);
-var c = beta(d1/2,d2/2);
-return b/(x*c);
+function poz(z) {
+	var y, x, w;
+	var Z_MAX = 6.0;              /* Maximum meaningful z value */
+	
+	if (z == 0.0) {
+		x = 0.0;
+	} else {
+		y = 0.5 * Math.abs(z);
+		if (y >= (Z_MAX * 0.5)) {
+			x = 1.0;
+		} else if (y < 1.0) {
+			w = y * y;
+			x = ((((((((0.000124818987 * w
+					 - 0.001075204047) * w + 0.005198775019) * w
+					 - 0.019198292004) * w + 0.059054035642) * w
+					 - 0.151968751364) * w + 0.319152932694) * w
+					 - 0.531923007300) * w + 0.797884560593) * y * 2.0;
+		} else {
+			y -= 2.0;
+			x = (((((((((((((-0.000045255659 * y
+						   + 0.000152529290) * y - 0.000019538132) * y
+						   - 0.000676904986) * y + 0.001390604284) * y
+						   - 0.000794620820) * y - 0.002034254874) * y
+						   + 0.006549791214) * y - 0.010557625006) * y
+						   + 0.011630447319) * y - 0.009279453341) * y
+						   + 0.005353579108) * y - 0.002141268741) * y
+						   + 0.000535310849) * y + 0.999936657524;
+		}
+	}
+	return z > 0.0 ? ((x + 1.0) * 0.5) : ((1.0 - x) * 0.5);
 }
 
 //*********************************************************************
@@ -26102,5 +26075,3 @@ for (var i = 0; i < n-1; i++) {
 
 //*********************************************************************
 
-var lasso = new Image();
-lasso.src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAAAAACo4kLRAAAAAXNSR0IArs4c6QAAAAJ0Uk5TAP9bkSK1AAAAzElEQVR4nGL4jwUw4Bb8sLHI184huPHIH7jg9zYN/aTO2dNqfOVN1kAFX9g57fsN0fdmimzuH5DgT9fcvwjj7qs3gQTX2/xFtuSMzFOgYEEnqtXG24GC5Q2ogob7gYJHDD8ji+3S+giyPcfrDYj39ymIOqG4Buyk3/l6s6YnZpvqqK68VqSyGOajfQHCDAzVm1TZdLPuIPn96fYcGVaGkvdoATJFfcUOmINhgk+kjmMG3UxHjKD7/78wF4tgaQoWwfXxSIIAAAAA//8DAJa6VIGkfDaxAAAAAElFTkSuQmCC";
