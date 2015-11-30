@@ -50,6 +50,9 @@ if(check(content,'P','K',0x03,0x04))
 else if(check(content,'m','y','s','q','l'))
 	process_mysql_content(content,callback);
 
+else if(check(content,'p','o','s','t','g','r','e','s'))	
+	process_postgres_content(content,callback);
+
 else if(check(content,'h','t','t','p'))
 	process_http_content(content,callback);
 
@@ -322,7 +325,87 @@ try	{
 	}
 catch(e)
 	{
-	console.log(e);
+	console.log(e.stack);
+	callback(null);
+	}
+
+}
+
+//****************************************************************************
+
+function process_postgres_content(content,callback)
+{
+console.log("process postgress content");
+
+content = content.toString("utf8");
+
+var pg = require("pg");
+
+try	{	
+	var lines = content.split("\n");
+	if(lines.length<2) lines = lines.split("\r");
+
+	var username = "";
+	var password = "";
+	var hostname = "";
+	var database = "";
+	var query = "";
+
+	var m;
+	for(var i=0;i<lines.length;i++)
+		{
+		if(m=lines[i].match(/host:(.*)/))
+			hostname = m[1];
+		if(m=lines[i].match(/user:(.*)/))
+			username  = m[1];
+		if(m=lines[i].match(/password:(.*)/))
+			password = m[1];
+		if(m=lines[i].match(/database:(.*)/))
+			database = m[1];
+		if(m=lines[i].match(/query:(.*)/))
+			query = m[1];
+		}
+
+	var url = "postgres://"+username+":"+password+"@"+hostname+"/"+database;
+	var client = new pg.Client(url);
+	client.connect( function(err) {
+		if(err) {
+			console.log("connect err "+err);
+			callback(null);
+			return;
+			}
+
+		client.query(query, function(err,result) {
+			if(err) {
+				console.log("query err "+err);
+				client.end();
+				callback(null);
+				return;
+				}
+
+			data = [];
+			var fields = new Array(result.fields.length);
+			for(var k=0;k<fields.length;k++)		
+				fields[k] = result.fields[k].name;
+			data.push(fields);
+
+			for(var i=0;i<result.rows.length;i++)			
+				{		
+				var row = new Array(fields.length);
+				for(var k=0;k<fields.length;k++)
+					row[k] = result.rows[i][fields[k]];
+				data.push(row);
+				}
+			client.end();
+			check_data_type(callback);	
+		});
+
+	});
+		
+	}
+catch(err)
+	{
+	console.log(err.stack);	
 	callback(null);
 	}
 
