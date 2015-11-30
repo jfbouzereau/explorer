@@ -130,6 +130,19 @@ database:test
 query:select * from mytable
 ```
 
+##### Postgres database
+
+Launch the application, and drag a configuration file with a content like this:
+
+```
+postgres
+host:192.168.0.2
+user:bob
+password:secret
+database:test
+query:select * from mytable
+```
+
 ##### JSON file
 
 Launch the application, and drag a file containing a JSON array of records.
