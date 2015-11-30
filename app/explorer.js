@@ -50,7 +50,7 @@ _action("RESERVE15","");
 _action("DOCK_GRAPH","Move graph into dock");
 _action("UNDOCK_GRAPH","Remove graph from dock");
 _action("SET_LEFTLABEL","Define partition ");
-_action("SET_LABELSELECTION","Change selection");
+_action("SET_SELECTION","Change selection");
 _action("SET_VALUESELECTION","Change selection");
 _action("PASTE_LABEL11","Map axis");
 _action("PASTE_LABEL12","Map axis");
@@ -245,7 +245,7 @@ var NBTYPE2 = KNUM; 		//  max plot types
 _type("DISCRI","Discriminant analysis",{ivalues:1,leftlabel:1,bottomlabel:3,options:3});
 _type("TEST","Analysis of variance",{jvalues:1,ilabels:1,menu:"test",options:3});
 _type("NONPARAM","Non parametric tests",{ilabels:1,leftvalue:1,menu:"nonparam",options:2});
-_type("BOX","Box plot",{topvalue:1,leftlabel:1});
+_type("BOX","Box plot",{ivalues:1,leftlabel:1});
 _type("REGRES","Linear regression",{ivalues:1,leftvalue:1,bottomlabel:1,rightlabel:2,options:4,menu:"regr"});
 _type("PARA","Parallel coordinates",{ivalues:1,leftlabel:1,options:2});
 _type("PALETTE","Palette");
@@ -1648,6 +1648,69 @@ if(k)
 	graph["ivalue"+k] = -1;
 
 computeGraphData(graph);
+}
+
+//*********************************************************************
+
+function setGraphSelection(sgraph,dgraph,sliceindex)
+{
+var REPLACE = 1;
+var MERGE = 2;
+var APPEND = 3;
+
+var action = 0;
+
+var sl = sgraph.selection.length;
+var dl = dgraph.selection.length;
+var key = sgraph._keys1[sliceindex];
+
+if(sl==dl)
+	{
+	action = compare() ? APPEND : REPLACE;
+	}
+else if(sl==dl-2)
+	{
+	if(!compare())
+		action = REPLACE;
+	else if(dgraph.selection[dl-2]==sgraph.ilabel1)
+		action = MERGE;
+	else
+		action = REPLACE;
+	}
+else
+	action = REPLACE;
+
+if(action==REPLACE)
+	{
+	// remove previous selection
+	dgraph.selection = clone(sgraph.selection);
+	dgraph.selection.push(sgraph.ilabel1);
+	dgraph.selection.push(key);
+	}
+else if(action==APPEND)
+	{	
+	dgraph.selection.push(sgraph.ilabel1);
+	dgraph.selection.push(key);
+	}
+else if(action==MERGE)
+	{
+	if(typeof (dgraph.selection[dl-1])=="string")
+		dgraph.selection[dl-1] = [dgraph.selection[dl-1],key];
+	else if(indexOf(key,dgraph.selection[dl-1])<0)
+		dgraph.selection[dl-1].push(key);
+	}
+
+dgraph.hbar = dgraph.selection.length/2*16
+if(dgraph.hbar==0) dgraph.hbar = 16
+
+
+	function compare()
+	{
+	for(var i=0;i<sgraph.selection.length;i++)
+		if(sgraph.selection[i]!=dgraph.selection[i])
+			return false;
+	return true;
+	}
 }
 
 //*********************************************************************
@@ -13958,23 +14021,6 @@ for(var i=0;i<lrecords.length;i++)
 		}
 	}
 
-// verif
-var sum = vector(nv);
-var sum2 = vector(nv);
-for(var i=0;i<lrecords.length;i++)
-	{
-	for(var k=0;k<nv;k++)
-		{
-		sum[k] += rows[i][k];
-		sum2[k] += rows[i][k]*rows[i][k];
-		}
-	}
-
-console.log("SUM");
-console.log(sum);
-
-console.log("SUM2");
-console.log(sum2);
 
 var u = colM(E,0);
 var v = colM(E,1);
@@ -14054,7 +14100,6 @@ graph._z.ellipse = ellipse;
 graph._z.zmin = zmin;
 graph._z.zmax = zmax;
 
-console.log(graph._z);
 
 	// ------------------------------------------------------------------------
 
@@ -17711,28 +17756,12 @@ if(action==CREATE_PROJECTION)
 //
 //*********************************************************************
 
-
-function inBoxSlice(pt,graph)
-{
-if(graph.ilabel1<0) return -1;
-if(graph.ivalues.length==0) return -1;
-
-if(!inRect(pt,graph.x,graph.y+graph.hbar,graph.w,graph.h-graph.hbar)) return -1;
-
-var dv = (graph.h-graph.hbar-20)/graph._z.keys.length;
-var j = Math.floor((ptmove.y-graph.y-graph.hbar-20)/dv);
-if(j>=graph._z.keys.length) j = graph._z.keys.length-1;
-
-return j;
-
-}
-
-//*********************************************************************
-
 function computeBoxData(graph)
 {
 if(graph.ilabel1<0) return;
-if(graph.ivalue1<0) return;
+if(graph.ivalues.length<1) return;
+
+var nv = graph.ivalues.length;
 
 var pops = {};
 var keys = [];
@@ -17740,35 +17769,44 @@ for(var i=0;i<lrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue
 
-	var key1 = lrecords[i][graph.ilabel1]	
+	var key1 = lrecords[i][graph.ilabel1]	;	
 	if(!(key1 in pops))
 		{
 		keys.push(key1);
-		pops[key1] = [];	
+		pops[key1] = new Array(nv);
+		for(var j=0;j<nv;j++)
+			pops[key1][j] = [];
 		}
 
-	pops[key1].push(vrecords[i][graph.ivalue1]);
+	for(var j=0;j<nv;j++)
+		pops[key1][j].push(vrecords[i][graph.ivalues[j]]);
 	}
 
 keys.sort();
-boxes = {};
 
-var min = Number.MAX_VALUE;
-var max = -Number.MAX_VALUE;
+boxes = {};
+var min = vector(nv);
+var max = vector(nv);
+min.fill(Number.MAX_VALUE);
+max.fill(-Number.MAX_VALUE);
 
 for(var i=0;i<keys.length;i++)
 	{
-	var pop = pops[keys[i]];
-	pop.sort(function(a,b) { return a-b });
-	var n = pop.length;
-	var i0 = Math.floor((n-1)/10);
-	var i1 = Math.floor((n-1)/4);
-	var i2 = Math.floor((n-1)/2);
-	var i3 = Math.floor((n-1)*3/4);
-	var i4 = Math.floor((n-1)*9/10);
-	boxes[keys[i]] = [pop[i0],pop[i1],pop[i2],pop[i3],pop[i4]];
-	if(pop[i0]<min) min = pop[i0];
-	if(pop[i4]>max) max = pop[i4];
+	boxes[keys[i]] = new Array(nv);
+	for(var j=0;j<nv;j++)
+		{
+		var pop = pops[keys[i]][j];
+		pop.sort(function(a,b) { return a-b })
+		var n = pop.length;
+		var i0 = Math.floor((n-1)/10);
+		var i1 = Math.floor((n-1)/4);
+		var i2 = Math.floor((n-1)/2);
+		var i3 = Math.floor((n-1)*3/4);
+		var i4 = Math.floor((n-1)*9/10);
+		boxes[keys[i]][j] = [pop[i0],pop[i1],pop[i2],pop[i3],pop[i4]];
+		if(pop[i0]<min[j]) min[j] = pop[i0];
+		if(pop[i4]>max[j]) max[j] = pop[i4];
+		}
 	}
 
 graph._z.keys = keys;
@@ -17784,21 +17822,47 @@ function moveBoxGraph(ptmove,graph)
 {
 if(graph.type!=TYPE.BOX) return false;
 if(graph.ilabel1<0) return false;
-if(graph.ivalue1<0) return false;
+if(graph.ivalues.length<1) return false;
 
-var dv = (graph.h-graph.hbar-20)/graph._z.keys.length;
+var nv = graph.ivalues.length;
 
-var j = Math.floor((ptmove.y-graph.y-graph.hbar-20)/dv);
-if(j<0) j = 0;
-if(j>=graph._z.keys.length) j = graph._z.keys.length-1;
+var min = graph._z.min;
+var max = graph._z.max;
 
-var x = (ptmove.x -graph.x-20)*(graph._z.max-graph._z.min)/(graph.w-40)+graph._z.min;
+var xleft = graph.x+30;
+var xright = graph.x + graph.w - 110;
+var ytop = graph.y + graph.hbar + 15;
+var ybottom  = graph.y + graph.h -15;
+
+var dx = (xright-xleft)/nv;
+if(dx<50) dx = 50;
+dx = Math.floor(dx);
+var ddx = dx-20;
+
+var dy = (ybottom-ytop)/graph._z.keys.length;
+if(dy<10) dy = 10;
+dy = Math.floor(dy);
+
+var iv = Math.floor((ptmove.x-xleft)/dx);
+if(iv<0) return false;
+if(iv>=nv) return false;
+
+var ik = Math.floor((ptmove.y-ytop)/dy);
+if(ik<0) return false;
+if(ik>=graph._z.keys.length) return false;
+
+var x = ptmove.x-xleft-iv*dx;
+if(x<0) return false;
+if(x>ddx) return false;
+
+var x = min[ik]+(max[ik]-min[ik])*x;
 
 overlabel1 = graph.ilabel1
-overkey1 = graph._z.keys[j];
-message = graph._z.keys[j]+"  "+trunc(x,4);
+overkey1 = graph._z.keys[ik];
+message = values[graph.ivalues[iv]]+" "+graph._z.keys[ik]+" : "+(Math.round(x*10000)/10000);
 
 return true;
+
 }
 
 //*********************************************************************
@@ -17825,49 +17889,82 @@ function drawBoxIcon(ctx,x,y)
 
 function drawBoxGraph(ctx,graph)
 {
-if((graph.ilabel1>=0)&&(graph.ivalue1>=0))
+if(graph.ilabel1<0) return;
+if(graph.ivalues.length<1) return;
+
+var nv = graph.ivalues.length;
+
+var min = graph._z.min;
+var max = graph._z.max;
+
+var xleft = graph.x+30;
+var xright = graph.x + graph.w - 110;
+var ytop = graph.y + graph.hbar + 15;
+var ybottom  = graph.y + graph.h -15;
+
+var dx = (xright-xleft)/nv;
+if(dx<50) dx = 50;
+dx = Math.floor(dx);
+var ddx = dx-20;
+
+var dy = (ybottom-ytop)/graph._z.keys.length;
+if(dy<10) dy = 10;
+dy = Math.floor(dy);
+
+
+ctx.fillStyle = "#CCCCCC";
+for(var j=0;j<=nv;j++)
+	ctx.fillRect(xleft+dx*j-10,ytop,1,ybottom-ytop);
+
+var font = ctx.font;
+ctx.font = "8px helvetica";
+ctx.textAlign = "center";
+ctx.fillStyle = "#000000";
+for(var j=0;j<nv;j++)
 	{
-	var min = graph._z.min;
-	var max = graph._z.max;
+	ctx.fillText(values[graph.ivalues[j]],xleft+dx*j+dx/2,ytop-5);
+	ctx.fillText(values[graph.ivalues[j]],xleft+dx*j+dx/2,ybottom+10);
+	}
+	
+ctx.strokeStyle = "#000000";
+ctx.fillStyle = getColor(graph.hue,1,1)
+		
+for(var j=0;j<nv;j++)
+	{
+	var y = ytop+dy/2;
 
-	var dv = (graph.h-graph.hbar-25)/graph._z.keys.length;
-	if(dv<6) dv = 6;
-	var idv = Math.floor(dv);
-
-	ctx.strokeStyle = "#000000";
-	ctx.fillStyle = getColor(frac(graph.hue),1,1)
-			
-
-	var y = graph.y+graph.hbar+25;
-
+	var x = xleft + dx*j;
+	
 	for(var i=0;i<graph._z.keys.length;i++)
 		{
 		var key = graph._z.keys[i];
-		var box = graph._z.boxes[key];
-		var x0 = Math.floor(graph.x+20+(graph.w-40)*(box[0]-min)/(max-min));
-		var x1 = Math.floor(graph.x+20+(graph.w-40)*(box[1]-min)/(max-min));
-		var x2 = Math.floor(graph.x+20+(graph.w-40)*(box[2]-min)/(max-min));
-		var x3 = Math.floor(graph.x+20+(graph.w-40)*(box[3]-min)/(max-min));
-		var x4 = Math.floor(graph.x+20+(graph.w-40)*(box[4]-min)/(max-min));
+		var box = graph._z.boxes[key][j];
+
+		var x0 = Math.floor(x+ddx*(box[0]-min[j])/(max[j]-min[j]));
+		var x1 = Math.floor(x+ddx*(box[1]-min[j])/(max[j]-min[j]));
+		var x2 = Math.floor(x+ddx*(box[2]-min[j])/(max[j]-min[j]));
+		var x3 = Math.floor(x+ddx*(box[3]-min[j])/(max[j]-min[j]));
+		var x4 = Math.floor(x+ddx*(box[4]-min[j])/(max[j]-min[j]));
 
 		if(hiliteMatch1(graph.ilabel1,key))
 			ctx.fillStyle = graph._hilites1[graph._z.keys[0]];
 		else
 			ctx.fillStyle = graph._colors1[graph._z.keys[0]];
 
-		ctx.fillRect(x1,Math.floor(y+3),x2-x1,idv-6);
-		ctx.fillRect(x2,Math.floor(y+3),x3-x2,idv-6);
-		ctx.strokeRect(x0,Math.floor(y+dv/2),x1-x0,0);
-		ctx.strokeRect(x0,Math.floor(y+3),0,idv-6);
-		ctx.strokeRect(x1,Math.floor(y+3),x2-x1,idv-6);
-		ctx.strokeRect(x2,Math.floor(y+3),x3-x2,idv-6);
-		ctx.strokeRect(x3,Math.floor(y+dv/2),x4-x3,0);
-		ctx.strokeRect(x4,Math.floor(y+3),0,idv-6);
-		y += dv;
+		ctx.strokeRect(x0,Math.floor(y-dy/3),0,2*dy/3);
+		ctx.strokeRect(x0,Math.floor(y),x1-x0,0);
+
+		ctx.fillRect(x1,Math.floor(y-dy/3),x2-x1,2*dy/3);
+		ctx.strokeRect(x1,Math.floor(y-dy/3),x2-x1,2*dy/3);
+
+		ctx.fillRect(x2,Math.floor(y-dy/3),x3-x2,2*dy/3);
+		ctx.strokeRect(x2,Math.floor(y-dy/3),x3-x2,2*dy/3);
+
+		ctx.strokeRect(x3,Math.floor(y),x4-x3,0);
+		ctx.strokeRect(x4,Math.floor(y-dy/3),0,2*dy/3);
+		y += dy;
 		}
 	}
-
-ctx.textAlign = "center"
 
 }
 
@@ -18783,13 +18880,20 @@ function recordMatch(irec,graph)
 for(var i=0;i<graph.selection.length;i+=2)
 	{
 	var j = graph.selection[i];
-	if(j>=0)
+	if(j<0)
 		{
-		if(lrecords[irec][j]!=graph.selection[i+1]) return false		
+		// one value
+		if((!!vrecords[irec][-j])!=graph.selection[i+1]) return false;
+		}
+	else if(typeof(graph.selection[i+1])=="string")	
+		{
+		// one key
+		if(lrecords[irec][j]!=graph.selection[i+1]) return false;
 		}
 	else
 		{
-		if((!!vrecords[irec][-j])!=graph.selection[i+1]) return false;
+		// list of keys
+		if(indexOf(lrecords[irec][j],graph.selection[i+1])<0) return false;
 		}
 	}
 
@@ -19239,6 +19343,14 @@ var s = 0;
 for(i=0;i<n;i++)
 	s += V[i];
 return s;
+}
+
+//*********************************************************************
+
+function fillV(V,x)
+{
+for(var i=0;i<V.length;i++)
+	V[i] = x;
 }
 
 //*********************************************************************
@@ -19718,7 +19830,7 @@ computeGraphData(graph);
 
 //*********************************************************************
 
-function indexIn(value,table)
+function indexOf(value,table)
 {
 for(var i=0;i<table.length;i++)
 	if(table[i]==value)	
@@ -20585,16 +20697,10 @@ else if(action==DROP_SLICE)
 	graph.omit[key] = 1	
 	computeGraphData(graph)
 	}
-else if(action==SET_LABELSELECTION)
+else if(action==SET_SELECTION)
 	{
-	var oldgraph = graphs[graphindex]
-	var newgraph = graphs[graphindex2]
-	newgraph.selection = cloneArray(oldgraph.selection)
-	newgraph.selection.push(oldgraph.ilabel1)
-	newgraph.selection.push(oldgraph._keys1[sliceindex])
-	newgraph.hbar = newgraph.selection.length/2*16
-	if(newgraph.hbar==0) newgraph.hbar = 16
-	computeGraphData(newgraph)
+	setGraphSelection(graphs[graphindex],graphs[graphindex2],sliceindex);
+	computeGraphData(graphs[graphindex2]);
 	}
 else if(action==PASTE_TITLE)
 	{
@@ -22497,7 +22603,7 @@ else if(faction==DRAG_SLICE)
 		}
 	else if((index=inTitle(ptmove))>=0)
 		{
-		action = SET_LABELSELECTION
+		action = SET_SELECTION
 		graphindex2 = index
 		}
     else if(inValue(ptmove)>=0)
@@ -23730,7 +23836,7 @@ if(action==DROP_SLICE)
 	ctx.fillRect(graph.x,graph.y+graph.h-20,graph.w,20)
 	}
 
-if((action==SET_LABELSELECTION)||(action==CREATE_SET)||(action==PASTE_TITLE)||
+if((action==SET_SELECTION)||(action==CREATE_SET)||(action==PASTE_TITLE)||
 	(action==CREATE_BINSET)||(action==SET_VALUESELECTION))
 	{
 	var graph = graphs[graphindex2]
