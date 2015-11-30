@@ -142,6 +142,13 @@ password:secret
 database:test
 query:select * from mytable
 ```
+or:
+
+```
+postgres
+connection:bob:secret@192.168.0.2/test
+query:select * from mytable
+```
 
 ##### JSON file
 

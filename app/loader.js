@@ -345,6 +345,7 @@ try	{
 	var lines = content.split("\n");
 	if(lines.length<2) lines = lines.split("\r");
 
+	var connection = "";
 	var username = "";
 	var password = "";
 	var hostname = "";
@@ -362,11 +363,17 @@ try	{
 			password = m[1];
 		if(m=lines[i].match(/database:(.*)/))
 			database = m[1];
+		if(m=lines[i].match(/connection:(.*)/))
+			connection = m[1];
 		if(m=lines[i].match(/query:(.*)/))
 			query = m[1];
 		}
 
-	var url = "postgres://"+username+":"+password+"@"+hostname+"/"+database;
+	if(connection=="")
+		var url = "postgres://"+username+":"+password+"@"+hostname+"/"+database;
+	else
+		var url = "postgres://"+connection;
+
 	var client = new pg.Client(url);
 	client.connect( function(err) {
 		if(err) {
