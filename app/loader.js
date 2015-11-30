@@ -1859,6 +1859,8 @@ function process_sdd_content(content,callback)
 content = (content+"").replace(/\r/g,"").split("\n");
 var offset = 0;
 
+var indent = "";
+
 var main = read_object();
 
 var pdata = main[".Data"];
@@ -1930,9 +1932,11 @@ check_data_type(callback);
 		var name = content[offset++];
 		var type = content[offset++];
 		var size = parseInt(content[offset++]);
+		//indent += "   ";
 		switch(type)
 			{
 			case "character":
+			case "name":
 				var obj = [];	
 				for(var i=0;i<size;i++)
 					obj.push(content[offset++]);
@@ -1971,6 +1975,7 @@ check_data_type(callback);
 			}
 		if(obj)
 			obj.name = name;
+		//indent = indent.substring(0,indent.length-3);
 		return obj;
 	}
 }

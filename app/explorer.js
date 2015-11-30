@@ -22093,7 +22093,8 @@ var  i;
 
 if(faction==SCROLL_LABELS)
 	{
-	var d = (ptmove.y-ptclick.y)/((zlabel-alabel)*SLOTH)*labels.length;
+	var l = labels.length-(zlabel-alabel);
+	var d = (ptmove.y-ptclick.y)/((zlabel-alabel)*SLOTH)*l;
 	d = Math.round(d);
 	if(d!=0)
 		{	
@@ -22108,7 +22109,8 @@ if(faction==SCROLL_LABELS)
 	}
 else if(faction==SCROLL_VALUES)
 	{
-	var d = (ptmove.y-ptclick.y)/((zvalue-avalue)*SLOTH)*values.length;
+	var l = values.length - (zvalue-avalue);
+	var d = (ptmove.y-ptclick.y)/((zvalue-avalue)*SLOTH)*l;
 	d = Math.round(d);
 	if(d!=0)
 		{
