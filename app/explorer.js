@@ -242,7 +242,7 @@ _type("G3D","3D plot",{ivalues:1,leftlabel:1});
 
 var NBTYPE2 = KNUM; 		//  max plot types
 
-_type("DISCRI","Discriminant analysis",{ivalues:1,leftlabel:1,rightlabel:3,options:2});
+_type("DISCRI","Discriminant analysis",{ivalues:1,leftlabel:1,bottomlabel:3,options:3});
 _type("TEST","Analysis of variance",{jvalues:1,ilabels:1,menu:"test",options:3});
 _type("NONPARAM","Non parametric tests",{ilabels:1,leftvalue:1,menu:"nonparam",options:2});
 _type("BOX","Box plot",{topvalue:1,leftlabel:1});
@@ -13873,7 +13873,7 @@ function computeDiscriData(graph)
 {
 
 graph.placeholder.leftlabel = "CLASSES";
-graph.placeholder.rightlabel = "LABEL";
+graph.placeholder.bottomlabel = "LABEL";
 
 if(graph.ilabel1<0) return;
 if(graph.ivalues.length<2) return
@@ -13882,19 +13882,25 @@ computeGraphData1(graph)
 
 var nv = graph.ivalues.length;
 
-// global variance matrix
-var V = computeGlobalVariance(graph);
-
-// compute inverse of variance
-var VINV = powerM(V,-1);
-
+// global center
 var weight = 0;
 var center = vector(nv);
 
 // centers of groups
 var gweight = {};
 var gcenter = {};
-compute_centers();
+var ng = compute_centers();
+if(ng<2)
+	{
+	graph.error = "Less than two categories";
+	return;
+	}
+
+// global variance matrix
+var V = computeGlobalVariance(graph);
+
+// compute inverse of variance
+var VINV = powerM(V,-1);
 
 // intergroup variance
 var B = compute_intergroup_variance();
@@ -13930,63 +13936,76 @@ for(var j=0;j<nv-1;j++)
 			}
 		}
 
-// coefficients of projections
-var xcoef = []
-var ycoef = []
-for(var j=0;j<nv;j++)
-	{
-	xcoef[j] = E[j][0]
-	ycoef[j] = E[j][1]
-	}
 
-graph._z.xcoef = xcoef;
-graph._z.ycoef = ycoef;
+// coefficients
+graph._z.E = E;
+
+// eigenvalues
+graph._z.lambda = wr;
+
 graph._z.avg = center;
 
-//  projections  on the first two factors
-var xrow = new Array(lrecords.length);
-var yrow = new Array(lrecords.length);
+//  factors
+var rows = matrix(lrecords.length,nv);
 for(var i=0;i<lrecords.length;i++)
 	{
-	xrow[i] = yrow[i] = 0
+	if(!recordMatch(i,graph)) continue;
 	for(var j=0;j<nv;j++)
 		{
 		var y = vrecords[i][graph.ivalues[j]]-center[j];
-		xrow[i] += y*E[j][0]
-		yrow[i] += y*E[j][1]
+		for(var k=0;k<nv;k++)
+			rows[i][k] += y*E[j][k];
 		}
 	}
+
+// verif
+var sum = vector(nv);
+var sum2 = vector(nv);
+for(var i=0;i<lrecords.length;i++)
+	{
+	for(var k=0;k<nv;k++)
+		{
+		sum[k] += rows[i][k];
+		sum2[k] += rows[i][k]*rows[i][k];
+		}
+	}
+
+console.log("SUM");
+console.log(sum);
+
+console.log("SUM2");
+console.log(sum2);
 
 var u = colM(E,0);
 var v = colM(E,1);
 
 
 // projection of centers on the first two factors
-var xcenter = {};
-var ycenter = {};
+var pcenters = {};
 for(var key in gcenter)
 	{	
-	xcenter[key] = 0;
-	ycenter[key] = 0;
+	pcenters[key] = vector(nv);
 	for(var j=0;j<nv;j++)
 		{
 		var y = gcenter[key][j]-center[j];
-		xcenter[key] += y*E[j][0];
-		ycenter[key] += y*E[j][1];
+		for(var k=0;k<nv;k++)
+			pcenters[key][j] += y*E[j][k];
 		}
 	}
 
+graph._z.pcenters = pcenters;
+
 // correlations of variables with first two factors
-var corr = new Array(graph.ivalues.length);
+var corr = matrix(nv,nv);
 var temp = new Array(vrecords.length);
 
 for(var j=0;j<graph.ivalues.length;j++)
 	{
 	for(var i=0;i<vrecords.length;i++)
-			temp[i] = vrecords[i][graph.ivalues[j]];	
-	var xcorr = correlation(temp,xrow);
-	var ycorr = correlation(temp,yrow);
-	corr[j] = [xcorr,ycorr];
+		temp[i] = vrecords[i][graph.ivalues[j]];	
+	
+	for(var k=0;k<nv;k++)
+		corr[j][k] = correlation(temp,colM(rows,k));	
 	}
 
 
@@ -14003,12 +14022,12 @@ var xmin = Number.MAX_VALUE;
 var xmax = -Number.MAX_VALUE;
 var ymin = Number.MAX_VALUE;
 var ymax = -Number.MAX_VALUE;
-for(var i=0;i<xrow.length;i++)
+for(var i=0;i<rows.length;i++)
 	{
-	if(xrow[i]<xmin) xmin = xrow[i]
-	if(xrow[i]>xmax) xmax = xrow[i]
-	if(yrow[i]<ymin) ymin = yrow[i]
-	if(yrow[i]>ymax) ymax = yrow[i]
+	if(rows[i][0]<xmin) xmin = rows[i][0];
+	if(rows[i][0]>xmax) xmax = rows[i][0];
+	if(rows[i][1]<ymin) ymin = rows[i][1];
+	if(rows[i][1]>ymax) ymax = rows[i][1];
 	}	
 
 var zmin = Number.MAX_VALUE;
@@ -14022,10 +14041,9 @@ for(var i=0;i<vrecords.length;i++)
 	if(z>zmax) zmax = z;
 	}
 
-graph._z.xrow = xrow;
-graph._z.yrow = yrow;
-graph._z.xcenter = xcenter;
-graph._z.ycenter = ycenter;
+graph._z.nv = nv;
+graph._z.ng = ng;
+graph._z.rows = rows;
 graph._z.xmin = xmin;
 graph._z.xmax = xmax;
 graph._z.ymin = ymin;
@@ -14036,10 +14054,13 @@ graph._z.ellipse = ellipse;
 graph._z.zmin = zmin;
 graph._z.zmax = zmax;
 
+console.log(graph._z);
+
 	// ------------------------------------------------------------------------
 
 	function compute_centers()
 	{
+	var ng = 0;
 	for(var i=0;i<lrecords.length;i++)
 		{
 		if(!recordMatch(i,graph)) continue;
@@ -14047,6 +14068,7 @@ graph._z.zmax = zmax;
 		
 		if(!(key in gweight))
 			{
+			ng++;
 			gweight[key] = 0;
 			gcenter[key] = vector(nv);
 			}
@@ -14066,10 +14088,9 @@ graph._z.zmax = zmax;
 		for(var key in gweight)
 			gcenter[key][j] = gcenter[key][j]/gweight[key];
 		}
+		
+	return ng;
 	}
-
-	// ----------------------------------------------------------------
-	
 
 	// ----------------------------------------------------------------
 
@@ -14256,6 +14277,8 @@ if(option==0)
 	var y2 = (ytop+ybottom)/2+(ymax-ymin)*scale/2
 	var y1 = y2 - (ymax-ymin)*scale
 
+	var rows = graph._z.rows;
+
 	ctx.fillStyle = "#000000"
 	ctx.textAlign = "center"	
 	ctx.font = "9px Helvetica"
@@ -14297,8 +14320,8 @@ if(option==0)
 		var key = lrecords[i][graph.ilabel1]
 		ctx.fillStyle = graph._colors1[key]
 
-		x = Math.round(x1 + scale*(graph._z.xrow[i]-xmin));
-		y = Math.round(y2 - scale*(graph._z.yrow[i]-ymin));
+		x = Math.round(x1 + scale*(rows[i][0]-xmin));
+		y = Math.round(y2 - scale*(rows[i][1]-ymin));
 
 		if(display>=0)
 			ctx.fillText(lrecords[i][display],x,y+3)	
@@ -14324,8 +14347,8 @@ if(option==0)
 		
 			var key = lrecords[i][graph.ilabel1]
 
-			x = Math.round(x1 + scale*(graph._z.xrow[i]-xmin));
-			y = Math.round(y2 - scale*(graph._z.yrow[i]-ymin));
+			x = Math.round(x1 + scale*(rows[i][0]-xmin));
+			y = Math.round(y2 - scale*(rows[i][1]-ymin));
 
 			if(display>=0)
 				{
@@ -14360,6 +14383,8 @@ if(option==1)
 	if(2*scale>y2-y1)
 		scale = (y2-y1)/2
 
+	var corr = graph._z.corr;
+
 	ctx.beginPath()
 	ctx.moveTo(xc+scale,yc)
 	ctx.arc(xc,yc,scale,0,Math.PI*2,true)
@@ -14370,8 +14395,8 @@ if(option==1)
 	ctx.beginPath();
 	for(var i=0;i<graph.ivalues.length;i++)
 		{
-		var x = xc + scale*graph._z.corr[i][0];
-		var y = yc - scale*graph._z.corr[i][1];
+		var x = xc + scale*corr[i][0];
+		var y = yc - scale*corr[i][1];
 		ctx.moveTo(xc,yc);
 		ctx.lineTo(x,y);
 		}
@@ -14385,8 +14410,8 @@ if(option==1)
 
 	for(var i=0;i<graph.ivalues.length;i++)
 		{
-		var x = xc + scale*graph._z.corr[i][0];
-		var y = yc - scale*graph._z.corr[i][1];
+		var x = xc + scale*corr[i][0];
+		var y = yc - scale*corr[i][1];
 		ctx.fillText(values[graph.ivalues[i]],x,y+3)
 		}
 	}
@@ -14398,23 +14423,26 @@ if(option==2)
 	var xc = (x1+x2)/2
 
 	var y1 = graph.y + graph.hbar + 5
-	var y2 = graph.y + graph.h -5
+	var y2 = graph.y + graph.h -30;
 	var yc = (y1+y2)/2
 
-	var n = graph._z.eigenvalues.length;
+	var nv = graph._z.nv;
+	var ng = graph._z.ng;
+	var n = Math.min(nv,ng-1);
+
 	var dx = (x2-x1)/n;
 
 	ctx.strokeStyle = "#000000"
 	ctx.fillStyle = "#008800"
-	
+
 	var sum = 0
 	for(var i=0;i<n;i++)
-		sum += graph._z.eigenvalues[i];
+		sum += graph._z.lambda[i];
 
 	for(var i=0;i<n;i++)
 		{
 		var x = x1 + i*dx;
-		var y = graph._z.eigenvalues[i]*(y2-y1)/sum;
+		var y = graph._z.lambda[i]*(y2-y1)/sum;
 		ctx.fillRect(x+1,y2-y,dx-2,y)
 		ctx.strokeRect(x+1,y2-y,dx-2,y)			
 		}
@@ -14522,6 +14550,95 @@ if(kmin!="")
 else
 	return false;
 
+}
+
+//*********************************************************************
+
+function buildDiscriTable(graph)
+{
+if(graph.ivalues.length<2) return;
+
+var nv = graph._z.nv;
+var ng = graph._z.ng;
+
+var n = Math.min(nv,ng-1);
+
+setTableName("Discriminant analysis");
+
+var row = 1;
+for(var i=0;i<n;i++)
+	table(row,2+i,"PC"+(i+1));
+
+row++;
+table(row,1,"Standard deviation");
+for(var i=0;i<n;i++)
+	table(row,2+i,round(Math.sqrt(graph._z.lambda[i])));
+row++;
+table(row,1,"Variance");
+for(var i=0;i<n;i++)
+	table(row,2+i,round(graph._z.lambda[i]));
+
+var sum = 0;
+for(var i=0;i<n;i++)
+	sum += graph._z.lambda[i];
+
+row++;
+table(row,1,"Percentage");
+for(var i=0;i<n;i++)
+	table(row,2+i,round(graph._z.lambda[i]*100/sum));
+
+var cum = 0;
+row++;
+table(row,1,"Cumulative pct");
+for(var i=0;i<n;i++)
+	{
+	cum += graph._z.lambda[i]*100/sum;
+	table(row,2+i,round(cum));
+	}
+
+row++;
+row++;
+table(row,1,"Coefficients");
+
+row++;
+for(var k=0;k<nv;k++)
+	{
+	table(row,1,values[graph.ivalues[k]]);
+	for(var i=0;i<n;i++)
+		table(row,2+i,round(graph._z.E[k][i]));
+	row++;
+	}
+
+row++;
+table(row,1,"Correlations");
+
+row++;
+for(var k=0;k<nv;k++)
+	{
+	table(row,1,values[graph.ivalues[k]]);
+	for(var i=0;i<n;i++)
+		table(row,2+i,round(graph._z.corr[k][i]));
+	row++;
+	}
+
+row++;
+table(row,1,"Coordinates");
+row++;
+
+var num = 0;
+for(var i=0;i<graph._z.rows.length;i++)
+	{
+	if(graph._z.rows[i][0]==void 0) continue;
+	num++;
+	table(row,1,""+num);
+	for(var j=0;j<n;j++)
+		table(row,2+j,round(graph._z.rows[i][j]));
+	table(row,2+n,lrecords[i][graph.ilabel1]);
+	row++;
+	}
+
+
+	function round(x) { return Math.round(x*100000)/100000; }
 }
 
 //*********************************************************************
@@ -19463,7 +19580,6 @@ if(graph.type==TYPE.DISCRI)
 	var n= graph.ivalues.length;
 	var x;
 	var y;
-	var coef = (index==0) ? graph._z.xcoef : graph._z.ycoef;
 
 	for(var i=0;i<lrecords.length;i++)
 		{
@@ -19471,7 +19587,7 @@ if(graph.type==TYPE.DISCRI)
 		for(var j=0;j<n;j++)
 			{
 			y = vrecords[i][graph.ivalues[j]]-graph._z.avg[j]
-			x += y* coef[j]
+			x += y*graph._z.E[j][index];
 			}
 		vrecords[i].push(x)
 		}
@@ -21886,7 +22002,7 @@ if(faction==SCROLL_LABELS)
 	}
 else if(faction==SCROLL_VALUES)
 	{
-	var d = (ptmove.y-ptclick.y)/((zvalue-avalue)*SLOTH)*labels.length;
+	var d = (ptmove.y-ptclick.y)/((zvalue-avalue)*SLOTH)*values.length;
 	d = Math.round(d);
 	if(d!=0)
 		{
