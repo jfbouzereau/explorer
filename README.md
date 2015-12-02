@@ -105,99 +105,123 @@ This Explorer allows to perform various statistical analyses and data mining ope
 
 Data can be loaded from various sources :
 
-##### Clipboard
-
-Launch the application, and click the "Clipboard" button. The data must be in tabular form, with the names of the fields on the first line.
-
-##### Tabular file
-
-Launch the application, and drag a tabular file to the window. The names of the fields are expected to be on the first line.
-
-##### Excel spreadsheet
-
-Launch the application, and drag an excel file to the window. The names of the fields are expected to be at the top of the columns.
-
-##### Mysql database
-
-Launch the application, and drag a configuration file with a content like this:
-
-```
-mysql
-host:192.168.0.2
-user:bob
-password:secret
-database:test
-query:select * from mytable
-```
-
-##### Postgres database
-
-Launch the application, and drag a configuration file with a content like this:
-
-```
-postgres
-host:192.168.0.2
-user:bob
-password:secret
-database:test
-query:select * from mytable
-```
-or:
-
-```
-postgres
-connection:bob:secret@192.168.0.2/test
-query:select * from mytable
-```
-
-##### JSON file
-
-Launch the application, and drag a file containing a JSON array of records.
-
-##### R file
-
-Launch the application, and drag a file containing a dataframe saved by R in binary format.
-
-##### JMP file
-
-Launch the application, and drag a JMP file (extension jmp)
-
-##### MINITAB file
-
-Launch the application, and drag a MINITAB file (extension mtw).
-
-##### MLwiN worksheet
-
-Launch the application, and drag a MLwiN uncompressed worksheet (extension ws)
-
-##### SAS file
-
-Launch the application, and drag a SAS file (extension sas7bdat) in uncompressed format.
-
-##### SPLUS file
-
-Launch the application, and drag a SPLUS file (extension sdd).
-
-##### SPSS file
-
-Launch the application, and drag a file containing a dataset saved by SPSS in uncompressed format (extension sav).
-
-##### Stata file
-
-Launch the application, and drag a file containing a dataset saved by Stata 8 or higher (extension dta).
-
-##### Access database file
-
-Launch the application, and drag an Access 2000 database (extension mdb or accdb).
-
-##### dBase file
-
-Launch the application, and drag a dBase file. The file extension MUST BE ".dbf" .
-
-##### Web file
-
-Launch the application, and drag a file containing the url of the data.
-The remote file must be in one of the previous formats.
+<table border="0">
+<tr>
+	<th>Source</th>
+	<th>File extension</th>
+	<th>Remarks</th>
+	
+</tr>
+<tr>
+	<td>Access</td>
+	<td>mdb , accdb</td>
+	<td>Access 2000 or higher</td>
+</tr>
+<tr>
+	<td>Clipboard</td>
+	<td>N/A</td>
+	<td>The data must be in tabular form, with the names of the fields on the first line</td
+</tr>
+<tr>
+	<td>dBase</td>
+	<td>dbf</td>
+	<td></td>
+</tr>
+<tr>	
+	<td>Excel</td>
+	<td>xlsx</td>
+	<td>The names of the fields are expected at the top of the columns</td>
+</tr>
+<tr>
+	<td>JMP</td>
+	<td>jmp</td>
+	<td></td>
+</tr>
+<tr>
+	<td>JSON file</td>
+	<td>*</td>
+	<td>A JSON array of records</td>
+</tr>
+<tr>
+	<td>MINITAB</td>
+	<td>mtw</td>
+	<td></td>
+</tr>
+<tr>
+	<td>MLwiN</td>
+	<td>ws</td>
+	<td>Uncompressed format only</td>
+</tr>
+<tr>
+	<td>Mysql</td>
+	<td>*</td>
+	<td>A config file with a content like this:
+<div style="background-color:#EEEEEE;">
+mysql <br>
+host:192.168.0.2 <br>
+user:bob <br>
+password:secret <br>
+database:test <br>
+query:select * from mytable <br>
+</div>
+	</td>
+</tr>
+<tr>
+	<td>Postgres</td>
+	<td>*</td>
+	<td>A config file with a content like this:
+<div style="background-color:#EEEEEE;">
+postgres <br>
+host:192.168.0.2 <br>
+user:bob <br>
+password:secret <br>
+database:test <br>
+query:select * from mytable <br>
+</div>
+or: 
+<div style="background-color:#EEEEEE;">
+postgres <br>
+connection:bob:secret@192.168.0.2/test <br>
+query:select * from mytable <br>
+</div>
+	</td>
+</tr>
+<tr>
+	<td>R</td>
+	<td>rdb</td>
+	<td>Binary format only</td>
+</tr>
+<tr>
+	<td>SAS</td>
+	<td>sas7bdat</td>	
+	<td>Uncompressed format only</td>
+</tr>
+<tr>
+	<td>SPLUS</td>
+	<td>sdd</td>
+	<td></td>
+</tr>
+<tr>
+	<td>SPSS</td>
+	<td>sav</td>
+	<td>Uncompressed format only</td>
+</tr>
+<tr>
+	<td>Stata</td>
+	<td>dta</td>	
+	<td>Stata 8 or higher</td>
+</tr>
+<tr>	
+	<td>Tabular file</td>
+	<td>*</td>
+	<td>The names of the fields are expected on the first line</td>
+</tr>
+<tr>
+	<td>Web file</td>
+	<td>*</td>
+	<td>Contains the url of the data. The remote file must be in one of the previous formats</td>
+</tr>
+</table>
 
 ## Principles
 
