@@ -2208,26 +2208,27 @@ switch(version)
 		fmt.col_len = 23;
 		fmt.col_size = 25;
 
+		fmt.data_owner = 4;
 		fmt.data_rcount = 12; 
 		fmt.data_size = 14;
 		break;
 	}
 
 
+
 var tables = [];
 
-var npage = content.length/fmt.pg_size;
+var npages = content.length/fmt.pg_size;
 
 var catalog = load_table(2);
 
 var usertables = [];
 
 for(var i=0;i<catalog.records.length;i++)
-	{
+	{	
 	if(catalog.records[i][3]==1)
 		if(catalog.records[i][7]==0)
-			if(catalog.records[i][6])
-				if(catalog.records[i][6][1]==0x2C)
+			if(catalog.records[i][2].substring(0,4)!="MSys")
 					usertables.push(catalog.records[i]);
 	}
 
@@ -2242,13 +2243,16 @@ else
 	function display_table_menu()
 	{
 	var htable = document.createElement("table");
-	htable.setAttribute("id","table");
+
 	for(var i=0;i<usertables.length;i++)
 		{
 		var tr = document.createElement("tr");
+		tr.style.border = "0px";
 
 		var td = document.createElement("td");
 		td.innerText = usertables[i][2];
+		td.style.border = "0px";
+		td.style.padding = "20px";
 		td.style.textAlign = "center";
 		td.style.fontSize = "32px";
 		td.style.fontFamily = "Helvetica";
@@ -2259,11 +2263,12 @@ else
 		tr.appendChild(td);
 		htable.appendChild(tr);
 		}
-	htable.style.position = "fixed";
-	htable.style.left = "0px";
-	htable.style.top = "0px";
+
+	htable.style.border = "0px";
+	//htable.style.left = "0px";
+	//htable.style.top = "0px";
 	htable.style.width = "100%";
-	htable.style.height = "100%";
+	htable.setAttribute("id","table");
 	window.document.body.appendChild(htable);
 	window.document.body.style.cursor = "pointer";
 	}
@@ -2282,7 +2287,7 @@ else
 	// -------------------------------------------------------------------------
 
 	function select_table(ipage)
-	{
+	{	
 	var table = load_table(ipage);
 	data = [];
 	var fields = [];
@@ -2329,20 +2334,27 @@ else
 
 	columns.sort(function(a,b) { return a.id-b.id });	
 
-	if(false)
-	for(var icol=0;icol<columns.length;icol++)
-		dump_object(columns[icol]);
-
 	table.columns = columns;
 
-	var map = read_row(table.row_map);
-	var pages = decode_map(map);
+	// look for data pages for this table
+	var pages = [];
+	for(var kpage=0;kpage<npages;kpage++)
+		{
+		var offset = kpage*fmt.pg_size;
+		var sign = read_int16(offset);
+		if(sign!=0x101) continue;
+		var owner = read_int16(offset+fmt.data_owner);
+		if(owner!=ipage) continue;
+		pages.push(kpage);
+		}
+
 	table.pages = pages;
 
 	var records = [];
 	for(var jpage=0;jpage<pages.length;jpage++)
 		{
 		offset = fmt.pg_size*pages[jpage];
+
 		var type = read_int16(offset);
 		var rcount = read_int16(offset+fmt.data_rcount);
 		var end = fmt.pg_size;
@@ -2352,6 +2364,7 @@ else
 			flags = start&0xC000;
 			start = start&0x0FFF;
 			//dump_record(offset+start,offset+end);
+			if(end>start)
 			if(flags==0)
 				{
 				var record = read_record(offset+start,offset+end,columns);
@@ -2430,15 +2443,17 @@ else
 
 	// -------------------------------------------------------------------------
 
-	function dump_record(start,end)
+	function dump_record(start,end,memory)
 	{
+	memory = memory || content;
+
 	var s = "";
 	var t = "";
 	for(var i=0;i<end-start;i++)
 		{
-		var x = content[start+i].toString(16).toUpperCase();
+		var x = memory[start+i].toString(16).toUpperCase();
 		if(x.length==1) x= "0"+x;		
-		t += (content[start+i]<32) ? "." : content[start+i]>127 ? "." : String.fromCharCode(content[start+i]);
+		t += (memory[start+i]<32) ? "." : memory[start+i]>127 ? "." : String.fromCharCode(memory[start+i]);
 		s += x + " ";
 		if((i%16)==15)
 			{
@@ -2479,12 +2494,15 @@ else
 	// -------------------------------------------------------------------------
 
 	function read_row(ptr)
-	{
+	{	
+	console.log("READ ROW "+ptr.toString(16));
 	var page = (ptr>>8)&0x00FFFFFF;		
 	var row = ptr&0x0FF;	
 	var offset = page*fmt.pg_size ;
-	var start = read_int16(offset+ fmt.data_size+2*row)&0x0FFF;
-	var end = (row==0) ? fmt.pg_size : read_int16(offset+fmt.data_size+2*row+2)&0x0FFF;
+	dump_record(offset,offset+128);
+	var start = read_int16(offset+ fmt.data_size+2*row)&0x3FFF;
+	var end = (row==0) ? fmt.pg_size : read_int16(offset+fmt.data_size+2*row+2)&0x3FFF;
+	console.log("  bytes at "+start.toString(16)+" - "+end.toString(16));
 	return content.slice(offset+start,offset+end);
 	}
 
