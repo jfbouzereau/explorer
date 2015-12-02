@@ -229,8 +229,8 @@ query:select * from mytable <br>
 
 There are two kinds of fields :
 
-* Categorical (or qualitative) fields represended in pink
-* Numerical (or quantitative) fields represented in pale blue. A field with name terminated by ":n" or "/n" is regarded as numerical.
+* Categorical (or qualitative) fields represended in pink.
+* Numerical (or quantitative) fields represented in pale blue.
 
 ##### Basic gestures
 
@@ -258,9 +258,11 @@ There are two kinds of fields :
 
 * Move the mouse over an element of a graph to highlight the corresponding element in all the graphs.
 
-* Drag a categorical field to the numerical fields to convert it to numerical.
+* Drag a categorical field to the numerical fields to generale dummy variables.
 
 * Drag a numerical field to the categorical fields to convert it to categorical.
+
+* Drag the "1" field to the categorical fields to pivot the data.
 
 * Drag a field to the trash icon, or drag the trash icon to a field, to remove this field.
 
