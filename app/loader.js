@@ -82,6 +82,9 @@ else if(check(content,0x00,0x01,0x00,0x00,
 	'S','t','a','n','d','a','r','d',' ','A','C','E',' ','D','B'))
 	process_mdb_content(content,callback);
 
+else if(check(content,0x00,0x00,0xFF,0xFF))
+	process_jmp_content(content,callback);
+
 else if(check(content,0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                       0x0, 0x0, 0x0, 0x0, 0xc2,0xea,0x81,0x60,
                       0xb3,0x14,0x11,0xcf,0xbd,0x92,0x8, 0x0,
@@ -2500,8 +2503,8 @@ else
 	var row = ptr&0x0FF;	
 	var offset = page*fmt.pg_size ;
 	dump_record(offset,offset+128);
-	var start = read_int16(offset+ fmt.data_size+2*row)&0x3FFF;
-	var end = (row==0) ? fmt.pg_size : read_int16(offset+fmt.data_size+2*row+2)&0x3FFF;
+	var start = read_int16(offset+ fmt.data_size+2*row)&0x0FFF;
+	var end = (row==0) ? fmt.pg_size : read_int16(offset+fmt.data_size+2*row+2)&0x0FFF;
 	console.log("  bytes at "+start.toString(16)+" - "+end.toString(16));
 	return content.slice(offset+start,offset+end);
 	}
@@ -2575,6 +2578,124 @@ else
 	}
 
 	// -------------------------------------------------------------------------
+
+}
+
+//****************************************************************************
+
+function process_jmp_content(content,callback)
+{
+var nr = read_int32(8);
+var nv = read_int16(12);
+
+// skip header
+var offset = 28;
+while(1)
+	{
+	var code = read_int16(offset);
+	offset += 2;
+	if(code==-1) break;
+	var len = read_int32(offset);
+	offset += 4;
+	offset += len	;
+	}
+
+var gloups = read_int32(offset);
+offset += 4;
+
+var nfield = read_int32(offset);
+offset += 4;
+
+offset += 12 + nfield*4;
+
+var fields = new Array(nfield);
+
+for(var j=0;j<nfield;j++)
+	{
+	fields[j] = {};
+	fields[j].addr = read_int32(offset);
+	offset += 4;
+
+	fields[j].name = read_string(fields[j].addr);
+
+	var off = fields[j].name.length <32 ? 32 : fields[j].name.length+1;
+	fields[j].code = read_int8(fields[j].addr+off);
+	fields[j].size = read_int16(fields[j].addr+off+4);
+
+	var values = new Array(nr);
+
+	if(fields[j].code==1)
+		{
+		var addr = fields[j].addr+off+54;
+		for(var i=0;i<nr;i++)
+			values[i] = read_double(addr+fields[j].size*i);
+		}
+
+	if(fields[j].code==2)
+		{
+		var addr = fields[j].addr+off+46;
+		for(var i=0;i<nr;i++)
+			values[i] = read_string(addr+fields[j].size*i);
+		}
+	fields[j].values = values;
+	}
+
+
+data = [];
+var row = new Array(nfield);
+for(var j=0;j<nfield;j++)
+	row[j] = fields[j].name;
+data.push(row);
+
+for(var i=0;i<nr;i++)
+	{
+	var row = new Array(nfield);
+	var ok = false;
+	for(var j=0;j<nfield;j++)
+		{	
+		row[j] = fields[j].values[i];
+		if(typeof row[j]=="string")
+			{
+			if(row[j].length>0) ok = true;
+			}
+		else
+			{
+			if(!isNaN(row[j])) ok = true;
+			}
+		}
+
+	if(ok)
+		data.push(row);
+	}
+
+check_data_type(callback);
+
+
+	function read_int8(offset)
+	{
+	return content[offset];
+	}
+
+	function read_int16(offset)
+	{
+	return content.readInt16BE(offset);
+	}
+
+	function read_int32(offset)
+	{
+	return content.readInt32BE(offset);
+	}
+
+	function read_double(offset)
+	{
+	return content.readDoubleBE(offset);
+	}
+
+	function read_string(offset)
+	{
+	var n = content[offset];
+	return content.toString("utf8",offset+1,offset+n+1);
+	}
 
 }
 

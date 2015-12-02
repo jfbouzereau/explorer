@@ -157,6 +157,11 @@ Launch the application, and drag a file containing a JSON array of records.
 ##### R file
 
 Launch the application, and drag a file containing a dataframe saved by R in binary format.
+
+##### JMP file
+
+Launch the application, and drag a JMP file (extension jmp)
+
 ##### MINITAB file
 
 Launch the application, and drag a MINITAB file (extension mtw).
