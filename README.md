@@ -181,6 +181,10 @@ Launch the application, and drag a file containing a dataset saved by SPSS in un
 
 Launch the application, and drag a file containing a dataset saved by Stata 8 or higher (extension dta).
 
+##### Access database file
+
+Launch the application, and drag an Access 2000 database (extension mdb or accdb).
+
 ##### dBase file
 
 Launch the application, and drag a dBase file. The file extension MUST BE ".dbf" .

@@ -74,6 +74,14 @@ else if(check(content,'R','D','X','2'))
 else if(check(content,'$','F','L','2'))
 	process_spss_content(content,callback);
 
+else if(check(content,0x00,0x01,0x00,0x00,
+	'S','t','a','n','d','a','r','d',' ','J','e','t',' ','D','B'))
+	process_mdb_content(content,callback);
+
+else if(check(content,0x00,0x01,0x00,0x00,
+	'S','t','a','n','d','a','r','d',' ','A','C','E',' ','D','B'))
+	process_mdb_content(content,callback);
+
 else if(check(content,0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                       0x0, 0x0, 0x0, 0x0, 0xc2,0xea,0x81,0x60,
                       0xb3,0x14,0x11,0xcf,0xbd,0x92,0x8, 0x0,
@@ -2157,6 +2165,398 @@ return
 	return r;
 	}
 
+
+}
+
+//****************************************************************************
+
+function process_mdb_content(content,callback)
+{
+console.log("process mdb content");
+
+var version = read_int32(0x14);
+
+var fmt = {};
+
+switch(version)
+	{
+	case 0:				// JET3
+		callback(null);	// NOT SUPPORTED YET
+		return;
+
+	case 1:				// JET4
+	case 2:				// ACCESS 2007
+	case 0x103:			// ACCESS 2010
+		fmt.pg_size = 4096;
+
+		fmt.table_def_len = 8;
+		fmt.table_row_count = 16;
+		fmt.table_type = 40;
+		fmt.table_var_count = 43;
+		fmt.table_col_count = 45;
+		fmt.table_idx_count = 47;
+		fmt.table_ridx_count = 51;
+		fmt.table_row_map = 55;
+		fmt.table_free_map = 59;
+		fmt.table_size = 63;
+
+		fmt.col_type= 0;
+		fmt.col_id = 5;
+		fmt.col_num = 9;
+		fmt.col_flags = 15;
+		fmt.col_offset = 21;
+		fmt.col_len = 23;
+		fmt.col_size = 25;
+
+		fmt.data_rcount = 12; 
+		fmt.data_size = 14;
+		break;
+	}
+
+
+var tables = [];
+
+var npage = content.length/fmt.pg_size;
+
+var catalog = load_table(2);
+
+var usertables = [];
+
+for(var i=0;i<catalog.records.length;i++)
+	{
+	if(catalog.records[i][3]==1)
+		if(catalog.records[i][7]==0)
+			if(catalog.records[i][6])
+				if(catalog.records[i][6][1]==0x2C)
+					usertables.push(catalog.records[i]);
+	}
+
+if(usertables.length>1)
+	display_table_menu();
+else
+	select_table(usertables[0][0]);
+	
+
+	// -------------------------------------------------------------------------
+
+	function display_table_menu()
+	{
+	var htable = document.createElement("table");
+	htable.setAttribute("id","table");
+	for(var i=0;i<usertables.length;i++)
+		{
+		var tr = document.createElement("tr");
+
+		var td = document.createElement("td");
+		td.innerText = usertables[i][2];
+		td.style.textAlign = "center";
+		td.style.fontSize = "32px";
+		td.style.fontFamily = "Helvetica";
+		td.style.backgroundColor = "#CCCCCC";
+		td.setAttribute("id","td"+i);
+		td.addEventListener("click", select_menu_item,false);
+
+		tr.appendChild(td);
+		htable.appendChild(tr);
+		}
+	htable.style.position = "fixed";
+	htable.style.left = "0px";
+	htable.style.top = "0px";
+	htable.style.width = "100%";
+	htable.style.height = "100%";
+	window.document.body.appendChild(htable);
+	window.document.body.style.cursor = "pointer";
+	}
+
+	// -------------------------------------------------------------------------
+
+	function select_menu_item(e)
+	{
+	var id = Number(e.target.getAttribute("id").replace("td",""));
+	if(isNaN(id)) return;
+	window.document.getElementById("table").remove();
+	window.document.body.style.cursor = "default";
+	select_table(usertables[id][0]);
+	}
+
+	// -------------------------------------------------------------------------
+
+	function select_table(ipage)
+	{
+	var table = load_table(ipage);
+	data = [];
+	var fields = [];
+	for(var i=0;i<table.columns.length;i++)
+		fields.push(table.columns[i].name);
+	data.push(fields);
+
+	for(var i=0;i<table.records.length;i++)
+		data.push(table.records[i]);
+	check_data_type(callback);
+	}
+
+	// -------------------------------------------------------------------------
+
+	function load_table(ipage)
+	{
+	var offset = ipage*fmt.pg_size;
+	var type = read_int16(offset);
+
+	var table = read_table(offset);
+
+	offset += fmt.table_size;
+
+	offset += table.ridx_count*12;
+
+	//console.log("  COLUMNS "+table.col_count);
+	var columns = new Array(table.col_count);
+	for(var icol=0;icol<table.col_count;icol++)
+		{
+		columns[icol] = read_column(offset);
+		offset += fmt.col_size;
+		}
+
+	for(var icol=0;icol<table.col_count;icol++)
+		{	
+		var lname = read_int16(offset);
+		var name = "";
+		offset += 2;
+		for(var i=0;i<lname;i+=2)
+			name += String.fromCharCode(content[offset+i]);
+		columns[icol].name = name;	
+		offset += lname;
+		}
+
+	columns.sort(function(a,b) { return a.id-b.id });	
+
+	if(false)
+	for(var icol=0;icol<columns.length;icol++)
+		dump_object(columns[icol]);
+
+	table.columns = columns;
+
+	var map = read_row(table.row_map);
+	var pages = decode_map(map);
+	table.pages = pages;
+
+	var records = [];
+	for(var jpage=0;jpage<pages.length;jpage++)
+		{
+		offset = fmt.pg_size*pages[jpage];
+		var type = read_int16(offset);
+		var rcount = read_int16(offset+fmt.data_rcount);
+		var end = fmt.pg_size;
+		for(var i=0;i<rcount;i++)
+			{
+			start = read_int16(offset+fmt.data_size+i*2);
+			flags = start&0xC000;
+			start = start&0x0FFF;
+			//dump_record(offset+start,offset+end);
+			if(flags==0)
+				{
+				var record = read_record(offset+start,offset+end,columns);
+				records.push(record);
+				}
+			end = start;
+			}
+		}
+
+	table.records = records;
+
+	return table;
+	}
+
+
+	// -------------------------------------------------------------------------
+
+
+	function dump_object(o)
+	{
+	var s = "{ ";
+	var sep = "";
+	for(var x in o)
+		{
+		s += sep+x+":"+o[x];
+		sep = " , ";
+		}
+	s += " }";
+	console.log(s);
+	}
+
+
+	// -------------------------------------------------------------------------
+
+	function read_record(start,end,columns)
+	{
+	var kf = 0;	// fixed fields
+	var vf = 0;	// variable fields
+	var nf = read_int16(start);		
+
+	var mapsize = Math.floor((nf+7)/8);
+	var record = new Array(nf);
+	for(var i=0;i<columns.length;i++)
+		{
+		if(columns[i].flags&1)
+			{
+			var a = 2+columns[i].offset;	
+			var b = a+ columns[i].len;
+			}
+		else
+			{
+			vf++;
+			var a = read_int16(end	-mapsize -2 -2*vf);
+			var b = read_int16(end-mapsize-4-2*vf);
+			}
+		//console.log("   FIELD AT "+a+" "+b);
+		record[i] = void 0;
+		if(b>a)
+		switch(columns[i].type)
+			{
+			case 1: record[i] = content[start+a]; break;
+			case 2: record[i] = content[start+a]; break;
+			case 3: record[i] = read_int16(start+a); break;
+			case 4: record[i] = read_int32(start+a) & 0x0FFFFFFF; break;
+			case 5: record[i] = read_int32(start+a)/10000.0; break;
+			case 6: record[i] = read_float(start+a); break;
+			case 7: record[i] = read_double(start+a); break;
+			case 8: record[i] = read_double(start+a); break;
+			case 9: record[i] = content.slice(start+a,start+b); break;
+			case 10: record[i] = read_string(start+a,b-a); break;
+			}
+		}
+	return record;
+	}
+	
+
+	// -------------------------------------------------------------------------
+
+	function dump_record(start,end)
+	{
+	var s = "";
+	var t = "";
+	for(var i=0;i<end-start;i++)
+		{
+		var x = content[start+i].toString(16).toUpperCase();
+		if(x.length==1) x= "0"+x;		
+		t += (content[start+i]<32) ? "." : content[start+i]>127 ? "." : String.fromCharCode(content[start+i]);
+		s += x + " ";
+		if((i%16)==15)
+			{
+			console.log(s+"  "+t);
+			s = "";
+			t = "";
+			}
+		}
+	if(s!="")
+		{
+		while(s.length<48) s += " ";
+		console.log(s+"  "+t);
+		}
+	}
+
+
+	// -------------------------------------------------------------------------
+
+	function decode_map(map)
+	{
+	var pages = [];
+	var bits = [0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80];
+	var n = map.length;
+	var k = 0;		
+	for(var i=5;i<n;i++)
+		{
+		for(j=0;j<bits.length;j++)	
+			{
+			if((map[i]&bits[j])!=0)
+				pages.push(k);
+			k++;
+			}
+		}
+	return pages;
+	}
+
+
+	// -------------------------------------------------------------------------
+
+	function read_row(ptr)
+	{
+	var page = (ptr>>8)&0x00FFFFFF;		
+	var row = ptr&0x0FF;	
+	var offset = page*fmt.pg_size ;
+	var start = read_int16(offset+ fmt.data_size+2*row)&0x0FFF;
+	var end = (row==0) ? fmt.pg_size : read_int16(offset+fmt.data_size+2*row+2)&0x0FFF;
+	return content.slice(offset+start,offset+end);
+	}
+
+
+	// -------------------------------------------------------------------------
+
+	function read_table(offset)
+	{
+	var table = {};	
+	table.len = read_int32(offset+fmt.table_den_len);
+	table.type = content[offset+fmt.table_type];
+	table.row_count = read_int32(offset+fmt.table_row_count);
+	table.var_count = read_int16(offset+fmt.table_var_count);
+	table.col_count = read_int16(offset+fmt.table_col_count);
+	table.idx_count = read_int32(offset+fmt.table_idx_count);
+	table.ridx_count = read_int32(offset+fmt.table_ridx_count);	
+	table.row_map = read_int32(offset+fmt.table_row_map);
+	table.free_map = read_int32(offset+fmt.table_free_map);
+	return table;
+	}
+
+
+	// -------------------------------------------------------------------------
+
+	function read_column(offset)
+	{
+	var column = {};	
+	column.type = content[offset];
+	column.id = read_int16(offset+fmt.col_id);
+	column.num = read_int16(offset+fmt.col_num);
+	column.flags = read_int16(offset+fmt.col_flags);
+	column.offset = read_int16(offset+fmt.col_offset);
+	column.len = read_int16(offset+fmt.col_len);
+	return column;
+	}
+
+
+	// -------------------------------------------------------------------------
+
+	function read_int16(offset)
+	{
+	return content.readInt16LE(offset);
+	}
+
+	function read_int32(offset)
+	{
+	return content.readInt32LE(offset);
+	}
+
+	function read_float(offset)
+	{
+	return content.readFloatLE(offset);
+	}
+
+	function read_double(offset)
+	{
+	return content.readDoubleLE(offset);
+	}
+
+	function read_string(offset,len)
+	{
+	var s = "";
+	if((content[offset]==0xFF)&&(content[offset+1]==0xFE))
+		for(var i=2;i<len;i++)
+			s += String.fromCharCode(content[offset+i]);
+	else
+		for(var i=0;i<len;i+=2)
+			s += String.fromCharCode(content[offset+i]);
+	return s;
+	}
+
+	// -------------------------------------------------------------------------
 
 }
 

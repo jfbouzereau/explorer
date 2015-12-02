@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.85";
+var VERSION = "1.86";
 
 /***************************************************************************/
 
@@ -22093,8 +22093,7 @@ var  i;
 
 if(faction==SCROLL_LABELS)
 	{
-	var l = labels.length-(zlabel-alabel);
-	var d = (ptmove.y-ptclick.y)/((zlabel-alabel)*SLOTH)*l;
+	var d = (ptmove.y-ptclick.y)/((zlabel-alabel)*SLOTH)*labels.length;
 	d = Math.round(d);
 	if(d!=0)
 		{	
@@ -22109,8 +22108,7 @@ if(faction==SCROLL_LABELS)
 	}
 else if(faction==SCROLL_VALUES)
 	{
-	var l = values.length - (zvalue-avalue);
-	var d = (ptmove.y-ptclick.y)/((zvalue-avalue)*SLOTH)*l;
+	var d = (ptmove.y-ptclick.y)/((zvalue-avalue)*SLOTH)*values.length;
 	d = Math.round(d);
 	if(d!=0)
 		{
