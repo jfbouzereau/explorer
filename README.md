@@ -156,7 +156,7 @@ Data can be loaded from various sources :
 	<td>Mysql</td>
 	<td>*</td>
 	<td>A config file with a content like this:
-<div style="background-color:#EEEEEE;">
+<div style="font-family:Courier;">
 mysql <br>
 host:192.168.0.2 <br>
 user:bob <br>
@@ -170,7 +170,7 @@ query:select * from mytable <br>
 	<td>Postgres</td>
 	<td>*</td>
 	<td>A config file with a content like this:
-<div style="background-color:#EEEEEE;">
+<div style="font-family:Courier;">
 postgres <br>
 host:192.168.0.2 <br>
 user:bob <br>
@@ -179,7 +179,7 @@ database:test <br>
 query:select * from mytable <br>
 </div>
 or: 
-<div style="background-color:#EEEEEE;">
+<div style="font-family:Courier;">
 postgres <br>
 connection:bob:secret@192.168.0.2/test <br>
 query:select * from mytable <br>
