@@ -19,6 +19,7 @@ var data = [];
 
 function load(filename,callback)
 {
+console.log("LOADING "+filename);
 var content = fs.readFileSync(filename);
 
 if(filename.toLowerCase().indexOf(".dbf")==filename.length-4)
@@ -84,6 +85,9 @@ else if(check(content,0x00,0x01,0x00,0x00,
 
 else if(check(content,0x00,0x00,0xFF,0xFF))
 	process_jmp_content(content,callback);
+
+else if(check(content,0xC3,0xFF,0xFF,0xFF))
+	process_lpj_content(content,callback);
 
 else if(check(content,0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                       0x0, 0x0, 0x0, 0x0, 0xc2,0xea,0x81,0x60,
@@ -2695,6 +2699,103 @@ check_data_type(callback);
 	{
 	var n = content[offset];
 	return content.toString("utf8",offset+1,offset+n+1);
+	}
+
+}
+
+//****************************************************************************
+
+function process_lpj_content(content,callback)
+{
+
+var verif = content.readInt32LE(8);
+var nrecord = content.readInt32LE(16)-1;
+var b1 = new Buffer(4);
+b1.writeInt32LE(nrecord);
+var b2 = content.slice(4,8);
+
+var offset = find(b1,20,verif);
+if(offset<0) offset = find(b2,28,verif)+8;
+
+if(offset<0) { callback(null); return; }
+
+var nr = content.readInt32LE(offset);
+
+// bitmap of records
+var mapsize  = content.readInt32LE(offset-8);
+var mapwords = Math.floor((mapsize+59)/60);
+var mapbytes = mapwords*8;
+
+var nfield  = content.readInt32LE(offset+4);
+
+offset += 0xA5;
+
+data = [];
+
+// name of fields
+var fields = new Array(nfield);
+for(var j=0;j<nfield;j++)
+	{
+	fields[j] = content.toString("utf8",offset,offset+8).trim();	
+	offset += 8;
+	}
+data.push(fields);
+
+offset += mapbytes +4;
+
+var end = offset+nrecord*nfield*8;
+
+// correct address off one if needed
+if(Math.abs(content.length-end)<10)
+	offset = content.length - nrecord*nfield*8;
+
+for(var i=0;i<nr;i++)
+	{
+	var row = [];
+	for(var j=0;j<nfield;j++)	
+		{
+		row[j] = Math.round(content.readDoubleLE(offset)*1000000)/1000000;
+		offset += 8;
+		}
+	data.push(row);
+	}
+
+check_data_type(callback);
+
+	function find(b,shift,verif)
+	{
+	var offset = 20;
+	while(true)
+		{
+		start = offset+4;
+		offset = content.indexOf(b,start);
+		if(offset<0) return -1000;
+		var check = content.readInt32LE(offset+shift);
+		if(check==verif) return offset;
+		}
+	}
+
+	function f32(x) 
+	{
+	var s = x.toString(16).toUpperCase();
+	while(s.length<8) s = "0"+s;
+	return s;
+	}
+
+	function dump(start,end)
+	{
+	var s = "";
+	for(var i=0;i<end-start;i++)
+		{
+		var t = content[start+i].toString(16).toUpperCase();
+		if(t.length<2) t = "0"+t;
+		s += t+" ";
+		if((i%16)==15) 
+			{
+			console.log(s);
+			s = "";
+			}
+		}
 	}
 
 }
