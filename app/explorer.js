@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.87";
+var VERSION = "1.88";
 
 /***************************************************************************/
 
@@ -312,6 +312,8 @@ _menu("HOMO","ENTROPY","Entropy");
 _menu("REGR","ONE","Linear");
 _menu("REGR","TWO","Second degree");
 _menu("REGR","THREE","Third degree");
+_menu("REGR","-","-");
+_menu("REGR","LOG","Log-linear");
 
 //_menu("NONPARAM","MANN","Mann-Whitmey");
 _menu("NONPARAM","KOLMO","Kolmogorov-Smirnov");
@@ -414,6 +416,8 @@ var menuindex = -1;
 var animtimer = null
 var newfield = 0;
 
+var randomfiles = [];
+
 //***************************************************************************
 //***************************************************************************
 
@@ -479,6 +483,7 @@ window.addEventListener("mousemove", move);
 window.addEventListener("mouseup", up);
 window.addEventListener("resize", draw);
 window.addEventListener("mousewheel", wheel);
+window.addEventListener("beforeunload", closing);
 
 var ctx = canvas.getContext("2d");
 
@@ -497,6 +502,19 @@ vimg.onload = function() {
 loadData(data);
 draw();
 
+}
+
+//***************************************************************************
+
+function closing()
+{
+console.log("CLOSING");
+var fs = require("fs");
+for(var i=0;i<randomfiles.length;i++)
+	{
+	console.log("removing "+randomfiles[i]);
+	fs.unlinkSync(randomfiles[i]);	
+	}
 }
 
 //***************************************************************************
@@ -16825,6 +16843,21 @@ function computeRegresData(graph)
 if(graph.w<460)
 	graph.w = 460;
 
+switch(graph.regr)
+	{	
+	case REGR.ONE: computeRegresPoly(graph); break;
+	case REGR.TWO: computeRegresPoly(graph); break;	
+	case REGR.THREE: computeRegresPoly(graph); break;
+	case REGR.LOG: computeRegresLog(graph); break;
+	}
+
+}
+
+//*********************************************************************
+
+function computeRegresPoly(graph)
+{
+
 graph.placeholder.leftvalue = "RESPONSE";
 graph.placeholder.bottomlabel = "COLOR";
 graph.placeholder.rightlabel = "LABEL";
@@ -17156,6 +17189,142 @@ return list.reverse();
 
 //*********************************************************************
 
+function computeRegresLog(graph)
+{
+if(graph.ivalue1<0) return;
+if(graph.ivalues.length<1) return;
+
+var nr = 0;
+
+var n = 1 + graph.ivalues.length;
+
+var coef = vector(n);
+fillV(coef,0.1);
+
+
+for(var iter=0;iter<50;iter++)
+	{
+	var g = gradient(coef);
+	
+	var nrm = norm(g);
+	if(nrm<1e-7) break;
+		
+	var C = covariances(coef);
+
+	var I = ginv(C);
+
+	var b = multMV(I,g);
+
+	for(var i=0;i<n;i++)
+		coef[i] = coef[i] + b[i];
+	console.log("iter="+iter);
+	dumpV(coef);
+	}
+
+// compute deviance
+
+var s1 = 0;
+var s2 = 0;
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	var y = vrecords[i][graph.ivalue1];
+	var l = lambda(i,coef);		
+	if(y!=0)
+		s1 += y*Math.log(y/l);
+	s2 += y-l	;
+	}
+var deviance = 2*(s1-s2);
+
+var level = 0.05;
+var df = nr-coef.length;
+var pvalue = 1-pchisq(deviance,df);
+var cv = qchisq(1-level,df);
+
+graph._z.nr = nr;
+graph._z.coef = coef;
+graph._z.deviance = deviance;
+graph._z.df = df;
+
+graph._z.level = level;
+graph._z.pvalue = pvalue;
+graph._z.cv = cv;
+
+console.log(graph._z);
+
+	//--------------------------------------------------------------
+
+	function gradient(coef)
+	{	
+	var n = coef.length;
+	var g = vector(n);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var y = vrecords[i][graph.ivalue1];
+		var l = lambda(i,coef)
+		g[0] += (y-l);
+		for(var j=1;j<n;j++)
+			g[j] += vrecords[i][graph.ivalues[j-1]]*(y-l);
+		}
+	return g;
+	}
+
+	//--------------------------------------------------------------
+
+	function norm(g)
+	{
+	var s = 0;
+	for(var i=0;i<g.length;i++)
+		s += g[i]*g[i];
+	return Math.sqrt(s);
+	}
+
+	//--------------------------------------------------------------
+
+	function lambda(i,coef)
+	{
+	var n = coef.length;
+	var s = coef[0];
+	for(var j=1;j<n;j++)
+		s += coef[j]*vrecords[i][graph.ivalues[j-1]];
+	return Math.exp(s);
+	}
+
+	//--------------------------------------------------------------
+
+	function covariances(coef)
+	{	
+	//  side effect : update nr
+	var n = coef.length;
+	nr = 0;
+	var C = matrix(n,n);
+
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		nr++;
+		var li = lambda(i,coef);
+		for(var j=0;j<n;j++)
+			{		
+			var vj= j==0 ? 1 :vrecords[i][graph.ivalues[j-1]];
+			for(var k=0;k<n;k++)
+				{
+				var vk = k==0 ? 1 : vrecords[i][graph.ivalues[k-1]];
+				C[j][k] += vj*vk*li;
+				}
+			}	
+		}
+
+	return C;
+	}
+
+	//--------------------------------------------------------------
+
+}
+
+//*********************************************************************
+
 function drawRegresIcon(ctx,x,y)
 	{
 	ctx.textAlign = "center";
@@ -17170,9 +17339,22 @@ function drawRegresIcon(ctx,x,y)
 
 function drawRegresGraph(ctx,graph)
 {
+switch(graph.regr)
+	{	
+	case REGR.ONE: drawRegresPoly(ctx,graph); break;
+	case REGR.TWO: drawRegresPoly(ctx,graph); break;	
+	case REGR.THREE: drawRegresPoly(ctx,graph); break;
+	case REGR.LOG: drawRegresLog(ctx,graph); break;
+	}
+}
 
-if((graph.ivalues.length>0)&&(graph.ivalue1>=0))
-	{
+//*********************************************************************
+
+function drawRegresPoly(ctx,graph)
+{
+if(graph.ivalue1<0) return;
+if(graph.ivalues.length<1) return;
+
 	var option = getGraphOption(graph);
 
 	var list = graph._z.list;
@@ -17471,7 +17653,6 @@ if((graph.ivalues.length>0)&&(graph.ivalue1>=0))
 		ctx.restore();
 		}
 
-	}
 
 	if(option==3)
 		{
@@ -17582,6 +17763,113 @@ if((graph.ivalues.length>0)&&(graph.ivalue1>=0))
 		colors[i] = getColor(done[influence[i].c]/nc+graph.hue,1,1);	
 	return colors;
 	}
+
+}
+
+//*********************************************************************
+
+function drawRegresLog(ctx,graph)
+{
+if(graph.ivalue1<0) return;
+if(graph.ivalues.length<1) return;
+
+var option = getGraphOption(graph);
+
+ctx.fillStyle = "#000000";
+ctx.strokeStyle = "#000000";
+ctx.textAlign = "left"
+ctx.lineWidth = 1
+
+var nr = graph._z.nr;
+var coef = graph._z.coef;
+var pvalue = graph._z.pvalue;
+var cv = graph._z.cv;
+var df = graph._z.df;
+var level = graph._z.level;
+var deviance = graph._z.deviance;
+
+if(option==0)
+
+	{
+	var x = graph.x+40;
+	var y = graph.y+60;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Number of observations",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+nr,x+230,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Number of parameters",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+coef.length,x+230,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Degrees of freedom",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+df,x+230,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Residual deviance D",x,y);
+	ctx.textAlign = "right";
+	var z = Math.round(deviance*10000)/10000;
+	ctx.fillText(z+"",x+230,y);
+	z = Math.round(pvalue*10000)/10000;
+	ctx.fillText("(pvalue="+z+")",x+350,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Critical value C",x,y);
+	var z = Math.round(cv*10000)/10000;
+	ctx.textAlign = "right";
+	ctx.fillText(z+"",x+230,y);
+	ctx.fillText("(\u03B1="+level+")",x+350,y);
+
+	y += 40;
+
+	ctx.textAlign = "left";
+	if(deviance<cv)	
+		multiText(ctx,["#000000","D < C : the model ","#FF0000","fits"],x,y);
+	else
+		multiText(ctx,["#000000","D > C : the model ","#FF0000","does not fit"],x,y);
+
+	y += 40;
+
+	var max = Math.max(Math.abs(pvalue),Math.abs(cv))*1.2;
+	drawChi2Curve(ctx,graph,y,df,0,max,deviance,"D",cv);
+	}
+
+if(option==1)
+	{
+	var x = graph.x+40;
+	var y = graph.y+graph.hbar + 60;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Coefficients",x,y);
+
+	ctx.fillRect(x,y+10,250,1);
+	y += 30;
+
+	for(var j=0;j<coef.length;j++)
+		{
+		ctx.textAlign = "left";
+		if(j!=0)
+			ctx.fillText(values[graph.ivalues[j-1]],x,y);
+		ctx.textAlign = "right";
+		var z = Math.round(coef[j]*10000)/10000;
+		ctx.fillText(z+"",x+230,y);
+		y += 20;
+		}
+	
+	}
+
 
 }
 
@@ -18683,6 +18971,7 @@ return true;
 
 var _table = {};
 var _tableName = "";
+var _tableoverflow = false;
 
 //*********************************************************************
 
@@ -18690,6 +18979,7 @@ function initTable()
 {
 _table =  {};
 _tableName = "";
+_tableoverflow = false;
 }
 
 //*********************************************************************
@@ -18700,8 +18990,8 @@ if(isNaN(lin)) { console.log("TABLE ERR LIN="+lin+" "+value) ; return; }
 if(isNaN(col)) { console.log("TABLE ERR COL="+col+" "+value) ; return; }
 if(lin<=0) { console.log("TABLE ERR LIN="+lin+" "+value) ; return; }
 if(col<=0) { console.log("TABLE ERR COL="+col+" "+value) ; return; }
-if(lin>5000) return;
-if(col>5000) return;
+if(lin>10000) { _tableoverflow = true; return ; }
+if(col>500) return;
 
 if(!(lin in _table)) _table[lin] = {};
 _table[lin][col] = value;
@@ -18741,7 +19031,7 @@ for(var xlin in _table)
 if(maxlin==0) return null;
 
 var t = "";
-t += "<table border='0' cellspacing='0'>";
+t += "<table border='0' cellspacing='0'>\n";
 for(var lin=1;lin<=maxlin;lin++)
 	{	
 	if(lin in _table)
@@ -18754,18 +19044,25 @@ for(var lin=1;lin<=maxlin;lin++)
 				t += "<td align='right'>"+_table[lin][col]+"</td>";
 			else
 				t += "<td >"+_table[lin][col]+"</td>";
-		t += "</tr>";
+		t += "</tr>\n";
 		}
 	else
 		{
 		t += "<tr>";
 		for(var col=1;col<=maxcol;col++)
 			t += "<td>&nbsp;</td>"
-		t += "</tr>";
+		t += "</tr>\n";
 		}
 	}
 
-t += "</table>";
+if(_tableoverflow)
+	{
+	t += "<tr>"
+	t += "<td colspan='"+maxcol+"'>More data not displayed...</td>";
+	t += "<tr>";
+	}
+
+t += "</table>\n";
 
 return t;
 }
@@ -19355,6 +19652,18 @@ for(var i=0;i<V.length;i++)
 
 //*********************************************************************
 
+function addVV(A,B)
+{
+var n = A.length;
+if(B.length!=n) return null;
+var R = new Array(n);
+for(var i=0;i<n;i++)
+	R[i] = A[i]+B[i];
+return R;
+}
+
+//*********************************************************************
+
 function multVV(A,B)
 {
 var na = A.length;
@@ -19364,6 +19673,19 @@ var s = 0;
 for(var i=0;i<na;i++)
 	s += A[i]*B[i];
 return s;
+}
+
+//*********************************************************************
+
+function prodVV(A,B)
+{
+var n = A.length;
+if(B.length!=n) return null;
+var R = matrix(n,n);
+for(var i=0;i<n;i++)
+	for(var j=0;j<n;j++)
+		R[i][j] = A[i]*B[j];
+return R;
 }
 
 //*********************************************************************
@@ -19380,6 +19702,19 @@ for(var i=0;i<n1;i++)
 		mat[i][j] = value;
 	}
 return mat
+}
+
+//*********************************************************************
+
+function fillM(M)
+{
+var k = 0;
+var n1 = M.length;
+var n2 = M[0].length;
+
+for(var i=0;i<n1;i++)
+	for(var j=0;j<n2;j++)
+		M[i][j] = arguments[++k];
 }
 
 //*********************************************************************
@@ -19490,8 +19825,14 @@ tql2(M,d,e,n);
 
 var D = diagM(d);
 
+console.log("diag before ");
+dumpM(D);
+
 for(var i=0;i<n;i++)
 	D[i][i] = Math.pow(D[i][i],p);
+
+console.log("diag after");
+dumpM(D);
 
 return  multMM(multMM(M,D),transpM(M));
 }
@@ -19878,9 +20219,11 @@ function convertValue(index)
 for(var i=0;i<vrecords.length;i++)
 	lrecords[i].push(""+vrecords[i][index]);	
 
+if(zlabel==labels.length) zlabel++;
 labels.push(values[index]);
 
 removeValue(index);
+
 }
 
 //*********************************************************************
@@ -19891,6 +20234,8 @@ for(var i=0;i<lrecords.length;i++)
 	lrecords[i].splice(index,1);
 
 labels.splice(index,1);
+if(zlabel>labels.length)
+	zlabel = labels.length;
 
 for(var i=0;i<graphs.length;i++)
 	{	
@@ -19905,6 +20250,7 @@ for(var i=0;i<graphs.length;i++)
 
 if(labels.length==0)
 	createDummyLabel();
+
 }
 
 //*********************************************************************
@@ -19916,6 +20262,8 @@ for(var i=0;i<vrecords.length;i++)
 	vrecords[i].splice(index,1);	
 
 values.splice(index,1);
+if(zvalue>values.length)
+	zvalue = values.length;
 
 for(var i=0;i<graphs.length;i++)
 	{
@@ -20050,6 +20398,7 @@ for(var i=0;i<lrecords.length;i++)
 		}
 	}
 
+if(zlabel==labels.length) zlabel++;
 labels.push("CLUST."+(labels.length+1))
 
 }
@@ -20061,6 +20410,7 @@ function createDummyLabel()
 for(var i=0;i<lrecords.length;i++)
 	lrecords[i].push("R"+(i+1));
 
+if(zlabel==labels.length) zlabel++;
 labels.push("ROW.NAMES");
 }
 
@@ -20281,8 +20631,8 @@ if(index>=0)
 index = inValue(ptclick)
 if(index>=0)
 	{
-	faction = action = DRAG_VALUE
-	valueindex = index
+	faction = action = DRAG_VALUE;
+	valueindex = index;
 	return
 	}
 
@@ -21345,10 +21695,17 @@ h += "<style>\n";
 h += "body	{ margin:0px; cursor: default;}\n";
 h += "*	{ font-family: Calibri; font-size: 12px; }\n";
 h += "td { min-width: 50px; border-left: 1px solid #AAA;  border-top: 1px solid #AAA;}\n";
-h += "table { border-bottom: 1px solid #AAA; border-right: 1px solid #AAA; }\n";
+h += "table { display:none; border-bottom: 1px solid #AAA; border-right: 1px solid #AAA; }\n";
 h += "</style>\n";
 h += "</head>\n";
-h += "<body>\n";
+h += "<body onload='init()'>\n";
+h += "<script>\n";
+h += "function init() { \n";
+h += "document.querySelector('div').style.display = 'none';\n";
+h += "document.querySelector('table').style.display = 'table';\n";
+h += "}\n";
+h += "</script>\n";
+h += "<div>Loading ...</div>\n";
 h += t;
 t += "</body>";
 h += "</html>\n";
@@ -21356,13 +21713,19 @@ h += "</html>\n";
 if(window.inbrowser)
 	{
 	var w = window.open("",wname,"status=0");
-	var d = w.document;
 	d.open()
 	d.write(h);
 	d.close()
 	}
 else
-	ipc.send("window", {title:wname,source:h});
+	{		
+	var tmpdir = require("os").tmpdir();
+	var fs = require("fs");		
+	var filename = tmpdir+"/"+Math.random()+".html";
+	randomfiles.push(filename);
+	fs.writeFileSync(filename,h,"utf8");
+	var w = window.open("file://"+filename);
+	}
 
 }
 
@@ -22390,8 +22753,6 @@ else if(faction==DRAG_VALUE)
 		{
 		if(valueindex==0)
 			action = PIVOT_DATA;
-		else if(valueInUse(valueindex))
-			action = DONT_REMOVE;
 		else
 			action = CONVERT_VALUE;
 		}
@@ -26293,6 +26654,39 @@ for (var i = 0; i < n-1; i++) {
             }
          }
       }
+}
+
+
+//*********************************************************************
+
+// generalized inverse
+
+function ginv(A)
+{
+
+var ATA = multMM(transpM(A),A);
+var n1 = ATA.length;
+var d1 = vector(n1);
+var e1 = vector(n1);
+tred(ATA,d1,e1,n1);
+tql2(ATA,d1,e1,n1);
+
+
+var AAT = multMM(A,transpM(A));
+var n2 = AAT.length;
+var d2 = vector(n2);
+var e2 = vector(n2);
+tred(AAT,d2,e2,n2);
+tql2(AAT,d2,e2,n2);
+
+
+var D = matrix(n1,n2);
+var p = Math.min(n1,n2);
+for(var i=0;i<p;i++)
+	if(d1[i]>0)
+		D[i][i] = 1/ Math.sqrt(d1[i]);
+
+return multMM(AAT,multMM(D,transpM(ATA)));
 }
 
 //*********************************************************************
