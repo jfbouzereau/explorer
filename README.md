@@ -143,6 +143,11 @@ Data can be loaded from various sources :
 	<td>A JSON array of records</td>
 </tr>
 <tr>
+	<td>LIMDEP / NLOGIT file</td>
+	<td>lpj</td>
+	<td></td>
+</tr>
+<tr>
 	<td>MINITAB</td>
 	<td>mtw</td>
 	<td></td>
