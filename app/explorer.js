@@ -313,7 +313,9 @@ _menu("REGR","ONE","Linear");
 _menu("REGR","TWO","Second degree");
 _menu("REGR","THREE","Third degree");
 _menu("REGR","-","-");
-_menu("REGR","LOG","Log-linear");
+_menu("REGR","LOGIS","Logistic");
+_menu("REGR","-","-");
+_menu("REGR","POISSON","Log-linear (Poisson)");
 
 //_menu("NONPARAM","MANN","Mann-Whitmey");
 _menu("NONPARAM","KOLMO","Kolmogorov-Smirnov");
@@ -410,6 +412,7 @@ var destvalueindex = -1
 var typeindex = -1
 var optionindex = -1;
 var valueindex = -1
+var valueindex2 = -1;
 var titleindex = -1
 var menuindex = -1;
 
@@ -836,7 +839,7 @@ for(var i=0;i<mat.length;i++)
 	s += "["+i+"] = "
 	for(var j=0;j<mat[i].length;j++)
 		{
-		var m = Math.round(mat[i][j]*10000)/10000;
+		var m = Math.round(mat[i][j]*100000)/100000;
 		s += " "+m;
 		}
 	s += "\n"
@@ -8064,12 +8067,12 @@ var j = Math.floor((pt.y-ytop-50+14)/20)+bias;
 
 if((pt.x>xyes-width)&&(pt.x<xyes+width))
 	{
-	graph._z.about = {a:SET_REMOVE,i:j};
+	graph._z.about = {a:SET_ADD,i:j};
 	return  true;
 	}
 else if((pt.x>xno-width)&&(pt.x<xno+width))
 	{
-	graph._z.about = {a:SET_ADD,i:j};
+	graph._z.about = {a:SET_REMOVE,i:j};
 	return true;
 	}
 return false;
@@ -8104,12 +8107,12 @@ var j = Math.floor((pt.y-ytop-50+14)/20)+bias;
 if((pt.x>xyes-width)&&(pt.x<xyes+width))
 	{
 	sliceindex = j;
-	return SET_REMOVE;
+	return SET_ADD;
 	}
 else if((pt.x>xno-width)&&(pt.x<xno+width))
 	{
 	sliceindex = j;
-	return SET_ADD;
+	return SET_REMOVE;
 	}
 return -1;
 }
@@ -8220,12 +8223,12 @@ if(graph._z.about)
 		}
 	}
 
-if((faction==SET_ADD)&&(graphs[graphindex]==graph))
+if((faction==SET_REMOVE)&&(graphs[graphindex]==graph))
 	{
 	ctx.fillStyle = GRAY;
 	ctx.fillRect(xno-width,ytop+50+20*sliceindex-14,2*width,17);
 	}
-if((faction==SET_REMOVE)&&(graphs[graphindex]==graph))
+if((faction==SET_ADD)&&(graphs[graphindex]==graph))
 	{
 	ctx.fillStyle = GRAY;
 	ctx.fillRect(xyes-width,ytop+50+20*sliceindex-14,2*width,17);
@@ -11234,17 +11237,34 @@ var cov = graph._z.cov;
 var nv = cov.length;
 var d = dx/nv;
 
+
 // draw grid
+
 ctx.fillStyle = "#DDDDDD";
 for(var j=0;j<=nv;j++)
 	{
-	ctx.fillRect(x1+j*d,y1+j*d,1,y2-y1-j*d);
-	ctx.fillRect(x1,y1+j*d,j*d,1);
+	ctx.fillRect(x1+j*d,y1+j*d-d,1,y2-y1-j*d+d);
+	ctx.fillRect(x1,y1+j*d,j*d+d,1);
 	}
+
+ctx.fillStyle = "#000000";
+
+// draw names
+ctx.fillStyle = "#000000";
+ctx.textAlign = "left";
+for(var j=0;j<nv;j++)
+	{	
+	ctx.save();
+	ctx.translate(x1+j*d+d,y1+j*d);
+	ctx.rotate(-Math.PI/4);
+	ctx.fillText(values[graph.ivalues[j]],5,5);
+	ctx.restore();
+	}	
 
 if(option==0)
 	{
-	// correlations
+	ctx.textAlign = "center";
+	ctx.fillText("Correlations",xc,graph.y+graph.hbar+20);
 
 
 	for(var j=0;j<nv;j++)
@@ -11264,15 +11284,18 @@ if(option==0)
 				ctx.fillRect(x1+j*d+d/2-size/2,y1+k*d+d/2-size/2,size,size)
 				}		
 			}
+
 	}
 else
 	{
-	// covariances
+	ctx.textAlign = "center";
+	ctx.fillText("Covariances",xc,graph.y+graph.hbar+20);
+
 
 	var max = get_max();
 
 	for(var j=0;j<nv;j++)
-		for(var k=0;k<nv;k++)
+		for(var k=j;k<nv;k++)
 			{
 			var c = cov[j][k];
 			if(c<0)
@@ -16848,7 +16871,8 @@ switch(graph.regr)
 	case REGR.ONE: computeRegresPoly(graph); break;
 	case REGR.TWO: computeRegresPoly(graph); break;	
 	case REGR.THREE: computeRegresPoly(graph); break;
-	case REGR.LOG: computeRegresLog(graph); break;
+	case REGR.LOGIS: computeRegresLogistic(graph); break;
+	case REGR.POISSON: computeRegresPoisson(graph); break;
 	}
 
 }
@@ -17189,13 +17213,216 @@ return list.reverse();
 
 //*********************************************************************
 
-function computeRegresLog(graph)
+function computeRegresLogistic(graph)
 {
 if(graph.ivalue1<0) return;
 if(graph.ivalues.length<1) return;
 
+// check data
 var nr = 0;
+var count0 = 0;
+var count1 = 0;
+var countm = 0;
+var counto = 0;
 
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	nr++;
+	var y = vrecords[i][graph.ivalue1];
+	switch(y)
+		{
+		case -1: countm++; break;		
+		case 0: count0++; break;
+		case 1: count1++; break;
+		default: counto++; break;
+		}	
+	}
+
+if(counto>0) { graph.error = "Values not -1/1  or 0/1"; return; }
+if(countm*count0*count1>0) { graph.error = "Values not -1/1 or 0/1"; return; }
+if(countm+count0==0) { graph.error = "Values not -1/1 or 0/1" ; return; }
+if(count0+count1==0) { graph.error = "Values not -1/1 or 0/1" ; return; }
+
+var n = graph.ivalues.length+1;
+
+var coef = vector(n);
+fillV(coef,0.1);
+
+
+// Boehning's methd
+
+var H = covariance();
+var I = ginv(H);
+
+for(var iter=0;iter<500;iter++)
+	{
+	var g = gradient(coef);
+
+	var delta = multMV(I,g);
+	var nrm = norm(delta);
+	console.log("iter="+iter+"  nrm="+nrm);
+	if(nrm < 1e-7) break;
+	
+	for(var j=0;j<n;j++)
+		coef[j]  += delta[j];
+	}
+
+
+// compute standard dev
+var C = matrix(n,n);
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	var s = sigma(i,coef,1);
+	var a = s*(1-s);
+	for(var j=0;j<n;j++)
+		{
+		var xj = j==0 ? 1 : vrecords[i][graph.ivalues[j-1]];
+		for(var k=0;k<n;k++)
+			{
+			var xk = k==0 ? 1 : vrecords[i][graph.ivalues[k-1]];
+			C[j][k] += a*xj*xk;	
+			}
+		}
+	}
+
+I = ginv(C);
+
+var stddev = new Array(n);
+var zvalues = new Array(n);
+var pvalues = new Array(n);
+for(var j=0;j<n;j++)
+	{
+	stddev[j] = Math.sqrt(I[j][j]);
+	zvalues[j] = coef[j]/stddev[j];
+	pvalues[j] = 2-2*pnorm(Math.abs(zvalues[j]))
+	}
+
+// compute deviance
+
+var deviance = 0;
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	var s = sigma(i,coef,1);
+	var y = vrecords[i][graph.ivalue1];
+	if(y==1)
+		deviance += Math.log(s);
+	else
+		deviance += Math.log(1-s);
+	}
+deviance *= -2;
+
+var level = 0.05;
+var df = nr-coef.length;
+var pvalue = 1-pchisq(deviance,df);
+var cv = qchisq(1-level,df);
+
+
+graph._z.nr = nr;
+graph._z.coef = coef;
+graph._z.stddev = stddev;
+graph._z.zvalues = zvalues;
+graph._z.pvalues = pvalues;
+graph._z.deviance = deviance;
+graph._z.level = level;
+graph._z.df = df;
+graph._z.pvalue = pvalue;
+graph._z.cv = cv;
+
+console.log(graph._z);
+
+	//-----------------------------------------------------------
+
+	function norm(g)
+	{
+	var n = g.length;
+	var s =0;
+	for(var j=0;j<n;j++)
+		s += g[j]*g[j];
+	return Math.sqrt(s);
+	}
+
+	//-----------------------------------------------------------
+
+	function gradient(coef)
+	{
+	var n = coef.length;
+	var g = vector(n);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var yi = (vrecords[i][graph.ivalue1] == 1 ) ? 1 : -1;
+		var si = sigma(i,coef,yi);
+		for(var j=0;j<n;j++)
+			{
+			var x = j==0 ? 1 : vrecords[i][graph.ivalues[j-1]];
+			g[j] += (1-si)*yi*x;
+			}
+		}
+	return g;
+	}
+
+	//-----------------------------------------------------------
+
+	function sigma(i,coef,y)
+	{
+	var n = coef.length;
+	var s = 0;
+	for(var j=0;j<n;j++)
+		{
+		var xj = j==0 ? 1 : vrecords[i][graph.ivalues[j-1]];
+		s += coef[j]*xj;
+		}
+	s *= y;
+	var t = 1/(1+Math.exp(-s));
+	return t;
+	}
+
+	//-----------------------------------------------------------
+
+	function covariance()
+	{
+	var H = matrix(n,n);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		for(var j=0;j<n;j++)
+			{
+			var xj = j==0? 1 :vrecords[i][graph.ivalues[j-1]];
+			for(var k=0;k<n;k++)
+				{
+				var xk = k==0 ? 1 : vrecords[i][graph.ivalues[k-1]];
+				H[j][k] += xj*xk/4;
+				}
+			}
+		}
+	return H;
+	}
+
+	//-----------------------------------------------------------
+
+}
+
+//*********************************************************************
+
+function computeRegresPoisson(graph)
+{
+if(graph.ivalue1<0) return;
+if(graph.ivalues.length<1) return;
+
+// check data
+var nr = 0;
+for(var i=0;i<vrecords.length;i++)
+	{	
+	if(!recordMatch(i,graph)) continue;
+	nr++;
+	var y = vrecords[i][graph.ivalue1];
+	if(y<0) { graph.error = "Negative value(s)"; return; }
+	}
+
+//
 var n = 1 + graph.ivalues.length;
 
 var coef = vector(n);
@@ -17206,22 +17433,34 @@ for(var iter=0;iter<50;iter++)
 	{
 	var g = gradient(coef);
 	
-	var nrm = norm(g);
-	if(nrm<1e-7) break;
-		
 	var C = covariances(coef);
 
 	var I = ginv(C);
 
 	var b = multMV(I,g);
+	var nrm = norm(b);
+	if(nrm < 1e-7) break;
 
-	for(var i=0;i<n;i++)
-		coef[i] = coef[i] + b[i];
-	console.log("iter="+iter);
-	dumpV(coef);
+	for(var j=0;j<n;j++)
+		coef[j] += b[j];
 	}
 
+graph._z.niter = iter;
+
+var stddev = new Array(n);
+var zvalues = new Array(n);
+var pvalues = new Array(n);
+
+for(var j=0;j<n;j++)
+	{	
+	stddev[j] = Math.sqrt(I[j][j]);
+	zvalues[j] = coef[j]/stddev[j];
+	pvalues[j] = 2-2*pnorm(Math.abs(zvalues[j]))
+	}	
+
+	
 // compute deviance
+
 
 var s1 = 0;
 var s2 = 0;
@@ -17243,6 +17482,9 @@ var cv = qchisq(1-level,df);
 
 graph._z.nr = nr;
 graph._z.coef = coef;
+graph._z.stddev = stddev;
+graph._z.zvalues = zvalues;
+graph._z.pvalues = pvalues;
 graph._z.deviance = deviance;
 graph._z.df = df;
 
@@ -17262,6 +17504,7 @@ console.log(graph._z);
 		{
 		if(!recordMatch(i,graph)) continue;
 		var y = vrecords[i][graph.ivalue1];
+
 		var l = lambda(i,coef)
 		g[0] += (y-l);
 		for(var j=1;j<n;j++)
@@ -17295,15 +17538,12 @@ console.log(graph._z);
 
 	function covariances(coef)
 	{	
-	//  side effect : update nr
 	var n = coef.length;
-	nr = 0;
 	var C = matrix(n,n);
 
 	for(var i=0;i<vrecords.length;i++)
 		{
 		if(!recordMatch(i,graph)) continue;
-		nr++;
 		var li = lambda(i,coef);
 		for(var j=0;j<n;j++)
 			{		
@@ -17344,7 +17584,8 @@ switch(graph.regr)
 	case REGR.ONE: drawRegresPoly(ctx,graph); break;
 	case REGR.TWO: drawRegresPoly(ctx,graph); break;	
 	case REGR.THREE: drawRegresPoly(ctx,graph); break;
-	case REGR.LOG: drawRegresLog(ctx,graph); break;
+	case REGR.POISSON: drawRegresPoisson(ctx,graph); break;
+	case REGR.LOGIS : drawRegresPoisson(ctx,graph); break;
 	}
 }
 
@@ -17768,7 +18009,7 @@ if(graph.ivalues.length<1) return;
 
 //*********************************************************************
 
-function drawRegresLog(ctx,graph)
+function drawRegresPoisson(ctx,graph)
 {
 if(graph.ivalue1<0) return;
 if(graph.ivalues.length<1) return;
@@ -17787,6 +18028,9 @@ var cv = graph._z.cv;
 var df = graph._z.df;
 var level = graph._z.level;
 var deviance = graph._z.deviance;
+var stddev = graph._z.stddev;
+var zvalues = graph._z.zvalues;
+var pvalues = graph._z.pvalues;
 
 if(option==0)
 
@@ -17818,16 +18062,16 @@ if(option==0)
 	ctx.textAlign = "left";
 	ctx.fillText("Residual deviance D",x,y);
 	ctx.textAlign = "right";
-	var z = Math.round(deviance*10000)/10000;
+	var z = Math.round(deviance*100000)/100000;
 	ctx.fillText(z+"",x+230,y);
-	z = Math.round(pvalue*10000)/10000;
+	z = Math.round(pvalue*100000)/100000;
 	ctx.fillText("(pvalue="+z+")",x+350,y);
 
 	y += 20;
 
 	ctx.textAlign = "left";
 	ctx.fillText("Critical value C",x,y);
-	var z = Math.round(cv*10000)/10000;
+	var z = Math.round(cv*100000)/100000;
 	ctx.textAlign = "right";
 	ctx.fillText(z+"",x+230,y);
 	ctx.fillText("(\u03B1="+level+")",x+350,y);
@@ -17853,8 +18097,13 @@ if(option==1)
 
 	ctx.textAlign = "left";
 	ctx.fillText("Coefficients",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText("Estimate",x+230,y);
+	ctx.fillText("Std Err",x+310,y);
+	ctx.fillText("Z value",x+390,y);
+	ctx.fillText("p-value",x+470,y);
 
-	ctx.fillRect(x,y+10,250,1);
+	ctx.fillRect(x,y+10,470,1);
 	y += 30;
 
 	for(var j=0;j<coef.length;j++)
@@ -17863,8 +18112,14 @@ if(option==1)
 		if(j!=0)
 			ctx.fillText(values[graph.ivalues[j-1]],x,y);
 		ctx.textAlign = "right";
-		var z = Math.round(coef[j]*10000)/10000;
+		var z = Math.round(coef[j]*100000)/100000;
 		ctx.fillText(z+"",x+230,y);
+		var z = Math.round(stddev[j]*100000)/100000;
+		ctx.fillText(z+"",x+310,y);
+		var z = Math.round(zvalues[j]*100000)/100000;
+		ctx.fillText(z+"",x+390,y);
+		var z = Math.round(pvalues[j]*100000)/100000;
+		ctx.fillText(z+"",x+470,y);
 		y += 20;
 		}
 	
@@ -20524,6 +20779,7 @@ graphindex = -1
 graphindex2 = -1
 labelindex = -1
 valueindex = -1
+valueindex2 = -1;
 sliceindex = -1
 typeindex = -1
 optionindex = -1;
@@ -22532,7 +22788,7 @@ else if(faction==DRAG_ADD)
 else if(faction==DRAG_DUSTBIN)
 	{
 	labelindex = -1;	
-	valueindex = -1;
+	valueindex = valueindex2 = -1;
 	var index;
 	if((index=inLabel(ptmove))>=0)
 		{
@@ -22553,7 +22809,7 @@ else if(faction==DRAG_DUSTBIN)
 			{
 			valueindex = index;
 			action = REMOVE_VALUE;
-			AHELP[action] = 'Remove field "'+values[valueindex]+'"';
+			AHELP[action] = "Remove field '"+values[valueindex]+"'";
 			}
 		}
 	else
@@ -22561,18 +22817,14 @@ else if(faction==DRAG_DUSTBIN)
 	}
 else if(faction==DRAG_TABLE)
 	{
-	labelindex = -1;
-	valueindex = -1;
 	graphindex = -1;
 	var index;
 	if((index=inLabel(ptmove))>=0)
 		{
-		labelindex = index;
 		action = SHOW_LABEL;
 		}		
 	else  if((index=inValue(ptmove))>=0)
 		{
-		valueindex = index;
 		action = SHOW_VALUE;
 		}
 	else if((index=inGraph(ptmove))>=0)
@@ -22730,7 +22982,8 @@ else if(faction==DRAG_VALUE)
 	{
 	graphindex = -1
 	var i = inFullGraph(ptmove);
-	if(inDustbinIcon(ptmove)&&(valueindex>0))
+	var j;
+	if(inDustbinIcon(ptmove))
 		{
 		if(valueInUse(valueindex))
 			action = DONT_REMOVE;
@@ -24085,15 +24338,15 @@ if(action==DRAG_SET)
 	ctx.strokeRect(ptmove.x-10,ptmove.y-10,20,20)
 	}
 
-if(faction==DRAG_VALUE)
+if(action==DRAG_VALUE)
 	{
 	ctx.fillStyle = GRAY;
 	var y = (zlabel-alabel)*20+20+ni*20+20+(valueindex-avalue)*20;
 	ctx.fillRect(mywidth-100,y,100,20);
-	if(!informula)
+	if((!informula)&&(inValue(ptmove)<0))
 		{
 		ctx.strokeStyle = GRAY
-		ctx.strokeRect(ptmove.x-50,ptmove.y-10,100,20)
+		ctx.strokeRect(ptmove.x-50,ptmove.y-10,100,20);
 		}	
 	}
 
@@ -25537,10 +25790,11 @@ function pf(f,df1,df2)  {
 
 function dchisq(x,k)
 {
-var a = Math.pow(x,k/2-1);
-var b = Math.exp(-x/2);
-var c = Math.pow(2,k/2);
-return a*b/c/gamma(k/2);
+var a = (k/2-1)*Math.log(x);
+var b = -x/2;
+var c = k/2*Math.log(2);
+var d = logamma(k/2);
+return Math.exp(a+b-c-d);
 }
 
 //*********************************************************************
