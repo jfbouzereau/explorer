@@ -143,7 +143,7 @@ Data can be loaded from various sources :
 	<td>A JSON array of records</td>
 </tr>
 <tr>
-	<td>LIMDEP / NLOGIT file</td>
+	<td>LIMDEP / NLOGIT</td>
 	<td>lpj</td>
 	<td></td>
 </tr>
