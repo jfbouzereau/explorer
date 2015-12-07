@@ -96,6 +96,9 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Radviz
 * Discriminant analysis
 * Linear regression
+* Poisson regression
+* Negative binomial regression
+* Logistic regression
 * Influence plot
 * QQ plot
 * Box plot
