@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.88";
+var VERSION = "1.89";
 
 /***************************************************************************/
 
@@ -315,7 +315,8 @@ _menu("REGR","THREE","Third degree");
 _menu("REGR","-","-");
 _menu("REGR","LOGIS","Logistic");
 _menu("REGR","-","-");
-_menu("REGR","POISSON","Log-linear (Poisson)");
+_menu("REGR","POISSON","Poisson");
+_menu("REGR","NEGBIN","Negative binomial");
 
 //_menu("NONPARAM","MANN","Mann-Whitmey");
 _menu("NONPARAM","KOLMO","Kolmogorov-Smirnov");
@@ -16873,6 +16874,7 @@ switch(graph.regr)
 	case REGR.THREE: computeRegresPoly(graph); break;
 	case REGR.LOGIS: computeRegresLogistic(graph); break;
 	case REGR.POISSON: computeRegresPoisson(graph); break;
+	case REGR.NEGBIN: computeRegresNegbin(graph); break;
 	}
 
 }
@@ -17439,7 +17441,8 @@ for(var iter=0;iter<50;iter++)
 
 	var b = multMV(I,g);
 	var nrm = norm(b);
-	if(nrm < 1e-7) break;
+
+	if(nrm < 1e-8) break;
 
 	for(var j=0;j<n;j++)
 		coef[j] += b[j];
@@ -17565,6 +17568,309 @@ console.log(graph._z);
 
 //*********************************************************************
 
+function computeRegresNegbin(graph)
+{
+if(graph.ivalue1<0) return;
+if(graph.ivalues.length<1) return;
+
+// check data
+var nr = 0;
+for(var i=0;i<vrecords.length;i++)
+	{	
+	if(!recordMatch(i,graph)) continue;
+	nr++;
+	var y = vrecords[i][graph.ivalue1];
+	if(y<0) { graph.error = "Negative value(s)"; return; }
+	if(y!=Math.floor(y)) { graph.error = "Non integer value(s)"; return; }
+	}
+
+//
+var n = 1 + graph.ivalues.length;
+
+
+var ka = 0;
+
+var beta = vector(n);
+fillV(beta,0.1);
+
+// estimating starting beta
+
+var H = matrix(n,n);
+var g = vector(n);
+
+// STEP 1 , estimate starting beta value
+
+for(var iter=0;iter<50;iter++)
+	{
+	gradienta(g,beta,ka);
+	hessiana(H,beta,ka);
+	var I = ginv(H);
+	var delta = multMV(I,g);
+
+	var nrm = norm(delta);
+	if(nrm<1e-8) break;
+	for(var j=0;j<beta.length;j++)
+		beta[j] += delta[j];	
+	}
+
+
+var betastart = copyV(beta);
+
+// STEP 2 , estimate starting ka value
+
+fillV(beta,0);
+beta[0] = 1;
+
+for(var iter=0;iter<50;iter++)
+	{
+	var g = gradientb(beta,ka);	
+	var h = hessianb(beta,ka);
+	var delta = g/h;
+
+	var nrm = Math.abs(delta);
+	if(nrm<1e-8) break;	
+
+	ka -= delta;
+	}
+
+
+
+// STEP 3 , estimate both paramters
+
+var H = matrix(n+1,n+1);
+var g = vector(n+1);
+var h = vector(n);
+
+beta = copyV(betastart);
+
+for(var iter=0;iter<50;iter++)
+	{
+	gradienta(g,beta,ka);
+	g[n] = gradientb(beta,ka);
+
+	hessiana(H,beta,ka);
+	H[n][n] = hessianb(beta,ka);
+	hessianc(h,beta,ka);
+	for(var j=0;j<n;j++)
+		H[j][n] = H[n][j] = h[j];
+
+	var I = ginv(H);
+
+	var delta = multMV(I,g);
+	var nrm = norm(delta);
+	if(nrm<1e-8) break;
+
+	for(var j=0;j<n;j++)
+		beta[j] += delta[j];
+	ka += delta[n];
+	}
+
+var alpha = Math.exp(ka);
+
+var stddev = new Array(n+1);
+var zvalues = new Array(n);
+var pvalues = new Array(n);
+
+for(var j=0;j<n;j++)
+	{
+	stddev[j] = Math.sqrt(I[j][j]);
+	zvalues[j] = beta[j]/stddev[j];
+	pvalues[j] = 2-2*pnorm(Math.abs(zvalues[j]))
+	}
+
+
+// compute deviance
+
+var deviance = dev(beta,ka);
+
+var level = 0.05;
+var df = nr-beta.length;
+var pvalue = 1-pchisq(deviance,df);
+var cv = qchisq(1-level,df);
+
+
+graph._z.nr = nr;
+graph._z.coef = beta;
+graph._z.ka = ka;
+graph._z.stddev = stddev;
+graph._z.zvalues = zvalues;
+graph._z.pvalues = pvalues;
+graph._z.deviance = deviance;
+
+graph._z.level = level;
+graph._z.df = df;
+graph._z.pvalue = pvalue;
+graph._z.cv = cv;
+
+console.log(graph._z);
+
+
+	//--------------------------------------------------------------
+
+	function dev(beta,ka)
+	{
+	var s =0;
+	var e = Math.exp(ka);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var y = vrecords[i][graph.ivalue1];
+		var m = mu(i,beta,ka);
+		s -= y*Math.log(m) - (e+y)*Math.log(m+e);
+		s += (y==0?0:y*Math.log(y)) - (e+y)*Math.log(y+e);
+		}	
+	return 2*s;
+	}
+
+	//--------------------------------------------------------------
+
+	function gradienta(g,beta,ka)
+	{
+	var n = beta.length;
+	for(var j=0;j<n;j++)
+			g[j] = 0;
+
+	var e = Math.exp(ka);
+
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var y = vrecords[i][graph.ivalue1];	
+		var m = mu(i,beta,ka);		
+		var c = e*(y-m)/(m+e);
+		for(var j=0;j<n;j++)
+			{
+			var xj = j==0 ? 1 : vrecords[i][graph.ivalues[j-1]];		
+			g[j] += xj*c;
+			}
+		}
+	return g;
+	}
+
+	//--------------------------------------------------------------
+
+	function mu(i,beta,ka)
+	{
+	var s = 0;
+	var n = beta.length;
+	for(var j=0;j<n;j++)
+		{
+		var xj = j==0 ? 1 : vrecords[i][graph.ivalues[j-1]];
+		s += xj*beta[j];
+		}
+	return Math.exp(s);
+	}
+
+	//--------------------------------------------------------------
+
+	function hessiana(H,beta,ka)
+	{
+	var n = beta.length;
+	for(var j=0;j<n;j++)
+		for(var k=0;k<n;k++)
+			H[j][k] = 0;
+
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var y = vrecords[i][graph.ivalue1];	
+		var m = mu(i,beta,ka);		
+		var e = Math.exp(ka);
+		var c = e*m*(e+y)/((m+e)*(m+e));
+
+		for(var j=0;j<n;j++)
+			{
+			var xj = j==0 ? 1 : vrecords[i][graph.ivalues[j-1]];
+			for(var k=0;k<n;k++)
+				{
+				var xk = k==0 ? 1 : vrecords[i][graph.ivalues[k-1]];	
+				H[j][k] -= xj*xk*c;			
+				}
+			}
+		}
+	}
+
+	//--------------------------------------------------------------
+
+	function gradientb(beta,ka)
+	{
+	var g = 0;	
+	var e = Math.exp(ka);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var m = mu(i,beta,ka);		
+		var y = vrecords[i][graph.ivalue1];
+		var t = 0;
+		for(var j=0;j<y;j++)
+			t += 1/(e+j);
+		g += e*(t+1+ka-(e+y)/(e+m)-Math.log(e+m));	
+		}
+	return g;
+	}
+
+	//--------------------------------------------------------------
+
+	function hessianb(beta,ka)
+	{
+	var h = 0;
+	var e = Math.exp(ka);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;		
+		var m = mu(i,beta,ka);		
+		var y = vrecords[i][graph.ivalue1];
+		var t = 0;
+		var tt = 0;
+		for(var j=0;j<y;j++)
+			{
+			t += 1/(e+j);
+			tt += 1/((e+j)*(e+j));
+			}
+		h += e*(t+1+ka-(e+y)/(e+m)-Math.log(e+m)-e*tt+1-e*(m-y)/((m+e)*(m+e))-e/(m+e));
+		}
+	return h;
+	}
+
+	//--------------------------------------------------------------
+
+	function hessianc(h,beta,ka)
+	{
+	var n = beta.length;
+	for(var j=0;j<n;j++)
+		h[j] = 0;
+		
+	var e = Math.exp(ka);
+
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var y = vrecords[i][graph.ivalue1];
+		var m = mu(i,beta,ka);
+		for(var j=0;j<n;j++)
+			{
+			var xj = j==0 ? 1 : vrecords[i][graph.ivalues[j-1]];
+			h[j] += xj*e*m*(y-m)/((m+e)*(m+e));
+			}		
+		}
+	}
+
+	//--------------------------------------------------------------
+
+	function norm(g)
+	{
+	var s = 0;
+	for(var i=0;i<g.length;i++)
+		s += g[i]*g[i];
+	return Math.sqrt(s);
+	}
+
+	//--------------------------------------------------------------
+
+}
+
+//*********************************************************************
+
 function drawRegresIcon(ctx,x,y)
 	{
 	ctx.textAlign = "center";
@@ -17585,7 +17891,8 @@ switch(graph.regr)
 	case REGR.TWO: drawRegresPoly(ctx,graph); break;	
 	case REGR.THREE: drawRegresPoly(ctx,graph); break;
 	case REGR.POISSON: drawRegresPoisson(ctx,graph); break;
-	case REGR.LOGIS : drawRegresPoisson(ctx,graph); break;
+	case REGR.LOGIS : drawRegresPoisson(ctx,graph); break;	
+	case REGR.NEGBIN: drawRegresPoisson(ctx,graph); break;
 	}
 }
 
@@ -18086,7 +18393,7 @@ if(option==0)
 
 	y += 40;
 
-	var max = Math.max(Math.abs(pvalue),Math.abs(cv))*1.2;
+	var max = Math.max(Math.abs(deviance),Math.abs(cv))*1.2;
 	drawChi2Curve(ctx,graph,y,df,0,max,deviance,"D",cv);
 	}
 
@@ -18122,7 +18429,18 @@ if(option==1)
 		ctx.fillText(z+"",x+470,y);
 		y += 20;
 		}
-	
+
+	y += 20;
+
+	if(graph.regr==REGR.NEGBIN)
+		{
+		ctx.textAlign = "left";
+		ctx.fillText("theta",x,y);
+		ctx.textAlign = "right";
+		var theta = Math.exp(graph._z.ka);	
+		var z = Math.round(theta*100000)/100000;
+		ctx.fillText(""+z,x+230,y);
+		}
 	}
 
 
@@ -19895,6 +20213,17 @@ var s = 0;
 for(i=0;i<n;i++)
 	s += V[i];
 return s;
+}
+
+//*********************************************************************
+
+function copyV(A)
+{
+var n = A.length;
+var B = new Array(n);
+for(var i=0;i<n;i++)
+	B[i] = A[i];
+return B;
 }
 
 //*********************************************************************
