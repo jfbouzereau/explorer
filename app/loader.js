@@ -590,48 +590,72 @@ if((mainattr==null)||(typeof(mainattr)!="object"))
 	return;
 	}
 
-var names = mainattr["names"];
+var rnames = mainattr["names"];
 
 var rownames = mainattr["row.names"];
 
 var nfield = main.length;
 
-if((names==null)||(names.length!=nfield))
-	{
-	names = new Array(nfield);
-	for(var i=0;i<nfield;i++)
-		names[i] = "ROW"+(i+1);
-	}
+var columns = [];
 
 var nrecord = -1;
 for(var j=0;j<nfield;j++)
 	{		
 	var sub = main[j];
-	var subid = get_id(sub);
 	if(!(sub instanceof Array))
 		{		
 		console.log("  ITEM NOT AN ARRAY");
 		callback(null);
 		return;
 		}
-	if(nrecord<0)
-		nrecord = sub.length;
-	else if(sub.length!=nrecord)
+
+	var subid = get_id(sub);
+	var attr = attrs[subid];
+
+	if(attr&&attr.dim)
 		{
-		console.log("  VECTORS OF DIFFERENT LENGTH");
-		callback(null);
-		return;
+		nr = attr.dim[0];
+		ncol = attr.dim[1];		
+		if(nrecord<0) nrecord = nr;
+		if(nrecord!=nr) { console.log("DIFFERENT LENGTH"); callback(null) ; }
+
+		var dimnames = attr.dimnames;
+
+		for(var k=0;k<ncol;k++)
+			{
+			if(dimnames&&dimnames[1])
+				{
+				if(rnames)
+					var cname = rnames[j]+"."+dimnames[1][k]
+				else
+					var cname = dimnames[1][k];
+				}
+			else
+				var cname = "COL."+(columns.length);
+			columns.push({name:cname,col:j,offset:nr*k});
+			}					
+
+		}
+	else if(attr&&attr.levels&&!is_factor(subid))
+		{
+		// ignore
+		}
+	else
+		{
+		var nr = sub.length;
+		if(nrecord<0) nrecord = nr;
+		if(nrecord!=nr) { console.log("DIFFERENT LENGTH"); callback(null) ; }
+
+		if(rnames)
+			columns.push({name:rnames[j],col:j,offset:0});
+		else
+			columns.push({name:"COL."+(columns.length),col:j,offset:0});
+
+		if(is_factor(subid))
+			for(var i=0;i<sub.length;i++)	
+				sub[i] = attr.levels[sub[i]-1];	
 		}
 
-	// if factor with levels
-	if(is_factor(subid))
-		{
-		for(var i=0;i<nrecord;i++)
-			sub[i] = attrs[subid].levels[sub[i]-1];	
-		}
-
-	if(typeof(sub[0])=="number")
-		names[j] = names[j]+":n";
 	}
 
 
@@ -642,22 +666,28 @@ if((rownames==null)||(rownames.length!=nrecord))
 		rownames[i] = "ROW"+(i+1);
 	}
 
+
 var record = [];
 record.push("ROW.NAME");
-for(var j=0;j<nfield;j++)
-	record.push(names[j]);
+for(var j=0;j<columns.length;j++)
+	record.push(columns[j].name);
 data.push(record);
+
 
 for(var i=0;i<nrecord;i++)
 	{
 	record = [];
-	record.push(rownames[i]+"");
-	for(var j=0;j<nfield;j++)
-		record.push(main[j][i]+"");
+	if(!isNaN(Number(rownames[i])))
+		record.push("R"+rownames[i]);
+	else
+		record.push(""+rownames[i]);
+	for(var j=0;j<columns.length;j++)
+		record.push(main[columns[j].col][columns[j].offset+i]);
 	data.push(record);
 	}
 
-callback(data);
+
+check_data_type(callback);
 return;
 
 	function is_factor(subid)
@@ -665,11 +695,10 @@ return;
 	if(!attrs[subid]) return false;
 	if(!attrs[subid].class) return false;
 	if(!(attrs[subid].class instanceof Array)) return false;
-	var x  = attrs[subid].class[0];
-	if(x!="factor") return false;
-	
-	if(!attrs[subid].levels) return false;
-	return true;
+	for(var i=0;i<attrs[subid].class.length;i++)
+		if(attrs[subid].class[i]=="factor")
+			return !!attrs[subid].levels;
+	return false;
 	}
 
 	function read_string(len)
