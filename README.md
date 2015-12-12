@@ -99,6 +99,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Poisson regression
 * Negative binomial regression
 * Logistic regression
+* Least angle regression
 * Influence plot
 * QQ plot
 * Box plot

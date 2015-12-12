@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.89";
+var VERSION = "1.90";
 
 /***************************************************************************/
 
@@ -26,8 +26,8 @@ _action("DRAG_GRAPH","");
 _action("RESIZE_GRAPH","Resize graph");
 _action("KEEP_GRAPH","");
 _action("CLOSE_GRAPH","Close graph");
-_action("DRAG_SLICE","Create graph from category");
-_action("CREATE_SLICE","Create graph from category");
+_action("DRAG_SLICE","Create graph from selection");
+_action("CREATE_SLICE","Create graph from selection");
 _action("DRAG_LABEL","");
 _action("SET_TOPLABEL","Set definition");
 _action("SET_LEFTLABEL","Set definition");
@@ -135,8 +135,8 @@ _action("CREATE_PROJECTION","Create field from projection");
 _action("SWAP_VALUE_TL","Swap fields");
 _action("SWAP_VALUE_LT","Swap fields");
 _action("CREATE_KGROUP","Create field from partition");
-_action("CREATE_VBOOLEAN","Create boolean field from category");
-_action("CREATE_LBOOLEAN","Create boolean field from category");
+_action("CREATE_VBOOLEAN","Create dummy from selection");
+_action("CREATE_LBOOLEAN","Create dummy from selection");
 _action("REMOVE_LABEL","Remove field");
 _action("REMOVE_VALUE","Remove field");
 _action("DONT_REMOVE","Some graphs use this field");
@@ -195,26 +195,27 @@ var GACTIONS = {}
 // jvalues : has second list of values
 // ilabels : has list of labels ( categorical fields)
 // options : number of options of representation
+// unit : graph accept unit change
 
 var GINFO = {};
 var TYPE = {};
 
 var KNUM = 0;
-_type("PIE","Pie chart",{toplabel:1,bin:1,options:4});
-_type("BAR","Bar chart",{toplabel:1,leftlabel:2,bin:1,options:2});
-_type("LINE","Line chart",{toplabel:1,leftlabel:2});
-_type("TAG","Word cloud",{toplabel:1});
-_type("SOL","Solidarity",{toplabel:1,leftlabel:2});
-_type("ARC","Arc diagram",{toplabel:1,leftlabel:2,options:2});
-_type("CROSS","Contingency table",{toplabel:1,leftlabel:2,options:3});
-_type("ASSOC","Associations",{toplabel:1,leftlabel:2});
-_type("FAC","Multiple Correspondence analysis",{ilabels:1,bin:1,options:2});
+_type("PIE","Pie chart",{toplabel:1,bin:1,options:4,unit:1});
+_type("BAR","Bar chart",{toplabel:1,leftlabel:2,bin:1,options:2,unit:1});
+_type("LINE","Line chart",{toplabel:1,leftlabel:2,unit:1});
+_type("TAG","Word cloud",{toplabel:1,unit:1});
+_type("SOL","Solidarity",{toplabel:1,leftlabel:2,unit:1});
+_type("ARC","Arc diagram",{toplabel:1,leftlabel:2,options:2,unit:1});
+_type("CROSS","Contingency table",{toplabel:1,leftlabel:2,options:3,unit:1});
+_type("ASSOC","Associations",{toplabel:1,leftlabel:2,unit:1});
+_type("FAC","Multiple Correspondence analysis",{ilabels:1,bin:1,options:2,unit:1});
 //_type("SOM","Self-organizing map",{toplabel:1,leftlabel:2});
-_type("THREE","Graph 3",{toplabel:1,leftlabel:2,bottomlabel:3});
-_type("TREE","Treemap",{ilabels:1});
-_type("PACK","Packed circles",{toplabel:1,leftlabel:3});
-_type("CHI2","Chi square test",{toplabel:1,leftlabel:2,menu:"chi2"});
-_type("HOMO","Homogeneity",{toplabel:1,leftlabel:2,menu:"homo"});
+_type("THREE","Graph 3",{toplabel:1,leftlabel:2,bottomlabel:3,unit:1});
+_type("TREE","Treemap",{ilabels:1,unit:1});
+_type("PACK","Packed circles",{toplabel:1,leftlabel:3,unit:1});
+_type("CHI2","Chi square test",{toplabel:1,leftlabel:2,menu:"chi2",unit:1});
+_type("HOMO","Homogeneity",{toplabel:1,leftlabel:2,menu:"homo",unit:1});
 _type("SET","Dummy constructor",{leftlabel:1});
 
 var NBTYPE1 = KNUM;			// max graph types
@@ -224,29 +225,29 @@ _type("HISTO","Histogram",{topvalue:1,leftlabel:1});
 _type("DISTRIB","Distribution curve",{topvalue:1});
 _type("PROBA","Probability plot",{topvalue:1,menu:"law"});
 _type("TUKEY","Tukey lambda PPCC plot",{topvalue:1});
-_type("SCATTER","Scatter plot",{topvalue:1,leftvalue:2,bottomlabel:1,rightlabel:3,options:2});
-_type("POLAR","Polar plot",{topvalue:1,leftvalue:2,bottomlabel:1,rightlabel:3,options:2,menu:"angle"});
+_type("SCATTER","Scatter plot",{topvalue:1,leftvalue:2,bottomlabel:1,rightlabel:3,options:2,unit:1});
+_type("POLAR","Polar plot",{topvalue:1,leftvalue:2,bottomlabel:1,rightlabel:3,options:2,menu:"angle",unit:1});
 _type("LAG","Lag plot",{topvalue:1});
 _type("CORR","Correlations",{ivalues:1,options:2});
 _type("AUTOCORR","Autocorrelation plot",{topvalue:1});
-_type("ACP","Principal components",{ivalues:1,bottomlabel:1,rightlabel:3,options:3});
-_type("CANON","Canonical correlation analysis",{leftlabel:1,ivalues:1,jvalues:1,rightlabel:3,options:5});
+_type("ACP","Principal components",{ivalues:1,bottomlabel:1,rightlabel:3,options:3,unit:1});
+_type("CANON","Canonical correlation analysis",{leftlabel:1,ivalues:1,jvalues:1,rightlabel:3,options:5,unit:1});
 _type("CLUSTERING","Clustering",{ivalues:1,menu:"clustering"});
 //_type("TYPE_HUEN","Huen diagram");
 _type("DENDRO","Dendrogram",{ivalues:1,options:2});
-_type("RADVIZ","Radviz",{ivalues:1,leftlabel:1,rightlabel:3});
-_type("TERNARY","Ternary plot",{ivalues:1,leftlabel:1,rightlabel:3});
+_type("RADVIZ","Radviz",{ivalues:1,leftlabel:1,rightlabel:3,unit:1});
+_type("TERNARY","Ternary plot",{ivalues:1,leftlabel:1,rightlabel:3,unit:1});
 _type("SURVEY","Survey plot",{ivalues:1,leftlabel:1});
 _type("ANDREW","Andrew's curves",{ivalues:1,leftlabel:1});
 _type("G3D","3D plot",{ivalues:1,leftlabel:1});
 
 var NBTYPE2 = KNUM; 		//  max plot types
 
-_type("DISCRI","Discriminant analysis",{ivalues:1,leftlabel:1,bottomlabel:3,options:3});
+_type("DISCRI","Discriminant analysis",{ivalues:1,leftlabel:1,bottomlabel:3,options:3,unit:1});
 _type("TEST","Analysis of variance",{jvalues:1,ilabels:1,menu:"test",options:3});
 _type("NONPARAM","Non parametric tests",{ilabels:1,leftvalue:1,menu:"nonparam",options:2});
 _type("BOX","Box plot",{ivalues:1,leftlabel:1});
-_type("REGRES","Linear regression",{ivalues:1,leftvalue:1,bottomlabel:1,rightlabel:2,options:4,menu:"regr"});
+_type("REGRES","Regression",{ivalues:1,leftvalue:1,bottomlabel:1,rightlabel:2,options:4,menu:"regr"});
 _type("PARA","Parallel coordinates",{ivalues:1,leftlabel:1,options:2});
 _type("PALETTE","Palette");
 
@@ -313,6 +314,8 @@ _menu("REGR","ONE","Linear");
 _menu("REGR","TWO","Second degree");
 _menu("REGR","THREE","Third degree");
 _menu("REGR","-","-");
+_menu("REGR","LARS","Least angle");
+_menu("REGR","-","-");
 _menu("REGR","LOGIS","Logistic");
 _menu("REGR","-","-");
 _menu("REGR","POISSON","Poisson");
@@ -347,6 +350,8 @@ for(var k=0;k<25;k++)
 
 var SLOTW = 100;		// slot width
 var SLOTH = 20;			// slow height
+
+var ORDER = ["descending","ascending"];
 
 //***************************************************************************
 //***************************************************************************
@@ -416,6 +421,12 @@ var valueindex = -1
 var valueindex2 = -1;
 var titleindex = -1
 var menuindex = -1;
+
+var selection = null;
+var selecthue = 0;
+
+var lastsort = 0;
+var lastorder = 0;
 
 var animtimer = null
 var newfield = 0;
@@ -943,26 +954,6 @@ r = Math.floor(r*255)
 g = Math.floor(g*255)
 b = Math.floor(b*255)
 return "rgb("+r+","+g+","+b+")"
-}
-
-//*********************************************************************
-
-function cloneArray(a)
-{
-var b = []
-for(var i=0;i<a.length;i++)
-	b.push(a[i])
-return b
-}
-
-//*********************************************************************
-
-function cloneObject(a)
-{
-var b = {}
-for(var x in a)
-	b[x] = a[x]
-return b
 }
 
 //*********************************************************************
@@ -1674,64 +1665,86 @@ computeGraphData(graph);
 
 //*********************************************************************
 
-function setGraphSelection(sgraph,dgraph,sliceindex)
+function setGraphSelection(graph,newselection)
 {
-var REPLACE = 1;
-var MERGE = 2;
-var APPEND = 3;
 
-var action = 0;
+var sl = graph.selection.length;
+var dl = newselection.length;
 
-var sl = sgraph.selection.length;
-var dl = dgraph.selection.length;
-var key = sgraph._keys1[sliceindex];
-
-if(sl==dl)
+/*
+if(sl!=dl)
 	{
-	action = compare() ? APPEND : REPLACE;
+	graph.selection = clone(newselection);
 	}
-else if(sl==dl-2)
+else if(!same())
 	{
-	if(!compare())
-		action = REPLACE;
-	else if(dgraph.selection[dl-2]==sgraph.ilabel1)
-		action = MERGE;
-	else
-		action = REPLACE;
+	graph.selection = clone(newselection);
 	}
 else
-	action = REPLACE;
-
-if(action==REPLACE)
-	{
-	// remove previous selection
-	dgraph.selection = clone(sgraph.selection);
-	dgraph.selection.push(sgraph.ilabel1);
-	dgraph.selection.push(key);
+	{		
+	// merge last part
+	if(typeof(graph.selection[sl-1])=="string")
+		graph.selection[sl-1] = [graph.selection[sl-1],newselection[dl-1]];
+	else
+		graph.selection[sl-1].push(newselection[dl-1]);
 	}
-else if(action==APPEND)
+*/
+
+for(var i=0;i<newselection.length;i+=2)
+	{
+	var found = false;
+	for(var j=0;j<graph.selection.length;j+=2)
+		{
+		if(newselection[i]!=graph.selection[j]) continue;
+		graph.selection[j+1] = merge(graph.selection[j+1],newselection[i+1]);
+		found = true;
+		break;
+		}	
+	if(!found)
+		{		
+		graph.selection.push(newselection[i]);
+		graph.selection.push(newselection[i+1]);
+		}
+	}
+
+
+graph.hbar = graph.selection.length/2*16
+if(graph.hbar==0) graph.hbar = 16
+
+
+	function merge(a,b)
 	{	
-	dgraph.selection.push(sgraph.ilabel1);
-	dgraph.selection.push(key);
-	}
-else if(action==MERGE)
-	{
-	if(typeof (dgraph.selection[dl-1])=="string")
-		dgraph.selection[dl-1] = [dgraph.selection[dl-1],key];
-	else if(indexOf(key,dgraph.selection[dl-1])<0)
-		dgraph.selection[dl-1].push(key);
-	}
+	var ta = typeof(a)=="string"?0:1;
+	var tb = typeof(b)=="string"?0:2;
+	switch(ta+tb)
+		{
+		case 0:
+			var x = [a];
+			if(b!=a)
+				x.push(b);
+			break;
 
-dgraph.hbar = dgraph.selection.length/2*16
-if(dgraph.hbar==0) dgraph.hbar = 16
+		case 1:
+			var x = clone(a);
+			if(indexOf(b,x)<0)
+				x.push(b);
+			break;
+	
+		case 2:
+			var x = [a];
+			for(var i=0;i<b.length;i++)
+				if(indexOf(b[i],x)<0)
+					x.push(b[i]);
+			break;
 
-
-	function compare()
-	{
-	for(var i=0;i<sgraph.selection.length;i++)
-		if(sgraph.selection[i]!=dgraph.selection[i])
-			return false;
-	return true;
+		case 3:
+			var x = clone(a);		
+			for(var i=0;i<b.length;i++)
+				if(indexOf(b[i],x)<0)
+					x.push(b[i]);
+			break;
+		}
+	return x;
 	}
 }
 
@@ -1947,6 +1960,28 @@ for(var j=0;j<graph._keys1.length;j++)
 	var pct = Math.round(graph._count[key]*1000/graph.total)/10;
 	table(j+2,3,pct);
 	}
+
+}
+
+//*********************************************************************
+
+function downPieGraph(pt,graph)
+{
+var i = inPieSlice(pt,graph);
+if(i<0) return -1;
+
+selection = clone(graph.selection);
+if(graph.ilabel1>=0)
+	{
+	selection.push(graph.ilabel1);
+	selection.push(graph._keys1[i]);
+	selecthue = graph.hue+alternateIndex(i,graph._keys1.length)*5.0/(6*graph._keys1.length)
+	}
+else
+	selecthue = graph.hue;
+
+
+return DRAG_SLICE;
 
 }
 
@@ -3478,7 +3513,6 @@ graph._keys2 = sortedBy(graph._keys2,I);
 
 //*********************************************************************
 
-
 function inCrossSlice(pt,graph)
 {
 
@@ -3757,6 +3791,34 @@ for(var j=0;j<graph._keys2.length;j++)
 		}
 	}
 
+}
+
+//*********************************************************************
+
+function downCrossGraph(pt,graph)
+{
+
+var i = inCrossSlice(pt,graph);
+if(i<0) return -1;
+
+if((graph.ilabel1>=0)&&(graph.ilabel2<0))
+	{
+	selection = [graph.ilabel1,graph._keys1[i]];
+	}
+else if((graph.ilabel1<0)&&(graph.ilabel2>=0))
+	{
+	selection = [graph.ilabel2,graph._keys2[i]];
+	}
+else
+	{	
+	var i1 = Math.floor(i/graph._keys2.length);
+	var i2 = i%graph._keys2.length;
+	selection = [graph.ilabel1,graph._keys1[i1],graph.ilabel2,graph._keys2[i2]];
+	}
+
+selecthue = graph.hue;
+
+return DRAG_SLICE;
 }
 
 //*********************************************************************
@@ -7177,7 +7239,12 @@ function downTreeGraph(pt,graph)
 var index = inTreeSlice(pt,graph);
 if(index instanceof Array)
 	{
-	sliceindex = index;
+	selection = clone(graph.selection);
+	for(var k=0;k<graph.ilabels.length;k++)
+		{
+		selection.push(graph.ilabels[k]);
+		selection.push(graph._keys[k][indices[k]]);
+		}
 	return DRAG_SLICE;
 	}
 		
@@ -16867,6 +16934,10 @@ function computeRegresData(graph)
 if(graph.w<460)
 	graph.w = 460;
 
+graph.placeholder.leftvalue = "RESPONSE";
+graph.placeholder.bottomlabel = "COLOR";
+graph.placeholder.rightlabel = "LABEL";
+
 switch(graph.regr)
 	{	
 	case REGR.ONE: computeRegresPoly(graph); break;
@@ -16875,6 +16946,7 @@ switch(graph.regr)
 	case REGR.LOGIS: computeRegresLogistic(graph); break;
 	case REGR.POISSON: computeRegresPoisson(graph); break;
 	case REGR.NEGBIN: computeRegresNegbin(graph); break;
+	case REGR.LARS: computeRegresLars(graph); break;
 	}
 
 }
@@ -16884,9 +16956,6 @@ switch(graph.regr)
 function computeRegresPoly(graph)
 {
 
-graph.placeholder.leftvalue = "RESPONSE";
-graph.placeholder.bottomlabel = "COLOR";
-graph.placeholder.rightlabel = "LABEL";
 for(var i=0;i<50;i++)
 	graph.placeholder["ivalues"+i] = "TERM";
 
@@ -17421,7 +17490,8 @@ for(var i=0;i<vrecords.length;i++)
 	if(!recordMatch(i,graph)) continue;
 	nr++;
 	var y = vrecords[i][graph.ivalue1];
-	if(y<0) { graph.error = "Negative value(s)"; return; }
+	if(y<0) { graph.error = "Negative response value(s)"; return; }
+	if(y!=Math.floor(y)) { graph.error = "Non integer response value(s)"; return; }
 	}
 
 //
@@ -17441,7 +17511,6 @@ for(var iter=0;iter<50;iter++)
 
 	var b = multMV(I,g);
 	var nrm = norm(b);
-
 	if(nrm < 1e-8) break;
 
 	for(var j=0;j<n;j++)
@@ -17580,8 +17649,8 @@ for(var i=0;i<vrecords.length;i++)
 	if(!recordMatch(i,graph)) continue;
 	nr++;
 	var y = vrecords[i][graph.ivalue1];
-	if(y<0) { graph.error = "Negative value(s)"; return; }
-	if(y!=Math.floor(y)) { graph.error = "Non integer value(s)"; return; }
+	if(y<0) { graph.error = "Negative response value(s)"; return; }
+	if(y!=Math.floor(y)) { graph.error = "Non integer response value(s)"; return; }
 	}
 
 //
@@ -17592,8 +17661,6 @@ var ka = 0;
 
 var beta = vector(n);
 fillV(beta,0.1);
-
-// estimating starting beta
 
 var H = matrix(n,n);
 var g = vector(n);
@@ -17871,6 +17938,315 @@ console.log(graph._z);
 
 //*********************************************************************
 
+function computeRegresLars(graph)
+{
+if(graph.ivalue1<0) return;
+if(graph.ivalues.length<1) return;
+
+var nr = 0;
+
+var n = graph.ivalues.length;
+
+var ymean = 0;
+var xmean = vector(n);
+var xstd = vector(n);
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;	
+	nr++;
+	for(var j=0;j<n;j++)
+		{
+		var xj = vrecords[i][graph.ivalues[j]];
+		xmean[j] += xj;	
+		xstd[j] += xj*xj;
+		}
+	var y = vrecords[i][graph.ivalue1];
+	ymean += y;
+	}
+
+if(nr==0) nr=1;
+
+ymean /= nr;
+for(var j=0;j<n;j++)
+	{
+	xmean[j] /= nr;
+	xstd[j] = Math.sqrt(xstd[j]/nr- xmean[j]*xmean[j]);
+	}
+
+var betas = [];
+var actions = [];
+var weights = [];
+var residuals = [];
+
+var mu = vector(nr);
+var beta = vector(n);
+
+var aset = [];
+
+var sign = vector(n);
+fillV(sign,1);
+
+residuals.push(resid(mu));
+
+for(var iter=0;iter<999;iter++)
+	{	
+
+	var c = correlations(mu,n);
+
+	for(var j=0;j<n;j++)
+		sign[j] = c[j]>=0 ? 1 : -1;
+
+	var cmax = maxabs(aset,c);
+	actions.push(indexset(aset,c,cmax));
+
+	var H = submatrix(aset,sign);
+	
+	var I = powerM(H,-1);
+
+	var aa = norm(I);
+
+	var w = weight(I,aa);
+
+	var u = produ(w,aset,nr,sign);
+
+	// verif u
+	//verifu(u,aset,sign);
+
+	var a = proda(u,n);
+
+	var g = aset.length==n ? cmax/aa : mingamma(c,cmax,a,aa,aset);
+
+	for(var i=0;i<mu.length;i++)
+		mu[i] += g*u[i];
+
+	residuals.push(resid(mu));
+
+	updatebeta(beta,w,aset,sign,xmean,xstd,g);
+
+	weights.push(w);
+	betas.push(clone(beta));
+
+	if(aset.length==n) break;
+	}
+
+
+graph._z.weights = weights;
+graph._z.betas = betas;
+graph._z.residuals = residuals;
+graph._z.actions = actions;
+
+//console.log(graph._z);
+
+	function verifbeta(beta,mu)
+	{
+	var n = beta.length;
+	var nr = mu.length;
+	var nu = vector(nr);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		for(var j=0;j<n;j++)
+			{
+			var xj = (vrecords[i][graph.ivalues[j]]-xmean[j])/xstd[j];
+			nu[i] += xj*beta[j];
+			}
+		}
+	}
+
+	function updatebeta(b,w,aset,sign,xmean,xstd,g)
+	{
+	var n = b.length;
+	for(var jj=0;jj<aset.length;jj++)
+		{
+		var j = aset[jj];
+		b[j] += g*w[jj]*sign[j]/xstd[j];
+		}
+				
+	}
+
+
+	function verifu(u,aset,sign)
+	{	
+	var n = aset.length;	
+	var v = vector(n);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		for(var jj=0;jj<n;jj++)
+			{
+			var j = aset[jj];
+			var xj = sign[j]*(vrecords[i][graph.ivalues[j]]-xmean[j])/xstd[j];
+			v[jj] += u[i]*xj;
+			}
+		}
+
+	var s = 0;
+	for(var i=0;i<u.length;i++)
+		s += u[i]*u[i];
+	}
+
+	function mingamma(c,cmax,a,aa,aset)
+	{
+	var b = Number.MAX_VALUE;
+	var n = c.length;
+	for(var j=0;j<n;j++)
+		{	
+		if(indexOf(j,aset)>=0) continue;
+		//if(c[j]>0)
+			{
+			var bb = (cmax-c[j])/(aa-a[j]);
+			if(bb>0) if(bb<b) b = bb;
+			}
+		//else
+			{
+			var bb = (cmax+c[j])/(aa+a[j]);
+			if(bb>0) if(bb<b) b = bb;
+			}
+		}
+	return b;
+	}
+
+	function norm(I)
+	{
+	var n = I.length;
+	var s = 0;
+	for(var j=0;j<n;j++)
+		for(var k=0;k<n;k++)
+			s += I[j][k];
+	return 1/Math.sqrt(s);
+	}
+
+	function proda(u,n)
+	{
+	var a = vector(n);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		for(var j=0;j<n;j++)
+			{
+			var xj = (vrecords[i][graph.ivalues[j]]-xmean[j])/xstd[j];
+			a[j] += xj*u[i];
+			}
+		}
+	return a;
+	}
+
+	function produ(w,aset,nr,sign)
+	{
+	var n = aset.length;
+	var u = vector(nr);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		for(var jj=0;jj<n;jj++)
+			{
+			var j = aset[jj];
+			var xj = sign[j]*(vrecords[i][graph.ivalues[j]]-xmean[j])/xstd[j];
+			u[i] += xj*w[jj];
+			}
+		}
+	return u;
+	}
+
+	function weight(I,aa)
+	{
+	var n = aset.length;
+	var w = vector(n);
+
+	for(var j=0;j<n;j++)
+		for(var k=0;k<n;k++)
+			w[j] += I[j][k];
+
+	for(var j=0;j<n;j++)
+		w[j] *= aa;
+
+	return w;
+	}
+
+	
+	function correlations(mu,n)
+	{
+	var c = vector(n);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var y = vrecords[i][graph.ivalue1]-ymean;
+		for(var j=0;j<n;j++)
+			{
+			var xj = (vrecords[i][graph.ivalues[j]]-xmean[j])/xstd[j];
+			c[j] += xj*(y-mu[i]);	
+			}
+		}	
+	return c;
+	}
+
+	function resid(mu)
+	{
+	var residuals = 0;
+	for(var i=0;i<vrecords.length;i++)
+		{	
+		if(!recordMatch(i,graph)) continue;
+		var y = vrecords[i][graph.ivalue1]-ymean;
+		residuals += (y-mu[i])*(y-mu[i]);
+		}
+	return residuals;
+	}
+
+	function maxabs(aset,c)
+	{
+	var n = c.length;
+	cmax = 0;
+	for(var j=0;j<n;j++)
+		{
+		if(indexOf(j,aset)>=0) continue;
+		if(Math.abs(c[j])>cmax)
+			cmax = Math.abs(c[j]);
+		}
+	return cmax;
+	}
+
+	function indexset(aset,c,cmax)
+	{
+	var n = c.length;
+	var k = -1;
+	for(var j=0;j<n;j++)
+		{
+		if(indexOf(j,aset)>=0) continue;
+		if(Math.abs(c[j])==cmax)
+			{
+			aset.push(j);
+			k = j;
+			}
+		}
+	return k;
+	}
+
+	function submatrix(aset,sign)
+	{
+	var n = aset.length;
+	var M = matrix(n,n);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		for(var jj=0;jj<n;jj++)
+			{
+			var j = aset[jj];
+			var xj = sign[j]*(vrecords[i][graph.ivalues[j]]-xmean[j])/xstd[j];
+			for(var kk=0;kk<n;kk++)
+				{
+				var k = aset[kk];
+				var xk = sign[k]*(vrecords[i][graph.ivalues[k]]-xmean[k])/xstd[k];
+				M[jj][kk] += xj*xk;
+				}
+			}
+		}
+	return M;
+	}
+
+}
+
+//*********************************************************************
+
 function drawRegresIcon(ctx,x,y)
 	{
 	ctx.textAlign = "center";
@@ -17893,6 +18269,7 @@ switch(graph.regr)
 	case REGR.POISSON: drawRegresPoisson(ctx,graph); break;
 	case REGR.LOGIS : drawRegresPoisson(ctx,graph); break;	
 	case REGR.NEGBIN: drawRegresPoisson(ctx,graph); break;
+	case REGR.LARS: drawRegresLars(ctx,graph); break;
 	}
 }
 
@@ -18448,10 +18825,216 @@ if(option==1)
 
 //*********************************************************************
 
+function drawRegresLars(ctx,graph)
+{
+if(graph.ivalue1<0) return;
+if(graph.ivalues.length<1) return;
+
+var xleft = graph.x+40;
+var xright = graph.x+graph.w-150;
+var ytop = graph.y+graph.hbar+50;
+var ybottom = graph.y+graph.h-20;
+
+var option = getGraphOption(graph);
+
+var n = graph.ivalues.length;
+
+var betas = graph._z.betas;
+var asets = graph._z.asets;
+var residuals = graph._z.residuals;
+var actions = graph._z.actions;
+
+if(option==0)
+	{
+	// summary
+
+	var x = xleft;
+	var y = ytop-graph.yshift;
+
+	ctx.fillStyle = "#000000";
+	
+	ctx.textAlign = "left";
+	ctx.fillText("Step",x,y);
+
+	ctx.textAlign = "right";
+
+	ctx.fillText("Df",x+60,y);
+	ctx.fillText("Adding",x+130,y);
+	ctx.fillText("RSS",x+230,y);
+	ctx.fillText("R2",x+300,y);
+	
+	ctx.fillRect(x,y+10,300,1);
+
+	y += 30;
+
+	ctx.textAlign = "left";
+	ctx.fillText("0",x,y);
+	
+	ctx.textAlign = "right";
+	ctx.fillText("1",x+60,y);
+	ctx.fillText(""+trunc(residuals[0]),x+230,y);
+
+	y += 20;
+	for(var iter=0;iter<n;iter++)
+		{
+		ctx.textAlign = "left";
+		ctx.fillText(""+(iter+1),x,y);
+
+		ctx.fillText(values[graph.ivalues[actions[iter]]],x+80,y);
+
+		ctx.textAlign = "right";
+		ctx.fillText(""+(iter+2),x+60,y);
+		ctx.fillText(""+trunc(residuals[iter+1]),x+230,y);
+		var r2 = 1-residuals[iter+1]/residuals[0];
+		ctx.fillText(""+round(r2),x+300,y);
+		
+		y += 20;
+		}
+
+	}
+
+if(option==1)
+	{
+	// coefficients
+	
+	var nb = betas.length;
+
+	var x = xleft;
+	var y = ytop-graph.yshift;
+
+	ctx.fillStyle = "#000000";
+
+	ctx.textAlign = "left";
+	ctx.fillText("Term",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText("Coefficient",x+300,y);
+
+	ctx.fillRect(x,y+10,300,1);
+
+	y += 30;
+
+	for(var j=0;j<n;j++)
+		{
+		ctx.textAlign = "left";
+		ctx.fillText(values[graph.ivalues[j]],x,y);
+		ctx.textAlign = "right";
+		ctx.fillText(""+round(betas[nb-1][j]),x+300,y);
+		
+		y += 20;
+		}
+
+	}
+
+if(option==2)
+	{
+	// curves
+
+	var nb = betas.length;
+
+	var xmax = absbeta(nb-1);
+
+	var bmax = 0;
+	for(var i=0;i<betas.length;i++)
+		for(var j=0;j<n;j++)
+			if(Math.abs(betas[i][j])>bmax) bmax = Math.abs(betas[i][j]);	
+	bmax*=1.2;
+	var bmin = -bmax;
+	var bscale = (ybottom-ytop)/(bmax-bmin);
+
+	ctx.strokeStyle = "#00000";
+	ctx.strokeRect(xleft,ytop,xright-xleft,ybottom-ytop);
+
+	// vertical lines
+	ctx.font = "10px helvetica";
+	ctx.textAlign = "center";
+	ctx.fillStyle = "#CCCCCC";
+	for(var i=0;i<betas.length;i++)
+		{
+		var x = absbeta(i);
+		x = xleft+x*(xright-xleft)/xmax;
+		ctx.fillRect(x,ytop,1,ybottom-ytop);
+		ctx.fillText(""+(i+1),x,ytop-3);
+		}
+
+	// curves	
+	ctx.save();
+	ctx.lineWidth = 2;
+	ctx.textAlign = "left";
+	for(var j=0;j<n;j++)
+		{
+		var hue = graph.hue+alternateIndex(j,n)*5/(6*n);
+		ctx.strokeStyle = getColor(hue,1,0.7);
+		ctx.fillStyle = getColor(hue,1,0.7);
+		ctx.beginPath();
+		var x = xleft;
+		var y = ybottom-(0-bmin)*bscale;
+		ctx.moveTo(x,y);
+		for(var i=0;i<betas.length;i++)
+			{
+			var x = absbeta(i);
+			var x = xleft+x*(xright-xleft)/xmax;
+			var y = ybottom-(betas[i][j]-bmin)*bscale;
+			ctx.lineTo(x,y);
+			}
+		ctx.stroke();
+		ctx.fillText(values[graph.ivalues[j]],xright+2,y+4);
+		}	
+	ctx.lineWidth = 1;
+
+	ctx.fillStyle = "#CCCCCC";
+	ctx.textAlign = "center";
+
+	ctx.fillText("\u03A3|\u03B2|",(xright+xleft)/2,ybottom+11);
+
+	ctx.translate(xleft-5,(ybottom+ytop)/2);
+	ctx.rotate(-Math.PI/2);
+	ctx.fillText("Coefficients",0,0);
+
+	ctx.restore();
+	}
+
+	function absbeta(index)
+	{
+	var s = 0;
+	for(var j=0;j<n;j++)
+		s += Math.abs(betas[index][j]);
+	return s;
+	}
+
+	function trunc(x) {
+		return Math.round(x);
+	}
+
+	function round(x) {		
+		return Math.round(x*10000)/10000;
+	}
+
+}
+
+//*********************************************************************
+
 function buildRegresTable(graph)
 {
 if(graph.ivalue1<0) return;
 if(graph.ivalues.length<1) return;
+
+switch(graph.regr)
+	{	
+	case REGR.ONE: buildPolyTable(graph); break;
+	case REGR.TWO: buildPolyTable(graph); break;	
+	case REGR.THREE: buildPolyTable(graph); break;
+	case REGR.POISSON: buildPoissonTable(graph); break;
+	case REGR.LOGIS : buildPoissonTable(graph); break;	
+	case REGR.NEGBIN: buildPoissonTable(graph); break;
+	case REGR.LARS: buildLarsTable(graph); break;
+	}
+
+}
+
+//*********************************************************************
+
+function buildPolyTable(graph)
+{
 
 setTableName("Regression of "+values[graph.ivalue1]);
 
@@ -18533,6 +19116,144 @@ row++;
 table(row,1,"Test statistic F");
 table(row,2,Math.round(graph._z.f*10000)/10000);
 table(row,3,"(pvalue="+Math.round(graph._z.pvalue*10000)/10000+")");
+
+}
+
+//*********************************************************************
+
+function buildPoissonTable(graph)
+{
+var nr = graph._z.nr;
+var coef = graph._z.coef;
+var pvalue = graph._z.pvalue;
+var cv = graph._z.cv;
+var df = graph._z.df;
+var level = graph._z.level;
+var deviance = graph._z.deviance;
+var stddev = graph._z.stddev;
+var zvalues = graph._z.zvalues;
+var pvalues = graph._z.pvalues;
+
+setTableName("Regression of "+values[graph.ivalue1]);
+
+var row = 1;
+table(row,1,"Nb of observations");
+table(row,2,nr);
+
+row++;
+table(row,1,"Nb of parameters");
+table(row,2,coef.length);
+
+row++;
+table(row,1,"Degrees of freedom");
+table(row,2,df);
+
+row++;
+table(row,1,"Residual deviance");
+table(row,2,round(deviance));
+table(row,3,"(pvalue="+round(pvalue)+")");
+
+row++;
+table(row,1,"Critical value");
+table(row,2,round(cv));
+table(row,3,"(\u03B1="+level+")");
+
+row+=2;
+
+table(row,1,"Coefficients");
+table(row,2,"Estimate");
+table(row,3,"Std err");
+table(row,4,"Z value");
+table(row,5,"p-value");
+
+
+for(var j=0;j<coef.length;j++)
+	{
+	row++;
+	if(j!=0)
+	table(row,1,values[graph.ivalues[j-1]]);
+	table(row,2,round(coef[j]));
+	table(row,3,round(stddev[j]));
+	table(row,4,round(zvalues[j]));
+	table(row,5,round(pvalues[j]));
+	}
+
+
+if(graph.regr==REGR.NEGBIN)
+	{
+	row++;
+	table(row,1,"Theta");
+	var theta = Math.exp(graph._z.ka);	
+	table(row,2,round(theta));
+	}
+
+	function round(x)
+	{
+		return Math.round(x*100000)/100000;
+	}
+
+}
+
+//*********************************************************************
+
+function buildLarsTable(graph)
+{
+setTableName("Regression of "+values[graph.ivalue1]);
+
+var n = graph.ivalues.length;
+
+var betas = graph._z.betas;
+var asets = graph._z.asets;
+var residuals = graph._z.residuals;
+var actions = graph._z.actions;
+
+var row = 1;
+table(row,1,"Step");
+table(row,2,"Df");
+table(row,3,"Adding");
+table(row,4,"RSS");
+table(row,5,"R2");
+
+row++;
+table(row,1,0);
+table(row,2,1);
+table(row,4,trunc(residuals[0]));
+
+for(var iter=0;iter<n;iter++)
+	{
+	row++;
+	table(row,1,iter+1);
+	table(row,2,iter+2);
+	table(row,3,values[graph.ivalues[actions[iter]]]);
+	table(row,4,trunc(residuals[iter+1]));
+	table(row,5,round(1-residuals[iter+1]/residuals[0]));
+	}
+
+
+row+=2;
+	
+var nb = betas.length;
+
+table(row,1,"Term");
+table(row,2,"Coefficient");
+
+row++;
+for(var j=0;j<n;j++)
+	{
+	table(row,1,values[graph.ivalues[j]]);
+	table(row,2,round(betas[nb-1][j]));
+	row++;
+	}
+
+	function trunc(x)
+	{
+		return Math.round(x);
+	}
+
+	function round(x)
+	{
+		return Math.round(x*100000)/100000;
+	}
 
 }
 
@@ -19717,6 +20438,8 @@ if(graph.timerid)
 
 function computeGraphData(graph)
 {
+try	{
+
 clearSpecific(graph)
 graph.ncontour = 0
 graph.contour = null
@@ -19737,9 +20460,9 @@ else if(graph.ilabel3<0)
 else
 	computeGraphData3(graph)
 
-try	{
 	GINFO[graph.type].comp(graph);
-	} catch(err) { console.log(err.stack);  }
+
+} catch(err) { console.log(err.stack);  }
 
 }
 
@@ -20290,7 +21013,16 @@ return mat
 
 //*********************************************************************
 
-function fillM(M)
+function fillM(M,x)
+{
+var n = M.length;
+for(var i=0;i<n;i++)
+	fillV(M[i],x);
+}
+
+//*********************************************************************
+
+function setM(M)
 {
 var k = 0;
 var n1 = M.length;
@@ -20409,14 +21141,8 @@ tql2(M,d,e,n);
 
 var D = diagM(d);
 
-console.log("diag before ");
-dumpM(D);
-
 for(var i=0;i<n;i++)
 	D[i][i] = Math.pow(D[i][i],p);
-
-console.log("diag after");
-dumpM(D);
 
 return  multMM(multMM(M,D),transpM(M));
 }
@@ -20867,8 +21593,9 @@ for(var i=0;i<graphs.length;i++)
 
 //*********************************************************************
 
-function createBoolean(graph,sliceindex,option)
+function createBoolean(option)
 { 
+/*
 if(graph.ilabel3>=0)
 	{
 	var index3 = sliceindex % graph._keys3.length;
@@ -20961,6 +21688,32 @@ else if(graph.ilabel1>=0)
 		if(zvalue==values.length) zvalue++;
 		values.push(key1);
 		}
+	}
+*/
+
+
+// create mockup graph
+
+var graph = {selection:selection}
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	var ok = recordMatch(i,graph);
+	if(option==0)
+		lrecords[i].push( ok ? "YES":"NO");
+	else
+		vrecords[i].push( ok ? 1 : 0);
+	}
+
+if(option==0)
+	{
+	if(zlabel==labels.length) zlabel++;
+	labels.push("DUMMY."+(++newfield));	
+	}	
+else
+	{
+	if(zvalue==values.length) zvalue++;
+	values.push("DUMMY."+(++newfield));
 	}
 
 }
@@ -21369,12 +22122,14 @@ if(i>=0)
 		stickerindex = index
 		graphindex = i
 		}
+	/*
 	else if((index=inGraphSlice(ptclick,graph))>=0)
 		{
 		faction = DRAG_SLICE;
 		graphindex = i
 		sliceindex = index
 		}
+	*/
 	else if(inRect(ptclick,graph.x,graph.y,graph.w,graph.hbar))
 		{
 		// in graph title bar
@@ -21572,58 +22327,11 @@ else if(action==SET_GRAPH_UNIT)
 else if(action==CREATE_SLICE)
 	{
 	graph = graphs[graphindex]
-	var selection = cloneArray(graph.selection)	
-	// new graph selection 
-	if(graph.type==TYPE.TREE)
-		{
-		for(var k=0;k<sliceindex.length;k++)
-			{
-			selection.push(graph.ilabels[k])
-			selection.push(graph._keys[k][sliceindex[k]])
-			}
-		var hue = 0
-		}
-	else if(graph.ilabel3>=0)
-		{
-		var index3 = sliceindex % graph._keys3.length;
-		var k = Math.floor(sliceindex/graph._keys3.length)
-		var index2 = k % graph._keys2.length
-		var index1 = Math.floor(k/graph._keys2.length)
-		selection.push(graph.ilabel1)
-		selection.push(graph._keys1[index1])
-		selection.push(graph.ilabel2)
-		selection.push(graph._keys2[index2])
-		selection.push(graph.ilabel3)
-		selection.push(graph._keys3[index3])
-		var hue = 0
-		}
-	else if((graph.ilabel2>=0)&&(graph.type!=TYPE.FAC))
-		{
-		var index2 = sliceindex % graph._keys2.length
-		var index1 = Math.floor( sliceindex / graph._keys2.length)
-		selection.push(graph.ilabel1)
-		selection.push(graph._keys1[index1])
-		selection.push(graph.ilabel2)
-		selection.push(graph._keys2[index2])
-		var index = alternateIndex(index2,graph._keys2.length)
-		var hue = frac(index*5.0/(6*graph._keys2.length)+graph.hue)
-		}
-	else if(graph.ilabel1>=0)
-		{
-		selection.push(graph.ilabel1)
-		selection.push(graph._keys1[sliceindex])
-		var index = alternateIndex(sliceindex,graph._keys1.length)
-		var hue =  frac(index*5.0/(6*graph._keys1.length)+graph.hue)
-		}
-	else 
-		{
-		var hue = graph.hue
-		}
-	var newgraph = new Graph(ptmove.x-150,ptmove.y-20,true,selection,-1,hue,
-		TYPE.PIE)
+	var newgraph = new Graph(ptmove.x-150,ptmove.y-20,true,
+		clone(selection),-1,selecthue, TYPE.PIE)
 	newgraph.iunit = graph.iunit
-	computeGraphData(newgraph)
-	graphs.push(newgraph)	
+	computeGraphData(newgraph);
+	graphs.push(newgraph);	
 	}
 else if(action==DROP_SLICE)
 	{
@@ -21634,7 +22342,7 @@ else if(action==DROP_SLICE)
 	}
 else if(action==SET_SELECTION)
 	{
-	setGraphSelection(graphs[graphindex],graphs[graphindex2],sliceindex);
+	setGraphSelection(graphs[graphindex2],selection);
 	computeGraphData(graphs[graphindex2]);
 	}
 else if(action==PASTE_TITLE)
@@ -21774,7 +22482,7 @@ else if((action==INVERT_BIN)&&(sliceindex==0))
 	var oldgraph = graphs[graphindex]
 	var newgraph = new Graph(
 		ptmove.x-10,ptmove.y-5,true,
-		cloneArray(oldgraph.selection),
+		clone(oldgraph.selection),
 		oldgraph.ilabel1,oldgraph.hue,oldgraph.type)
 
 	newgraph.w = oldgraph.w
@@ -21953,8 +22661,8 @@ else if((action==SWAP_VALUE_TL)||(action==SWAP_VALUE_LT))
 else if(action==CREATE_GRAPH1)
 	{
 	var oldgraph = graphs[graphindex]
-	var selection = cloneArray(oldgraph.selection)
-	var newgraph = new Graph(ptmove.x-280,ptmove.y-10,true,selection,
+	var newgraph = new Graph(ptmove.x-280,ptmove.y-10,true,
+		clone(oldgraph.selection),
 		oldgraph.ilabel1,0,typeindex)
 	newgraph.iunit = oldgraph.iunit
 	graphs.push(newgraph)
@@ -21963,8 +22671,8 @@ else if(action==CREATE_GRAPH1)
 else if(action==CREATE_GRAPH2)
 	{
 	var oldgraph = graphs[graphindex]
-	var selection = cloneArray(oldgraph.selection)
-	var newgraph = new Graph(ptmove.x-280,ptmove.y-10,true,selection,
+	var newgraph = new Graph(ptmove.x-280,ptmove.y-10,true,
+		clone(oldgraph.selection),
 		oldgraph.ilabel2,0,typeindex)
 	newgraph.iunit = oldgraph.iunit
 	graphs.push(newgraph)
@@ -21995,12 +22703,12 @@ else if(action==CREATE_KGROUP)
 else if(action==CREATE_LBOOLEAN)
 	{
 	graph = graphs[graphindex];
-	createBoolean(graph,sliceindex,0);
+	createBoolean(0);
 	}
 else if(action==CREATE_VBOOLEAN)
 	{
 	graph = graphs[graphindex];
-	createBoolean(graph,sliceindex,1);
+	createBoolean(1);
 	}
 else if(action==REMOVE_TITLE)
 	{
@@ -22142,7 +22850,7 @@ var index = inGraph(ptmove);
 if(index>=0)
 	{
 	var graph = graphs[index];
-	graph.yshift -= Math.round(event.wheelDelta/10);
+	graph.yshift += Math.round(event.wheelDelta/10);
 	if(graph.yshift<0) graph.yshift = 0;
 	}
 else if((inLabel(ptmove)>=0)&&(zlabel-alabel<labels.length))
@@ -23200,14 +23908,16 @@ else if(faction==DRAG_SORT)
 		{
 		action = SORT_DATA;
 		labelindex = index;
-		AHELP[action] = 'Sort data by "'+labels[index]+'"';
+		var o = index==lastsort ? ORDER[1-lastorder] : "ascending";
+		AHELP[action] = 'Sort data by "'+labels[index]+'" in '+o+" order";
 		}
 	index = inValue(ptmove);
 	if(index>0)
 		{
 		action = SORT_DATA;
 		valueindex = index;
-		AHELP[action] = 'Sort data by "'+values[index]+'"';
+		var o = index==-lastsort ? ORDER[1-lastorder] : "ascending";
+		AHELP[action] = 'Sort data by "'+values[index]+'" in '+o+" order";
 		}
 	}
 else if(faction==EXPORT_CHART)
@@ -23264,7 +23974,8 @@ else if(faction==DRAG_LABEL)
 	else if(inSortIcon(ptmove))
 		{
 		action = SORT_DATA;
-		AHELP[action] = 'Sort data by "'+labels[labelindex]+'"';
+		var o = labelindex == lastsort ? ORDER[1-lastorder] : "ascending";
+		AHELP[action] = 'Sort data by "'+labels[labelindex]+'" in '+o+' order';
 		}
 	else if(inValue(ptmove)>=0)
 		{
@@ -23329,7 +24040,8 @@ else if(faction==DRAG_VALUE)
 	else if(inSortIcon(ptmove))
 		{
 		action = SORT_DATA;
-		AHELP[action] = 'Sort data by "'+values[valueindex]+'"';
+		var o = valueindex==-lastsort ? ORDER[1-lastorder] : "ascending";
+		AHELP[action] = 'Sort data by "'+values[valueindex]+'" in '+o+' order';
 		}
 	else if(inLabel(ptmove)>=0)
 		{
@@ -23367,12 +24079,12 @@ else if(faction==DRAG_VALUE)
 		}
 	else
 		{
-		if(graphs[i].type<NBTYPE1)
+		if(GINFO[graphs[i].type].unit)
 			{
 			graphindex = i;
 			action = SET_GRAPH_UNIT;
 			}
-		else
+		else 
 			action = DRAG_VALUE;
 		}
 	}
@@ -25434,23 +26146,45 @@ function sortData()
 	if(labelindex>=0)
 		{
 		indices.sort(compareLabels);
+		var newsort = labelindex;
 		}
 
 	if(valueindex>0)
 		{
 		indices.sort(compareValues);
+		var newsort = -valueindex;	
 		}
+	
+	var neworder = (lastsort==newsort) ? 1-lastorder : 1;
 
 	// new records
 	var newlrecords = new Array(n);
-	for(var i=0;i<n;i++)
-		newlrecords[i] = lrecords[indices[i]];
-	lrecords = newlrecords;
-
 	var newvrecords = new Array(n);
-	for(var i=0;i<n;i++)
-		newvrecords[i] = vrecords[indices[i]];
+
+
+	if(neworder==1)
+		{
+		for(var i=0;i<n;i++)
+			{
+			newlrecords[n-1-i] = lrecords[indices[i]];
+			newvrecords[n-1-i] = vrecords[indices[i]];
+			}		
+		}
+	else
+		{
+		for(var i=0;i<n;i++)
+			{
+			newlrecords[i] = lrecords[indices[i]];
+			newvrecords[i] = vrecords[indices[i]];
+			}
+		}
+
+
+	lrecords = newlrecords;
 	vrecords = newvrecords;
+
+	lastorder = neworder;
+	lastsort = newsort;
 
 	function compareLabels(a,b) {
 		var c = lrecords[a][labelindex].localeCompare(lrecords[b][labelindex]);
