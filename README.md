@@ -47,10 +47,11 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Self-organizing map
 * 3-variable graph
 * Treemap
-* Pearson' chi-square test
-* Yates' chi-square test
-* G-test
-* Fisher's exact test
+* Chi-2 tests
+  * Pearson' chi-square test
+  * Yates' chi-square test
+  * G-test
+  * Fisher's exact test
 * Gini impurity
 * Entropy
 * Repartition curve
@@ -66,26 +67,34 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Tukey-lambda PPCC plot
 * Lag plot
 * General statistics
+* Normality tests
+  * Shapiro-Wilk text
+  * Anderson-Darling test
+  * Lilliefors test
+  * D'Agostini test
+  * Anscombe test
+  * Omnibus test
+  * Jarque-Bera test
 * Analysis of variance
-* Bartlett's test
-* F-test
-* Levene test
-* Brown Forsythe test
-* Box's M test
-* Student's T-test
-* Welch T-test
-* Hotelling's test
-* Wilk's lambda
-* Lawley-Hotelling trace
-* Pillai trace
-* Two-way anova
+  * Bartlett's test
+  * F-test
+  * Levene test
+  * Brown Forsythe test
+  * Box's M test
+  * Student's T-test
+  * Welch T-test
+  * Hotelling's test
+  * Wilk's lambda
+  * Lawley-Hotelling trace
+  * Pillai trace
+  * Two-way anova
 * Non-parametric tests
-* Kolmogorov-Smirnov test
-* Kruskal-Wallis test
-* Jonckheere test
-* Cochran Q test
-* Durbin test
-* Friedman test
+  * Kolmogorov-Smirnov test
+  * Kruskal-Wallis test
+  * Jonckheere test
+  * Cochran Q test
+  * Durbin test
+  * Friedman test
 * Principal components
 * Canonical correlation analysis
 * K-means
@@ -95,11 +104,12 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Dendogram
 * Radviz
 * Discriminant analysis
-* Linear regression
-* Poisson regression
-* Negative binomial regression
-* Logistic regression
-* Least angle regression
+* Regressions
+  * Linear regression
+  * Poisson regression
+  * Negative binomial regression
+  * Logistic regression
+  * Least angle regression
 * Influence plot
 * QQ plot
 * Box plot

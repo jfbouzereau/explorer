@@ -221,6 +221,7 @@ _type("SET","Dummy constructor",{leftlabel:1});
 var NBTYPE1 = KNUM;			// max graph types
 
 _type("MOMENTS","Statistics",{ivalues:1});
+_type("NORM","Normality tests",{topvalue:1,menu:"norm"});
 _type("HISTO","Histogram",{topvalue:1,leftlabel:1});
 _type("DISTRIB","Distribution curve",{topvalue:1});
 _type("PROBA","Probability plot",{topvalue:1,menu:"law"});
@@ -320,6 +321,15 @@ _menu("REGR","LOGIS","Logistic");
 _menu("REGR","-","-");
 _menu("REGR","POISSON","Poisson");
 _menu("REGR","NEGBIN","Negative binomial");
+
+_menu("NORM","WILK","Shapiro-Wilk");
+_menu("NORM","ANDERSON","Anderson-Darling");
+_menu("NORM","LILLIE","Lilliefors");
+_menu("NORM","-","-");
+_menu("NORM","AGOSTINO","Agostino");
+_menu("NORM","ANSCOMBE","Anscombe");
+_menu("NORM","OMNIBUS","Omnibus");
+_menu("NORM","JARQUE","Jarque-Bera");
 
 //_menu("NONPARAM","MANN","Mann-Whitmey");
 _menu("NONPARAM","KOLMO","Kolmogorov-Smirnov");
@@ -677,6 +687,7 @@ this.angle = 0;			// for TYPE.POLAR
 this.regr = 0;			// for TYPE.REGR
 this.origin = 0;
 this.nonparam = 0;		// for TYPE.NONPARAM
+this.norm = 0;			// for TYPE.NORM
 
 this._count = {};
 
@@ -8791,57 +8802,6 @@ graph._z.q2 = q2;
 graph._z.q3 = q3;
 graph._z.d9 = d9;
 
-// agostino test
-var meansk = 0;
-var varsk = 6*(nr-2)/((nr+1)*(nr+3));
-var skewsk = 0;
-var kurtsk = 36*(nr-7)*(nr*nr+2*nr-5)/((nr-2)*(nr+5)*(nr+7)*(nr+9));
-
-console.log("meansk varsk skewsk kurtsk");
-console.log(meansk,varsk,skewsk,kurtsk);
-
-var meankt = 3-6/(nr+1);
-var varkt = 24*nr*(nr-2)*(nr-3)/((nr+1)*(nr+1)*(nr+3)*(nr+5));
-var aa = 6*(nr+3)*(nr+5)/(nr*(nr-2)*(nr-3));
-var skewkt = 6*(nr*nr-5*nr+2)/((nr+7)*(nr+9))*Math.sqrt(aa);
-var n2 = nr*nr;
-var n3 = n2*nr;
-var n4 = n3*nr;
-var n5 = n4*nr;
-var n6 = n5*nr;
-var kurtkt = 36*(15*n6-36*n5-628*n4+982*n3+5777*n2-6402*nr+900)/
-	(nr*(nr-3)*(nr-2)*(nr+7)*(nr+9)*(nr+11)*(nr+13));
-
-console.log("meankt varkt skewkt kurtkt");
-console.log(meankt,varkt,skewkt,kurtkt);
-
-var w2 = Math.sqrt(2*kurtsk+4)-1;
-var w = Math.sqrt(w2);
-var a2 = 2/(w2-1);
-var d = 1/Math.sqrt(Math.log(w));
-
-var A = 6+8/skewkt*(2/skewkt+Math.sqrt(1+4/(skewkt*skewkt)));
-
-console.log("w2,w,a2,d,A");
-console.log(w2,w,a2,d,A);
-
-var agos = new Array(nv);
-for(var j=0;j<nv;j++)
-	{
-	var zz = skewness[j]/Math.sqrt(a2*varsk);	
-	console.log("j="+j+" d="+d+"  a2="+a2+"  zz="+zz);
-	var z1 = d*Math.log(zz+Math.sqrt(zz*zz+1));
-	var zz = 1+(kurtosis[j]-meankt)/Math.sqrt(varkt)*Math.sqrt(2/(A-4));
-	zz = (1-2/A)/zz;
-	zz = Math.pow(zz,1./3.);
-	var z2 = Math.sqrt(9*A/2)*(1-2/(9*A)-zz);	
-	console.log("j="+j+" z1="+z1+" z2="+z2);
-	agos[j] = z1*z1+z2*z2;
-	}
-
-graph._z.agos = agos;
-console.log(graph._z);
-
 }
 
 //*********************************************************************
@@ -9001,6 +8961,716 @@ line("Kurtosis",graph._z.kurtosis);
 		table(row,2+j,Math.round(x*100000)/100000);
 		}
 	row++;
+	}
+}
+
+
+//*********************************************************************
+//
+//                NORM
+//
+//*********************************************************************
+
+function drawNormIcon(ctx,x,y)
+{
+ctx.drawImage(nimg,x,y,20,20);
+}
+
+//*********************************************************************
+
+function computeNormData(graph)
+{
+if(graph.w<460) graph.w = 460;
+
+if(graph.ivalue1<0) return;
+
+switch(graph.norm)
+	{
+	case NORM.AGOSTINO: computeNormTests(graph); break;
+	case NORM.ANSCOMBE: computeNormTests(graph); break;
+	case NORM.OMNIBUS: computeNormTests(graph); break;
+	case NORM.JARQUE: computeNormTests(graph); break;
+	case NORM.WILK: 	computeWilkTest(graph); break;
+	case NORM.ANDERSON: computeAndersonTest(graph); break;
+	case NORM.LILLIE: computeLillieforsTest(graph); break;
+	}
+
+}
+
+//*********************************************************************
+
+function computeNormTests(graph)
+{
+// mockup list
+var temp = graph.ivalues;
+graph.ivalues = [graph.ivalue1];
+computeMomentsData(graph);
+graph.ivalues = temp;
+
+var skewness = graph._z.skewness[0];
+var kurtosis = graph._z.kurtosis[0];
+
+
+var nr = graph._z.n;
+
+var meansk = 0;
+var varsk = 6*(nr-2)/((nr+1)*(nr+3));
+var skewsk = 0;
+var kurtsk = 36*(nr-7)*(nr*nr+2*nr-5)/((nr-2)*(nr+5)*(nr+7)*(nr+9));
+
+
+var meankt = 3-6/(nr+1);
+var varkt = 24*nr*(nr-2)*(nr-3)/((nr+1)*(nr+1)*(nr+3)*(nr+5));
+var aa = 6*(nr+3)*(nr+5)/(nr*(nr-2)*(nr-3));
+var skewkt = 6*(nr*nr-5*nr+2)/((nr+7)*(nr+9))*Math.sqrt(aa);
+
+
+var w2 = Math.sqrt(2*kurtsk+4)-1;
+var w = Math.sqrt(w2);
+var a2 = 2/(w2-1);
+var d = 1/Math.sqrt(Math.log(w));
+
+
+var A = 6+8/skewkt*(2/skewkt+Math.sqrt(1+4/(skewkt*skewkt)));
+
+
+var zz = skewness/Math.sqrt(a2*varsk);	
+var z1 = d*Math.log(zz+Math.sqrt(zz*zz+1));
+
+var zz = 1+(kurtosis-meankt)/Math.sqrt(varkt)*Math.sqrt(2/(A-4));
+zz = (1-2/A)/zz;
+zz = Math.pow(zz,1./3.);
+var z2 = Math.sqrt(9*A/2)*(1-2/(9*A)-zz);	
+
+
+graph._z.z1 = z1;
+graph._z.z1pvalue = 2*(1-pnorm(z1));
+graph._z.z1cv = qnorm(1-0.025);
+
+graph._z.z2 = z2;
+graph._z.z2pvalue = 2*(1-pnorm(z2));
+graph._z.z2cv = qnorm(1-0.025);
+
+graph._z.o = z1*z1+z2*z2;
+graph._z.opvalue = 1-pchisq(graph._z.o,2);
+graph._z.ocv = qchisq(1-0.05,2);
+
+graph._z.j = nr/6*(skewness*skewness+0.25*(kurtosis-3)*(kurtosis-3));
+graph._z.jpvalue = 1-pchisq(graph._z.j,2);
+graph._z.jcv = qchisq(1-0.05,2);
+
+console.log(graph._z);
+
+}
+
+//*********************************************************************
+
+function computeWilkTest(graph)
+{
+
+
+var x = [];
+var xmean = 0;
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	var xx = vrecords[i][graph.ivalue1];
+	x.push(xx);
+	xmean += xx;
+	}
+
+
+var nr = x.length;
+xmean /= nr;
+
+
+x.sort(function(a,b) { return a-b; })
+
+
+var a = coefficients(nr);
+
+var n2 = Math.floor(nr/2);
+var num = 0;
+for(var i=1;i<=n2;i++)
+	num += a[i]*(x[nr-i]-x[i-1]);
+
+var den = 0;
+for(var i=0;i<nr;i++)
+	den += (x[i]-xmean)*(x[i]-xmean);
+
+
+graph._z.n = nr;
+graph._z.w = num*num/den;
+graph._z.pvalue = pvalue(graph._z.w,nr);
+
+console.log(graph._z);
+
+	//------------------------------------------------------------------------
+
+	function coefficients(n)
+	{
+	var c1 = [ 0.,.221157,-.147981,-2.07119, 4.434685, -2.706056 ];
+	var c2 = [ 0.,.042981,-.293762,-1.752461,5.682633, -3.582633 ];
+
+	var nn2 = Math.floor(n/2);
+
+	var a = new Array(nn2+1);
+
+	var pw = 1;
+
+	var an = n;
+	if(n==3)
+		{
+		a[1] = 0.70710678;
+		}
+	else
+		{
+		var an25 = an+0.25;
+		var summ2 = 0;
+		for(var i=1;i<=nn2;i++)
+			{
+			a[i] = qnorm((i-0.375)/an25);
+			summ2 += a[i]*a[i];
+			}
+		summ2 *=2;
+		var ssumm2 = Math.sqrt(summ2);	
+		var rsn = 1./Math.sqrt(an);
+
+		var a1 = poly(c1,rsn) - a[1] /ssumm2;
+
+		// normalization
+		if(n>5)
+			{
+			var i1 = 3;
+			var a2 = -a[2]/ssumm2 + poly(c2,rsn);
+			var fac = Math.sqrt((summ2-2*a[1]*a[1]-2*a[2]*a[2])
+				/(1-2*(a1*a1)-2*(a2*a2)))
+			a[2] = a2;
+			}
+		else
+			{
+			var i1 = 2;
+			var fac = Math.sqrt((summ2-2*a[1]*a[1])/
+				(1-2*a1*a1))
+			}
+		a[1] = a1;
+		for(var i=i1;i<=nn2;i++)
+			a[i] /= -fac;
+		}
+	return a;
+	}
+
+	//------------------------------------------------------------------------
+
+	function poly(a,x)
+	{
+	var n = a.length-1;
+	var s = a[n];
+	for(var i=n-1;i>=0;i--)
+		s  = s*x+a[i];
+	return s;
+	}
+
+	//------------------------------------------------------------------------
+	
+	function pvalue(w,n)
+	{
+	var g = [ -2.273,.459 ];
+    var c3 = [ .544,-.39978,.025054,-6.714e-4 ];
+    var c4 = [ 1.3822,-.77857,.062767,-.0020322 ];
+    var c5 = [ -1.5861,-.31082,-.083751,.0038915 ];
+    var c6 = [ -.4803,-.082676,.0030302 ];
+
+	if(n==3)
+		{		
+		var pi6 = 1.90985931710274;
+		var stqr =  1.04719755119660;
+		var pv = pi6*(Math.asin(Math.sqrt(w))-stqr);
+		if(pv<0) pv = 0;
+		return pv;
+		}	
+
+	var y = Math.log(1-w);
+	var xx = Math.log(n);
+	if(n<=11)
+		{
+		var gamma = poly(g,n);
+		if(y>=gamma) return 1e-30;
+		y = -Math.log(gamma-y);
+		var m = poly(c3,n);
+		var s = Math.exp(poly(c4,n));
+		}
+	else
+		{
+		var m = poly(c5,xx);
+		var s = Math.exp(poly(c6,xx));
+		}
+	return 1-pnorm((y-m)/s);
+	}
+
+}
+
+//*********************************************************************
+
+function computeAndersonTest(graph)
+{
+
+var x = [];
+var xmean = 0;
+var xdev = 0;
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	var xx = vrecords[i][graph.ivalue1];
+	x.push(xx);
+	xmean += xx;
+	xdev += xx*xx;
+	}
+
+var nr = x.length;
+
+xmean = xmean/nr;
+xdev = (xdev-nr*xmean*xmean)/(nr-1);
+xdev = Math.sqrt(xdev);
+
+
+x.sort(function(a,b) { return a-b; })
+
+
+for(var i=0;i<nr;i++)
+	x[i] = pnorm((x[i]-xmean)/xdev);
+
+
+var a  = 0;
+for(var i=1;i<=nr;i++)
+	a += (2*i-1)*(Math.log(x[i-1])+Math.log(1-x[nr-i]));
+
+a = -nr -a/nr;
+
+var aa = a*(1+0.75/nr+2.25/nr/nr);
+
+if(aa<0.2)
+	var pvalue = 1-Math.exp(-13.436+101.14*aa -223.73*aa*aa);
+else if(aa<0.34)
+	var pvalue = 1-Math.exp(-8.318+42.796*aa-59.938*aa*aa);
+else if(aa<0.6)
+	var pvalue = Math.exp(0.9177-4.279*aa-1.38*aa*aa);
+else if(aa<10)
+	var pvalue = Math.exp(1.2937-5.709*aa+0.0186*aa*aa)
+else
+	var pvalue = 3.7e-24
+
+graph._z.n = nr;
+graph._z.a = a;
+graph._z.pvalue = pvalue;
+
+console.log(graph._z);
+
+}
+
+//*********************************************************************
+
+function computeLillieforsTest(graph)
+{
+
+var x = [];
+var xmean = 0;
+var xdev = 0;
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	var xx = vrecords[i][graph.ivalue1];
+	x.push(xx);
+	xmean += xx;
+	xdev += xx*xx;
+	}
+
+var nr = x.length;
+
+xmean = xmean/nr;
+xdev = (xdev-nr*xmean*xmean)/(nr-1);
+xdev = Math.sqrt(xdev);
+
+
+x.sort(function(a,b) { return a-b; })
+
+for(var i=0;i<nr;i++)
+	x[i] = pnorm((x[i]-xmean)/xdev);
+
+
+var dm = 0;
+var dp = 0;
+var g;
+
+for(var i=1;i<=nr;i++)
+	{
+	f = x[i-1]-(i-1)/nr;		
+	if(f>dm) dm = f;
+	f = i/nr-x[i-1];
+	if(f>dp) dp = f;
+	}
+
+var d = Math.max(dm,dp);
+
+graph._z.n = nr;
+graph._z.d = d;
+
+if(nr<=100)
+	{
+	var kd = d;
+	var nd = nr;
+	}
+else
+	{
+	var kd = d*Math.pow(nr/100,0.49);
+	var nd = 100;
+	}
+
+var pvalue = Math.exp(-7.01256*kd*kd*(nd+2.78019)+
+	2.99587*kd*Math.sqrt(nd+2.78019) - 0.122119 + 0.974598/Math.sqrt(nd) +
+	1.67997/nd);
+
+if(pvalue > 0.1)
+	{
+	var kk = (Math.sqrt(nr)-0.01+0.85/Math.sqrt(nr))*d;
+	if(kk<=0.302)
+		{
+		pvalue = 1;
+		}
+	else if(kk<=0.5) {
+		pvalue = 2.76773-19.828315*kk+ 80.709644*kk*kk
+			-138.55152*kk*kk*kk +81.218052*kk*kk*kk*kk;
+		}
+	else if(kk<=0.9)
+		{
+		pvalue = -4.901232 + 40.662806*kk -97.490286*kk*kk
+			+94.029866*kk*kk*kk -32.355711*kk*kk*kk*kk;
+		}
+	else if(kk<=1.31)
+		{
+		pvalue = 6.19876 - 19.558097*kk + 23.186922*kk*kk 
+			-12.234627*kk*kk*kk + 2.423045*kk*kk*kk*kk;
+		}
+	else
+		pvalue = 0;
+		
+	}
+
+graph._z.n = nr;
+graph._z.d = d;
+graph._z.pvalue = pvalue;
+graph._z.cv = 0.886/Math.sqrt(nr);
+
+console.log(graph._z);
+
+}
+
+//*********************************************************************
+
+function drawNormGraph(ctx,graph)
+{
+if(graph.ivalue1<0) return;
+
+var x = graph.x+30;
+var y = graph.y+graph.hbar+60;
+
+var nr = graph._z.n;
+
+ctx.fillStyle = "#000000";
+
+if(graph.norm==NORM.AGOSTINO)
+	{
+
+	ctx.textAlign = "left";
+	ctx.fillText("Nb of observations",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+nr,x+250,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Skewness",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(round(graph._z.skewness[0]),x+250,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Statistic test Z",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(round(graph._z.z1),x+250,y);
+	ctx.fillText("(pvalue="+round(graph._z.z1pvalue)+")",x+380,y);
+
+	y += 20;
+	ctx.textAlign = "left";
+	ctx.fillText("Critical value",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText("+/-"+round(graph._z.z1cv),x+250,y);
+	ctx.fillText("(\u03B1=0.05)",x+380,y);
+
+	y += 30;
+
+	ctx.textAlign = "left";
+	if(graph._z.z1pvalue>0.05)
+		multiText(ctx,["#000000","p-value > 0.05 : Data ",
+			"#FF0000","have no skewness"],x,y);
+	else
+		multiText(ctx,["#000000","p-value < 0.05 : Data ",
+			"#FF0000","have a skewness"],x,y);
+
+	y += 30;
+
+	var cv = graph._z.z1cv;
+	var max = Math.max(Math.abs(graph._z.z1),cv)*1.2;
+	if(max<2.5) max = 2.5;
+	drawNormalCurve(ctx,graph,y,-max,max,graph._z.z1,"Z",cv,true);
+	}
+
+if(graph.norm==NORM.ANSCOMBE)
+	{
+	ctx.textAlign = "left";
+	ctx.fillText("Nb of observations",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+nr,x+250,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Kurtosis",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(round(graph._z.kurtosis[0]),x+250,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Statistic test Z",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(round(graph._z.z2),x+250,y);
+	ctx.fillText("(pvalue="+round(graph._z.z2pvalue)+")",x+380,y);
+
+	y += 20;
+	ctx.textAlign = "left";
+	ctx.fillText("Critical value",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText("+/-"+round(graph._z.z2cv),x+250,y);
+	ctx.fillText("(\u03B1=0.05)",x+380,y);
+
+	y += 30;
+	ctx.textAlign = "left";
+	if(graph._z.z2pvalue<0.05)
+		multiText(ctx,["#000000","p-value < 0.05 : Kurtosis ",
+			"#FF0000","is not equal to 3"],x,y);
+	else
+		multiText(ctx,["#000000","p-value > 0.05 : Kurtosis ",
+			"#FF0000","is equal to 3"],x,y);
+
+	y += 30;
+
+	var cv = graph._z.z2cv;
+	var max = Math.max(Math.abs(graph._z.z1),cv)*1.2;
+	if(max<2.5) max = 2.5;
+	drawNormalCurve(ctx,graph,y,-max,max,graph._z.z2,"Z",cv,true);
+	}
+
+if(graph.norm==NORM.OMNIBUS)
+	{
+	ctx.textAlign = "left";
+	ctx.fillText("Nb of observations",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+nr,x+250,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Degrees of freedom",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText("2",x+250,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Statistic test K\u00B2",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(round(graph._z.o),x+250,y);
+	ctx.fillText("(pvalue="+round(graph._z.opvalue)+")",x+380,y);
+
+	y += 20;
+	ctx.textAlign = "left";
+	ctx.fillText("Critical value",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(round(graph._z.ocv),x+250,y);
+	ctx.fillText("(\u03B1=0.05)",x+380,y);
+
+	y += 30;
+	ctx.textAlign = "left";
+	if(graph._z.o>graph._z.ocv)
+		multiText(ctx,["#000000","K\u00B2 > C  : distribution ",
+			"#FF0000","is not normal"],x,y);
+	else
+		multiText(ctx,["#000000","K\u00B2 < C : distribution ",
+			"#FF0000","is normal"],x,y);
+
+	y += 30;
+
+	var cv = graph._z.ocv;
+	var max = Math.max(Math.abs(graph._z.o),cv)*1.2;
+	drawChi2Curve(ctx,graph,y,2,0,max,graph._z.o,"K\u00B2",cv);
+	}
+
+if(graph.norm==NORM.JARQUE)
+	{
+	ctx.textAlign = "left";
+	ctx.fillText("Nb of observations",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+nr,x+250,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Degrees of freedom",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText("2",x+250,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Statistic test JB",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(round(graph._z.j),x+250,y);
+	ctx.fillText("(pvalue="+round(graph._z.jpvalue)+")",x+380,y);
+
+	y += 20;
+	ctx.textAlign = "left";
+	ctx.fillText("Critical value",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(round(graph._z.jcv),x+250,y);
+	ctx.fillText("(\u03B1=0.05)",x+380,y);
+
+	y += 30;
+	ctx.textAlign = "left";
+	if(graph._z.j>graph._z.jcv)
+		multiText(ctx,["#000000","JB > C  : distribution ",
+			"#FF0000","is not normal"],x,y);
+	else
+		multiText(ctx,["#000000","JB < C : distribution ",
+			"#FF0000","is normal"],x,y);
+
+	y += 30;
+
+	var cv = graph._z.jcv;
+	var max = Math.max(Math.abs(graph._z.j),cv)*1.2;
+	drawChi2Curve(ctx,graph,y,2,0,max,graph._z.j,"JB",cv);
+	}
+
+if(graph.norm==NORM.WILK)
+	{
+	ctx.textAlign = "left";
+	ctx.fillText("Nb of observations",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+nr,x+250,y);
+
+	y += 20;
+
+
+	ctx.textAlign = "left";
+	ctx.fillText("Statistic test W",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(round(graph._z.w),x+250,y);
+	ctx.fillText("(pvalue="+round(graph._z.pvalue)+")",x+380,y);
+
+	y += 30;
+	ctx.textAlign = "left";
+	if(graph._z.pvalue<0.05)
+		multiText(ctx,["#000000","p-value < 0.05 : distribution ",
+			"#FF0000","is not normal"],x,y);
+	else
+		multiText(ctx,["#000000","p-value > 0.05 : distribution ",
+			"#FF0000","is normal"],x,y);
+
+	}
+
+if(graph.norm==NORM.ANDERSON)
+	{
+	ctx.textAlign = "left";
+	ctx.fillText("Nb of observations",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+nr,x+250,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Statistic test A",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(round(graph._z.a),x+250,y);
+	ctx.fillText("(pvalue="+round(graph._z.pvalue)+")",x+380,y);
+
+	y += 30;
+	ctx.textAlign = "left";
+	if(graph._z.pvalue<0.05)
+		multiText(ctx,["#000000","p-value < 0.05 : distribution ",
+			"#FF0000","is not normal"],x,y);
+	else
+		multiText(ctx,["#000000","p-value > 0.05 : distribution ",
+			"#FF0000","is normal"],x,y);
+	}
+
+
+if(graph.norm==NORM.LILLIE)
+	{
+	ctx.textAlign = "left";
+	ctx.fillText("Nb of observations",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(""+nr,x+250,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Statistic test D",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(round(graph._z.d),x+250,y);
+	ctx.fillText("(pvalue="+round(graph._z.pvalue)+")",x+380,y);
+
+	y += 20;
+
+	ctx.textAlign = "left";
+	ctx.fillText("Critical value C",x,y);
+	ctx.textAlign = "right";
+	ctx.fillText(round(graph._z.cv),x+250,y);
+	ctx.fillText("(\u03B1=0.05)",x+380,y);
+
+	y += 30;
+	ctx.textAlign = "left";
+	if(graph._z.pvalue<0.05)
+		multiText(ctx,["#000000","p-value < 0.05 : distribution ",
+			"#FF0000","is not normal"],x,y);
+	else
+		multiText(ctx,["#000000","p-value > 0.05 : distribution ",
+			"#FF0000","is normal"],x,y);
+	}
+
+
+	function round(x)
+	{
+		return ""+(Math.round(x*10000)/10000);
+	}
+
+
+}
+
+//*********************************************************************
+
+function upNormGraph(graph)
+{
+if(action==SELECT_MENUITEM)
+	{
+	if(menuindex>=0)
+		{
+		graph = graphs[graphindex];
+		graph.norm = menuindex;
+		computeNormData(graph);
+		}
 	}
 }
 
@@ -14957,8 +15627,7 @@ for(var i=0;i<graph._z.rows.length;i++)
 function computeTestData(graph)
 {
 
-if(graph.w<460)
-	graph.w = 460;
+if(graph.w<460) graph.w = 460;
 
 switch(graph.test)
 	{
@@ -26404,7 +27073,7 @@ return x/Math.sqrt(y*z);
 //*********************************************************************
 
 
-function drawNormalCurve(ctx,graph,y,min,max,t,letter,cv)
+function drawNormalCurve(ctx,graph,y,min,max,t,letter,cv,both)
 {
 var dy = 200;
 var dx = graph.w-40;
@@ -26455,6 +27124,7 @@ ctx.moveTo(x,y);
 ctx.lineTo(x+dx,y);
 ctx.stroke();
 
+// fill CV area
 ctx.fillStyle = "#000000";
 var j = Math.round((cv-min)*100/(max-min));
 
@@ -26471,6 +27141,26 @@ ctx.lineTo(x+dx,y);
 ctx.lineTo(x+dx*j/100,y);
 ctx.fill();
 
+
+if(both)
+	{
+	var j = Math.round((-cv-min)*100/(max-min));
+	if(j<0) j = 0;
+
+	ctx.beginPath();
+	for(var i=0;i<=j;i++)
+		{
+		var d = dnorm(min+(max-min)*i/100);
+		if(i==0)
+			ctx.moveTo(x+dx*i/100,y-d*dy/dmax);
+		else
+			ctx.lineTo(x+dx*i/100,y-d*dy/dmax);
+		}
+	ctx.lineTo(x+dx*j/100,y);
+	ctx.lineTo(x,y);
+	ctx.fill();
+	}
+
 ctx.textAlign = "center";
 
 var xx = x+dx*(t-min)/(max-min);
@@ -26486,6 +27176,16 @@ ctx.beginPath();
 ctx.moveTo(xx,y+2);
 ctx.lineTo(xx,y+12);
 ctx.stroke();
+
+if(both)
+	{
+	var xx = x+dx*(-cv-min)/(max-min);
+	ctx.fillText("C",xx,y+24);
+	ctx.beginPath();
+	ctx.moveTo(xx,y+2);
+	ctx.lineTo(xx,y+12);
+	ctx.stroke();
+	}
 
 }
 
@@ -26919,7 +27619,7 @@ while(true)
 		min = med;
 	else
 		max = med;
-	if(Math.abs(max-min)<1e-6) break;
+	if(Math.abs(max-min)<1e-7) break;
 	}
 return med;
 }
@@ -28161,4 +28861,7 @@ return multMM(AAT,multMM(D,transpM(ATA)));
 }
 
 //*********************************************************************
+
+var nimg = new Image();
+nimg.src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAAAXNSR0IArs4c6QAACSNpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+Cjx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IlhNUCBDb3JlIDUuMS4yIj4KICAgPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4KICAgICAgPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIvPgogICA8L3JkZjpSREY+CjwveDp4bXBtZXRhPgogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgCjw/eHBhY2tldCBlbmQ9InciPz4s45Y3AAACIUlEQVR4nKyVX0hTcRTHL+xFvBWspB56TdKHng2FgS/hkxCx1LWSqDCvI8hZpNuSmJgxC3wRbVCECncOc4kZQT7eBeJmWtTmQ96EWnrnHMv9k21fb7+Hwbj350bt4byc8zmf3zk/fvBjGIZBWQMob/y3IBaLwel8DoOhDYNDDjooSRIWFz/gMFkykUCjTkdW1Wg0GH46Qoc7bt1EZSWL31vbVOk0z+Oq8RoErxeiKCKTzdKFDefryckzMx5VYS6Xg/luN6RwpKCuKotGI2i60AT2CIu2K+2qws0fInp67ilqqsLVFT8e2vrRor8E7YlTCO9EFI1ulwsvXr4qTTg1MQGed2PWzZO1XdOvFY2W3j58+fqtNKHNasXKpzVEwhK0x46iufliQWN87w+4zi6k0/vFhel0Crc7OrEXTxDYaGhBRQWL7xtivnl5aQl2+4Dq3SoSn9dWYbHY8vC7t/Nk7SHHs3zOOT6GWc9cacLx0VG8mZvPw8l4HDXVZ1BTew7JVIrkzd1mbIibxYVZ+WHeMZnkt7VTADuePCZTeuSD9uUr4TgTMplMcaHft4zePqsCDP36iarjWjToGuEVBNgHBlVlRLgeDGJycgqhUAhdHAdB+KgK2x/1kynr6uqxsPCeLrQ+uE9AlmXRfv0GFYzu7qL2bDWqTp7G1naYLvT7fLis16O11SiDEhX8G4FAAMHg+qEMtfCvwZT7CzgAAAD//wMAnjM6meysAo4AAAAASUVORK5CYII=";
 
