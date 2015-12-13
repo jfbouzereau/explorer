@@ -220,7 +220,7 @@ _type("SET","Dummy constructor",{leftlabel:1});
 
 var NBTYPE1 = KNUM;			// max graph types
 
-_type("MOMENTS","Statistics",{topvalue:1});
+_type("MOMENTS","Statistics",{ivalues:1});
 _type("HISTO","Histogram",{topvalue:1,leftlabel:1});
 _type("DISTRIB","Distribution curve",{topvalue:1});
 _type("PROBA","Probability plot",{topvalue:1,menu:"law"});
@@ -8657,71 +8657,191 @@ if(action==SELECT_MENUITEM)
 
 function computeMomentsData(graph)
 {
-var i1 = graph.ivalue1
-var i2 = graph.ivalue2
+if(graph.ivalues.length<1) return;
 
-graph._z.stats = {}
 
-// mean
-var m1 = 0;
-var m2 = 0;
-var m3 = 0;
-var m4 = 0;
-var n = 0;
-var x = 0;
-var min = null;
-var max = null;
-var xx = [];
+var nv = graph.ivalues.length;
+
+var m1 = vector(nv);
+var m2 = vector(nv);
+var m3 = vector(nv);
+var m4 = vector(nv);
+
+var min = new Array(nv);
+fillV(min,Number.MAX_VALUE);
+
+var max = new Array(nv);
+fillV(max,-Number.MAX_VALUE);
+
+var nr = 0;
+
 for(var i=0;i<lrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;
-	x = vrecords[i][i1];
-	xx.push(x);
-	min = (min==null) ? x : x < min ? x : min;
-	max = (max==null) ? x : x > max ? x : max;
-	m1 += x;
-	m2 += x*x;
-	m3 += x*x*x;
-	m4 += x*x*x*x;
-	n += 1;
+	nr++;
+
+	for(var j=0;j<nv;j++)
+		{
+		var x = vrecords[i][graph.ivalues[j]];
+		if(x<min[j]) min[j] = x;
+		if(x>max[j]) max[j] = x;
+		m1[j] += x;
+		m2[j] += x*x;
+		m3[j] += x*x*x;
+		m4[j] += x*x*x*x;
+		}
 	}	
 
-graph._z.stats.n = n;
-graph._z.stats.min = min;
-graph._z.stats.max = max;
-graph._z.stats.mean1 = m1/n;
-graph._z.stats.mean2 = Math.pow(m2/n,1./2.)
-graph._z.stats.mean3 = Math.pow(m3/n,1./3.)
-graph._z.stats.mean4 = Math.pow(m4/n,1./4.)
 
-m1 = m1/n;
-m2 = 0;
-m3 = 0;
-m4 = 0;
+var mean1 = new Array(nv);
+var mean2 = new Array(nv);
+var mean3 = new Array(nv);
+var mean4 = new Array(nv);
+
+for(var j=0;j<nv;j++)
+	{
+	mean1[j] = m1[j]/nr;
+	mean2[j] = Math.pow(m2[j]/nr,1./2.);
+	mean3[j] = Math.pow(m3[j]/nr,1./3.);
+	mean4[j] = Math.pow(m4[j]/nr,1./4.);
+	}
+
+graph._z.n = nr;
+graph._z.min = min;
+graph._z.max = max;
+graph._z.mean1 = mean1;
+graph._z.mean2 = mean2;
+graph._z.mean3 = mean3;
+graph._z.mean4 = mean4;
+
+fillV(m2,0);
+fillV(m3,0);
+fillV(m4,0);
+
+var nr = 0;
 for(var i=0;i<lrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;	
-	x = vrecords[i][i1] - m1;
-	m2 += x*x;
-	m3 += x*x*x;
-	m4 += x*x*x*x;	
+	nr++;
+	for(var j=0;j<nv;j++)
+		{
+		var x = vrecords[i][graph.ivalues[j]]-mean1[j];
+		m2[j] += x*x;
+		m3[j] += x*x*x;
+		m4[j] += x*x*x*x;
+		}
 	}
 
-graph._z.stats.momentc2 = m2/n;
-graph._z.stats.momentc3 = m3/n;
-graph._z.stats.momentc4 = m4/n;
+for(var j=0;j<nv;j++)
+	{
+	m2[j] /= nr;
+	m3[j] /= nr;
+	m4[j] /= nr;
+	}
 
-var stdev = Math.sqrt(graph._z.stats.momentc2);
-graph._z.stats.stdev = stdev;
-graph._z.stats.skewness = graph._z.stats.momentc3/(stdev*stdev*stdev);
-graph._z.stats.kurtosis = graph._z.stats.momentc4/(stdev*stdev*stdev*stdev);
+graph._z.momentc2 = m2;
+graph._z.momentc3 = m3;
+graph._z.momentc4 = m4;
 
-xx.sort(function(a,b) { return a-b });
-graph._z.d1 = xx[Math.floor((n-1)/10)];
-graph._z.q1 = xx[Math.floor((n-1)/4)];
-graph._z.q2 = xx[Math.floor((n-1)/2)];
-graph._z.q3 = xx[Math.floor((n-1)*3/4)];
-graph._z.d9 = xx[Math.floor((n-1)*9/10)];
+var stdev = new Array(nv);
+var skewness = new Array(nv);
+var kurtosis = new Array(nv);
+
+for(var j=0;j<nv;j++)
+	{
+	var s = Math.sqrt(m2[j]);
+	stdev[j] = s;
+	skewness[j] = m3[j]/(s*s*s);
+	kurtosis[j] = m4[j]/(s*s*s*s);
+	}
+
+graph._z.stdev = stdev;
+graph._z.skewness = skewness;
+graph._z.kurtosis = kurtosis;
+
+var d1 = new Array(nv);
+var q1 = new Array(nv);
+var q2 = new Array(nv);
+var q3 = new Array(nv);
+var d9 = new Array(nv);
+
+var xx = new Array(nr);
+
+var nr = 0;
+for(var j=0;j<nv;j++)
+	{	
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		xx[nr++] = vrecords[i][graph.ivalues[j]];
+		}		
+
+	xx.sort(function(a,b) { return a-b });
+
+	d1[j] = xx[Math.floor((nr-1)/10)];
+	q1[j] = xx[Math.floor((nr-1)/4)];
+	q2[j] = xx[Math.floor((nr-1)/2)];
+	q3[j] = xx[Math.floor((nr-1)*3/4)];
+	d9[j] = xx[Math.floor((nr-1)*9/10)];
+	}
+
+graph._z.d1 = d1;
+graph._z.q1 = q1;
+graph._z.q2 = q2;
+graph._z.q3 = q3;
+graph._z.d9 = d9;
+
+// agostino test
+var meansk = 0;
+var varsk = 6*(nr-2)/((nr+1)*(nr+3));
+var skewsk = 0;
+var kurtsk = 36*(nr-7)*(nr*nr+2*nr-5)/((nr-2)*(nr+5)*(nr+7)*(nr+9));
+
+console.log("meansk varsk skewsk kurtsk");
+console.log(meansk,varsk,skewsk,kurtsk);
+
+var meankt = 3-6/(nr+1);
+var varkt = 24*nr*(nr-2)*(nr-3)/((nr+1)*(nr+1)*(nr+3)*(nr+5));
+var aa = 6*(nr+3)*(nr+5)/(nr*(nr-2)*(nr-3));
+var skewkt = 6*(nr*nr-5*nr+2)/((nr+7)*(nr+9))*Math.sqrt(aa);
+var n2 = nr*nr;
+var n3 = n2*nr;
+var n4 = n3*nr;
+var n5 = n4*nr;
+var n6 = n5*nr;
+var kurtkt = 36*(15*n6-36*n5-628*n4+982*n3+5777*n2-6402*nr+900)/
+	(nr*(nr-3)*(nr-2)*(nr+7)*(nr+9)*(nr+11)*(nr+13));
+
+console.log("meankt varkt skewkt kurtkt");
+console.log(meankt,varkt,skewkt,kurtkt);
+
+var w2 = Math.sqrt(2*kurtsk+4)-1;
+var w = Math.sqrt(w2);
+var a2 = 2/(w2-1);
+var d = 1/Math.sqrt(Math.log(w));
+
+var A = 6+8/skewkt*(2/skewkt+Math.sqrt(1+4/(skewkt*skewkt)));
+
+console.log("w2,w,a2,d,A");
+console.log(w2,w,a2,d,A);
+
+var agos = new Array(nv);
+for(var j=0;j<nv;j++)
+	{
+	var zz = skewness[j]/Math.sqrt(a2*varsk);	
+	console.log("j="+j+" d="+d+"  a2="+a2+"  zz="+zz);
+	var z1 = d*Math.log(zz+Math.sqrt(zz*zz+1));
+	var zz = 1+(kurtosis[j]-meankt)/Math.sqrt(varkt)*Math.sqrt(2/(A-4));
+	zz = (1-2/A)/zz;
+	zz = Math.pow(zz,1./3.);
+	var z2 = Math.sqrt(9*A/2)*(1-2/(9*A)-zz);	
+	console.log("j="+j+" z1="+z1+" z2="+z2);
+	agos[j] = z1*z1+z2*z2;
+	}
+
+graph._z.agos = agos;
+console.log(graph._z);
+
 }
 
 //*********************************************************************
@@ -8739,81 +8859,100 @@ function drawMomentsIcon(ctx,x,y)
 
 function drawMomentsGraph(ctx,graph)
 {
-if(graph.ivalue1>=0)
+if(graph.ivalues.length<1) return;
+
+ctx.fillStyle = "#000000";
+ctx.textAlign = "left"
+
+var x1 = graph.x+10;
+var x2 = graph.x+190;
+var y = graph.y+40;
+
+y += 30;
+ctx.fillText("Nb of observations",x1,y);
+y += 20;
+ctx.fillText("Average",x1,y);
+y += 20;
+ctx.fillText("Standard deviation",x1,y)
+y += 20;
+ctx.fillText("Variance",x1,y)
+y += 30;	
+ctx.fillText("Minimum",x1,y);
+y += 20;
+ctx.fillText("First decile",x1,y);
+y += 20;
+ctx.fillText("First quartile",x1,y);
+y += 20;
+ctx.fillText("Median",x1,y);
+y += 20;
+ctx.fillText("Third quartile",x1,y);
+y += 20;
+ctx.fillText("Ninth decile",x1,y);
+y += 20;
+ctx.fillText("Maximum",x1,y);
+y += 30;
+ctx.fillText("2nd order average",x1,y)
+y += 20;
+ctx.fillText("3rd order average",x1,y);
+y += 20;
+ctx.fillText("4th order average",x1,y);
+y += 30;
+ctx.fillText("Skewness",x1,y)
+y += 20;
+ctx.fillText("Kurtosis",x1,y)
+
+var nv = graph.ivalues.length;
+
+ctx.textAlign = "right";
+
+var jfirst = Math.floor(graph.yshift/50);
+if(jfirst>=nv)
+	jfirst = nv-1;
+
+for(var j=jfirst;j<nv;j++)
 	{
-	ctx.fillStyle = "#000000";
-	ctx.textAlign = "left"
-
-	var x1 = graph.x+10;
-	var x2 = graph.x+190;
-	var y = graph.y+40;
-
-	y += 20;
-	ctx.fillText("Number of observations",x1,y);
-	ctx.fillText(""+graph._z.stats.n,x2,y);
-
-	y += 20;
-	ctx.fillText("Average",x1,y);
-	ctx.fillText(trunc(graph._z.stats.mean1,4),x2,y)
-
-	y += 20;
-	ctx.fillText("Standard deviation",x1,y)
-	ctx.fillText(trunc(Math.sqrt(graph._z.stats.momentc2),4),x2,y)
-
-	y += 20;
-	ctx.fillText("Variance",x1,y)
-	ctx.fillText(trunc(graph._z.stats.momentc2,4),x2,y)
-
-	y += 20;	
-	ctx.fillText("Minimum",x1,y);
-	ctx.fillText(graph._z.stats.min+"",x2,y);
-
-	y += 20;
-	ctx.fillText("Maximum",x1,y);
-	ctx.fillText(graph._z.stats.max+"",x2,y);
-
+	var x = graph.x+200+100*(j-jfirst);
+	y = graph.y+40;
+	ctx.fillText(values[graph.ivalues[j]],x,y);
 	y += 30;
-	ctx.fillText("First decile",x1,y);
-	ctx.fillText(trunc(graph._z.d1,4),x2,y);
-
+	ctx.fillText(""+graph._z.n,x,y);
 	y += 20;
-	ctx.fillText("First quartile",x1,y);
-	ctx.fillText(trunc(graph._z.q1,4),x2,y);
-
+	ctx.fillText(round(graph._z.mean1[j]),x,y);
 	y += 20;
-	ctx.fillText("Median",x1,y);
-	ctx.fillText(trunc(graph._z.q2,4),x2,y);
-
+	ctx.fillText(round(graph._z.stdev[j]),x,y);
 	y += 20;
-	ctx.fillText("Third quartile",x1,y);
-	ctx.fillText(trunc(graph._z.q3,4),x2,y);
-
-	y += 20;
-	ctx.fillText("Ninth decile",x1,y);
-	ctx.fillText(trunc(graph._z.d9,4),x2,y);
-
+	ctx.fillText(round(graph._z.momentc2[j]),x,y);
 	y += 30;
-	ctx.fillText("2nd order average",x1,y)
-	ctx.fillText(trunc(graph._z.stats.mean2,4),x2,y)
-
+	ctx.fillText(round(graph._z.min[j]),x,y);
 	y += 20;
-	ctx.fillText("3rd order average",x1,y);
-	ctx.fillText(trunc(graph._z.stats.mean3,4),x2,y);
-
+	ctx.fillText(round(graph._z.d1[j]),x,y);
 	y += 20;
-	ctx.fillText("4th order average",x1,y);
-	ctx.fillText(trunc(graph._z.stats.mean4,4),x2,y);
-
+	ctx.fillText(round(graph._z.q1[j]),x,y);
+	y += 20;
+	ctx.fillText(round(graph._z.q2[j]),x,y);
+	y += 20;
+	ctx.fillText(round(graph._z.q3[j]),x,y);
+	y += 20;
+	ctx.fillText(round(graph._z.d9[j]),x,y);
+	y += 20;
+	ctx.fillText(round(graph._z.max[j]),x,y);
 	y += 30;
-	ctx.fillText("Skewness",x1,y)
-	ctx.fillText(trunc(graph._z.stats.skewness,4),x2,y)
-
+	ctx.fillText(round(graph._z.mean2[j]),x,y);
 	y += 20;
-	ctx.fillText("Kurtosis",x1,y)
-	ctx.fillText(trunc(graph._z.stats.kurtosis,4),x2,y)
+	ctx.fillText(round(graph._z.mean3[j]),x,y);
+	y += 20;
+	ctx.fillText(round(graph._z.mean4[j]),x,y);
+	y += 30;
+	ctx.fillText(round(graph._z.skewness[j]),x,y);
+	y += 20;
+	ctx.fillText(round(graph._z.kurtosis[j]),x,y);
 	}
 
-ctx.textAlign = "center";
+
+	function round(x)
+	{
+		return ""+Math.round(x*100000)/100000;
+	}
 
 }
 
@@ -8821,33 +8960,46 @@ ctx.textAlign = "center";
 
 function buildMomentsTable(graph)
 {
-if(graph.ivalue1<0) return;
+if(graph.ivalues.length<1) return;
 
-setTableName("Statistics of "+values[graph.ivalue1]);
+var n = graph.ivalues.length;
+
+setTableName("Statistics");
 
 var row = 1;
 
-line("Number of observations",graph._z.stats.n);
-line("Mean",graph._z.stats.mean1);
-line("Standard deviation",Math.sqrt(graph._z.stats.momentc2));
-line("Variance",graph._z.stats.momentc2);
-line("Minimum",graph._z.stats.min);
-line("Maximum",graph._z.stats.max);
+for(var j=0;j<n;j++)
+	table(row,j+2,values[graph.ivalues[j]]);
+row++;
+
+line("Nb of observations",graph._z.n);
+line("Mean",graph._z.mean1);
+line("Standard deviation",graph._z.stdev);
+line("Variance",graph._z.momentc2);
+row++;
+line("Minimum",graph._z.min);
 line("First decile",graph._z.d1);
 line("First quartile",graph._z.q1);
 line("Median",graph._z.q2);
 line("Third quartile",graph._z.q3);
 line("Ninth decile",graph._z.d9);
-line("2nb order average",graph._z.stats.mean2);
-line("3rd order average",graph._z.stats.mean3);
-line("4th order average",graph._z.stats.mean4);
-line("Skewness",graph._z.stats.skewness);
-line("Kurtosis",graph._z.stats.kurtosis);
+line("Maximum",graph._z.max);
+row++;
+line("2nd order average",graph._z.mean2);
+line("3rd order average",graph._z.mean3);
+line("4th order average",graph._z.mean4);
+row++;
+line("Skewness",graph._z.skewness);
+line("Kurtosis",graph._z.kurtosis);
 
-	function line(title,value)
+	function line(title,a)
 	{
 	table(row,1,title);
-	table(row,2,Math.round(value*10000)/10000);
+	for(var j=0;j<n;j++)
+		{
+		var x = (a instanceof Array) ? a[j] : a;
+		table(row,2+j,Math.round(x*100000)/100000);
+		}
 	row++;
 	}
 }
@@ -18715,6 +18867,8 @@ var deviance = graph._z.deviance;
 var stddev = graph._z.stddev;
 var zvalues = graph._z.zvalues;
 var pvalues = graph._z.pvalues;
+
+if(!coef) return;
 
 if(option==0)
 
