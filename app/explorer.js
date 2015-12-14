@@ -318,7 +318,8 @@ _menu("REGR","THREE","Third degree");
 _menu("REGR","-","-");
 _menu("REGR","LARS","Least angle");
 _menu("REGR","-","-");
-_menu("REGR","LOGIS","Logistic");
+_menu("REGR","LOGIS","Logistic (binary)");
+_menu("REGR","LOGIS2","Logistic (count)");
 _menu("REGR","-","-");
 _menu("REGR","POISSON","Poisson");
 _menu("REGR","NEGBIN","Negative binomial");
@@ -527,12 +528,14 @@ vimg.onload = function() {
 
 loadData(data);
 
+/*
 if(graphs.length==0)
 	{	
 	var g = new Graph(20,80,true,[],-1,0,TYPE.WELCOME);
 	computeGraphData(g);
 	graphs.push(g);
 	}
+*/
 
 draw();
 
@@ -687,16 +690,8 @@ this.omit = {};
 
 this.type = type;
 this.option = 0;
-this.test = 0;	
-this.law = 0;			// for TYPE.PROBA
-this.clustering = 0;	// for TYPE.CLUSTER
-this.homo = 0;			// for TYPE.HOMO
-this.chi2 = 0;			// for TYPE.CHI2
-this.angle = 0;			// for TYPE.POLAR
-this.regr = 0;			// for TYPE.REGR
-this.origin = 0;
-this.nonparam = 0;		// for TYPE.NONPARAM
-this.norm = 0;			// for TYPE.NORM
+
+this.origin = 0;		// for TYPE.POLAR
 
 this._count = {};
 
@@ -738,6 +733,9 @@ this.limit = {};		// limiting the slots
 this.limit.ivalues = 99;
 this.limit.jvalues = 99;
 this.limit.ilabels = 99;
+
+// if this type has menu
+initMenu(this);
 }
 
 //*********************************************************************
@@ -1766,6 +1764,15 @@ if(graph.hbar==0) graph.hbar = 16
 		}
 	return x;
 	}
+}
+
+//*********************************************************************
+
+function initMenu(graph)
+{
+var menu = GINFO[graph.type].menu;
+if(menu)
+	graph[menu.toLowerCase()] = 0;
 }
 
 //*********************************************************************
@@ -6804,15 +6811,6 @@ switch(graph.nonparam)
 
 function upNonparamGraph(graph)
 {
-if(action==SELECT_MENUITEM)
-	{
-	if(menuindex>=0)
-		{
-		graph = graphs[graphindex];
-		graph.nonparam = menuindex;
-		computeNonparamData(graph);
-		}
-	}
 
 if(action==REORDER_KEY)
 	{
@@ -8028,20 +8026,6 @@ if(typeof(graph.error)=="undefined") graph.error = 5;
 return -1;
 }
 
-//*********************************************************************
-
-function upChi2Graph(graph)
-{
-if(action==SELECT_MENUITEM)
-	{
-	if(menuindex>=0)
-		{
-		graph = graphs[graphindex];
-		graph.chi2 = menuindex;
-		computeChi2Data(graph);
-		}
-	}
-}
 
 //*********************************************************************
 //*********************************************************************
@@ -8661,20 +8645,6 @@ else
 	}
 
 ctx.textAlign = align;
-}
-
-//*********************************************************************
-
-function upHomoGraph(graph)
-{
-if(action==SELECT_MENUITEM)
-	{
-	if(menuindex>=0)
-		{
-		graph = graphs[graphindex];
-		graph.homo = menuindex;
-		}
-	}
 }
 
 //*********************************************************************
@@ -9678,21 +9648,6 @@ if(graph.norm==NORM.LILLIE)
 }
 
 //*********************************************************************
-
-function upNormGraph(graph)
-{
-if(action==SELECT_MENUITEM)
-	{
-	if(menuindex>=0)
-		{
-		graph = graphs[graphindex];
-		graph.norm = menuindex;
-		computeNormData(graph);
-		}
-	}
-}
-
-//*********************************************************************
 //
 //                HISTO
 //
@@ -10571,21 +10526,6 @@ if(graph.ivalue1>=0)
 
 }
 
-
-//*********************************************************************
-
-function upProbaGraph(graph)
-{
-if(action==SELECT_MENUITEM)
-	{
-	if(menuindex>=0)
-		{
-		graph = graphs[graphindex];
-		graph.law = menuindex;
-		computeProbaData(graph);
-		}
-	}
-}
 
 //*********************************************************************
 //
@@ -11774,21 +11714,6 @@ if(inRect(pt,x-10,y-10,20,20))
 
 return -1;
 	
-}
-
-//*********************************************************************
-
-function upPolarGraph(graph)
-{
-if(action==SELECT_MENUITEM)
-	{
-	if(menuindex>=0)
-		{
-		graph = graphs[graphindex];
-		graph.angle = menuindex;
-		computePolarData(graph);
-		}
-	}
 }
 
 //*********************************************************************
@@ -13000,22 +12925,6 @@ if(graph.ivalues.length>0)
 		}
 
 return -1;
-}
-
-//*********************************************************************
-
-function upClusteringGraph(graph)
-{
-if(action==SELECT_MENUITEM)
-	{
-	if(menuindex>=0)
-		{
-		graph = graphs[graphindex];
-		graph.clustering = menuindex;
-		computeClusteringData(graph);
-		}
-	}
-
 }
 
 //*********************************************************************
@@ -17746,22 +17655,6 @@ function buildBoxmTable(graph)
 }
 
 //*********************************************************************
-
-function upTestGraph(graph)
-{
-if(action==SELECT_MENUITEM)
-	{
-	if(menuindex>=0)
-		{
-		graph = graphs[graphindex];
-		graph.test = menuindex;
-		clearSpecific(graph);
-		computeTestData(graph);
-		}
-	}
-}
-
-//*********************************************************************
 //*********************************************************************
 //
 //                REGRES
@@ -17783,6 +17676,7 @@ switch(graph.regr)
 	case REGR.TWO: computeRegresPoly(graph); break;	
 	case REGR.THREE: computeRegresPoly(graph); break;
 	case REGR.LOGIS: computeRegresLogistic(graph); break;
+	case REGR.LOGIS2: computeRegresLogistic2(graph); break;
 	case REGR.POISSON: computeRegresPoisson(graph); break;
 	case REGR.NEGBIN: computeRegresNegbin(graph); break;
 	case REGR.LARS: computeRegresLars(graph); break;
@@ -18215,12 +18109,14 @@ var deviance = 0;
 for(var i=0;i<vrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;
-	var s = sigma(i,coef,1);
 	var y = vrecords[i][graph.ivalue1];
+	var s = sigma(i,coef,1);
 	if(y==1)
 		deviance += Math.log(s);
 	else
+		{
 		deviance += Math.log(1-s);
+		}
 	}
 deviance *= -2;
 
@@ -18305,6 +18201,205 @@ console.log(graph._z);
 				{
 				var xk = k==0 ? 1 : vrecords[i][graph.ivalues[k-1]];
 				H[j][k] += xj*xk/4;
+				}
+			}
+		}
+	return H;
+	}
+
+	//-----------------------------------------------------------
+
+}
+
+//*********************************************************************
+
+function computeRegresLogistic2(graph)
+{
+if(graph.ivalue1<0) return;
+if(graph.ivalues.length<1) return;
+
+var i1 = graph.ivalue1;
+var i0 = graph.ivalue1+1;
+if(i0>=values.length) return;
+
+// check data
+var nr = 0;
+var nnr = 0;
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	nnr++;
+	var n1 = vrecords[i][i1];
+	var n0 = vrecords[i][i0];
+	nr += n1+n0;
+	}
+
+
+var n = graph.ivalues.length+1;
+
+var coef = vector(n);
+fillV(coef,0.1);
+
+
+// Boehning's methd
+
+var H = covariance();
+var I = ginv(H);
+
+for(var iter=0;iter<500;iter++)
+	{
+	var g = gradient(coef);
+
+	var delta = multMV(I,g);
+	var nrm = norm(delta);
+	if(nrm < 1e-6) break;
+	
+	for(var j=0;j<n;j++)
+		coef[j]  += delta[j];
+	}
+
+console.log("Nb of iterations : "+iter);
+
+// compute standard dev
+var C = matrix(n,n);
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	var n1 = vrecords[i][i1];
+	var n0 = vrecords[i][i0];
+	var n10 = n1+n0;
+	var s = sigma(i,coef,1);
+	var a = s*(1-s);
+	for(var j=0;j<n;j++)
+		{
+		var xj = j==0 ? 1 : vrecords[i][graph.ivalues[j-1]];
+		for(var k=0;k<n;k++)
+			{
+			var xk = k==0 ? 1 : vrecords[i][graph.ivalues[k-1]];
+			C[j][k] += a*xj*xk*(n0+n1);
+			}
+		}
+	}
+
+I = ginv(C);
+
+var stddev = new Array(n);
+var zvalues = new Array(n);
+var pvalues = new Array(n);
+for(var j=0;j<n;j++)
+	{
+	stddev[j] = Math.sqrt(I[j][j]);
+	zvalues[j] = coef[j]/stddev[j];
+	pvalues[j] = 2-2*pnorm(Math.abs(zvalues[j]))
+	}
+
+// compute deviance
+
+var deviance = 0;
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;		
+	var n1 = vrecords[i][i1];
+	var n0 = vrecords[i][i0];
+	var nt = n0+n1;
+	var s = sigma(i,coef,1);	
+	if(n1!=0) deviance += n1*Math.log(n1/(s*nt));
+	if(n0!=0) deviance += n0*Math.log(n0/(nt-s*nt));
+	}
+deviance *= 2;
+
+var level = 0.05;
+var df = nnr-coef.length;
+var pvalue = 1-pchisq(deviance,df);
+var cv = qchisq(1-level,df);
+
+
+graph._z.nr = nnr;
+graph._z.coef = coef;
+graph._z.stddev = stddev;
+graph._z.zvalues = zvalues;
+graph._z.pvalues = pvalues;
+graph._z.deviance = deviance;
+graph._z.level = level;
+graph._z.df = df;
+graph._z.pvalue = pvalue;
+graph._z.cv = cv;
+
+console.log(graph._z);
+
+	//-----------------------------------------------------------
+
+	function norm(g)
+	{
+	var n = g.length;
+	var s =0;
+	for(var j=0;j<n;j++)
+		s += g[j]*g[j];
+	return Math.sqrt(s);
+	}
+
+	//-----------------------------------------------------------
+
+	function gradient(coef)
+	{
+	var n = coef.length;
+	var g = vector(n);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var n1 = vrecords[i][i1];
+		var n0 = vrecords[i][i0];
+		var si = sigma(i,coef,1);
+		for(var j=0;j<n;j++)
+			{
+			var x = j==0 ? 1 : vrecords[i][graph.ivalues[j-1]];
+			g[j] += (1-si)*(n1)*x;
+			}
+		var si = sigma(i,coef,-1);
+		for(var j=0;j<n;j++)
+		for(var j=0;j<n;j++)
+			{
+			var x = j==0 ? 1 : vrecords[i][graph.ivalues[j-1]];
+			g[j] += (1-si)*(-n0)*x;
+			}
+		}
+	return g;
+	}
+
+	//-----------------------------------------------------------
+
+	function sigma(i,coef,y)
+	{
+	var n = coef.length;
+	var s = 0;
+	for(var j=0;j<n;j++)
+		{
+		var xj = j==0 ? 1 : vrecords[i][graph.ivalues[j-1]];
+		s += coef[j]*xj;
+		}
+	s *= y;
+	var t = 1/(1+Math.exp(-s));
+	return t;
+	}
+
+	//-----------------------------------------------------------
+
+	function covariance()
+	{
+	var H = matrix(n,n);
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var n1 = vrecords[i][i1];
+		var n0 = vrecords[i][i0];
+		for(var j=0;j<n;j++)
+			{
+			var xj = j==0? 1 :vrecords[i][graph.ivalues[j-1]];
+			for(var k=0;k<n;k++)
+				{
+				var xk = k==0 ? 1 : vrecords[i][graph.ivalues[k-1]];
+				H[j][k] += xj*xk/4*(n0+n1);
 				}
 			}
 		}
@@ -19107,6 +19202,7 @@ switch(graph.regr)
 	case REGR.THREE: drawRegresPoly(ctx,graph); break;
 	case REGR.POISSON: drawRegresPoisson(ctx,graph); break;
 	case REGR.LOGIS : drawRegresPoisson(ctx,graph); break;	
+	case REGR.LOGIS2: drawRegresPoisson(ctx,graph); break;
 	case REGR.NEGBIN: drawRegresPoisson(ctx,graph); break;
 	case REGR.LARS: drawRegresLars(ctx,graph); break;
 	}
@@ -20129,15 +20225,6 @@ return -1;
 
 function upRegresGraph(graph)
 {
-if(action==SELECT_MENUITEM)
-	{
-	if(menuindex>=0)
-		{
-		graph = graphs[graphindex];
-		graph.regr = menuindex;
-		computeRegresData(graph);
-		}
-	}
 
 if(action==CREATE_PROJECTION)
 	{
@@ -23241,7 +23328,7 @@ if(i>=0)
 		}
 	else if(GINFO[graph.type].menu&&inRect(ptclick,graph.x+graph.w/2-MENUWIDTH/2,graph.y+graph.hbar+5,MENUWIDTH,20))
 		{
-		faction = SELECT_MENUITEM; 
+		faction = action = SELECT_MENUITEM; 
 		graphindex = i;
 		}
 	else if((a=GINFO[graph.type].down(ptclick,graph))>=0)
@@ -23409,6 +23496,7 @@ else if(action==SET_TYPE)
 		graph.type = typeindex
 		graph.option = 0
 		graph.placeholder = {};
+		initMenu(graph);
 		}
 	computeGraphData(graph);
 	}
@@ -23922,6 +24010,16 @@ else if((action==SELECT_OPTION)&&(optionindex>=0))
 else if(action==PIVOT_DATA)
 	{
 	pivotData();
+	}
+else if(action==SELECT_MENUITEM)
+	{
+	if(menuindex>=0)
+		{
+		graph = graphs[graphindex];
+		var menu = GINFO[graph.type].menu.toLowerCase();	
+		graph[menu] = menuindex;
+		computeGraphData(graph);
+		}
 	}
 
 // specific action
@@ -25470,7 +25568,7 @@ else if((i=inFullGraph(ptmove))>=0)
 	{
 	// function specific to the graph
 	var graph = graphs[i];
-	if(faction==SELECT_MENUITEM)
+	if(action==SELECT_MENUITEM)
 		selectMenuItem(ptmove,graph,getGraphMenu(graph));
 	else
 		GINFO[graph.type].drag(ptmove,graph);
