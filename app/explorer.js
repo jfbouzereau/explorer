@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.90";
+var VERSION = "1.91";
 
 /***************************************************************************/
 
@@ -251,6 +251,7 @@ _type("BOX","Box plot",{ivalues:1,leftlabel:1});
 _type("REGRES","Regression",{ivalues:1,leftvalue:1,bottomlabel:1,rightlabel:2,options:4,menu:"regr"});
 _type("PARA","Parallel coordinates",{ivalues:1,leftlabel:1,options:2});
 _type("PALETTE","Palette");
+_type("WELCOME","Welcome");
 
 var NBTYPE3 = KNUM;			// max total types
 
@@ -525,6 +526,14 @@ vimg.onload = function() {
 	}
 
 loadData(data);
+
+if(graphs.length==0)
+	{	
+	var g = new Graph(20,80,true,[],-1,0,TYPE.WELCOME);
+	computeGraphData(g);
+	graphs.push(g);
+	}
+
 draw();
 
 }
@@ -7378,6 +7387,7 @@ var ig = graph["ilabel"+GINFO[graph.type]["toplabel"]];		// group
 var ic = graph["ilabel"+GINFO[graph.type]["leftlabel"]];	// color
 var iu = graph.iunit;
 
+if((ig<0)&&(ic<0)) return;
 
 if(ig<0)
 	{
@@ -7607,6 +7617,11 @@ function find_candidate()
 
 function drawPackGraph(ctx,graph)
 {
+var ig = graph["ilabel"+GINFO[graph.type]["toplabel"]];		// group
+var ic = graph["ilabel"+GINFO[graph.type]["leftlabel"]];	// color
+
+if((ig<0)&&(ic<0)) return;
+
 var xleft = graph.x + 30;
 var xright = graph.x + graph.w - 10;
 var ytop = graph.y + graph.hbar +30;
@@ -7628,8 +7643,6 @@ if(scale*(ymax-ymin)>ybottom-ytop)
 var xmid = (xmin+xmax)/2;
 var ymid = (ymin+ymax)/2;
 
-var ig = graph["ilabel"+GINFO[graph.type]["toplabel"]];		// group
-var ic = graph["ilabel"+GINFO[graph.type]["leftlabel"]];	// color
 
 ctx.textAlign = "center";
 
@@ -7656,6 +7669,11 @@ for(var i=0;i<c.length;i++)
 
 function movePackGraph(pt,graph)
 {
+var ig = graph["ilabel"+GINFO[graph.type]["toplabel"]];		// group
+var ic = graph["ilabel"+GINFO[graph.type]["leftlabel"]];	// color
+
+if((ig<0)&&(ic<0)) return;
+
 var xleft = graph.x + 30;
 var xright = graph.x + graph.w - 10;
 var ytop = graph.y + graph.hbar +30;
@@ -21079,6 +21097,267 @@ message = "";
 return true;
 }
 
+
+//*********************************************************************
+//
+//                WELCOME
+//
+//*********************************************************************
+
+function drawWelcomeIcon(ctx,x,y)
+{
+
+ctx.fillStyle = "#000000";
+
+thinr(2,8,16,10);
+thinr(12,10,4,8);
+thinr(4,10,3,3);
+thinr(7,10,3,3);
+thinr(4,13,3,3);
+thinr(7,13,3,3);
+thind(1,8,8,-8);
+thind(19,8,-8,-8);
+
+	function thinr(x1,y1,w,h)
+	{
+	thinh(x1,y1,w);
+	thinh(x1,y1+h,w+1);
+	thinv(x1,y1,h);
+	thinv(x1+w,y1,h);
+	}
+
+	function thinh(x1,y1,w)
+	{
+	ctx.fillRect(x+x1,y+y1,w,1);
+	}
+
+	function thinv(x1,y1,h)
+	{
+	ctx.fillRect(x+x1,y+y1,1,h);
+	}
+
+	function thind(x1,y1,dx,dy)
+	{
+	var sx = dx > 0 ? 1 : -1;
+	var sy = dy > 0 ? 1 : -1;
+	var d =  dx > 0 ? dx : -dx;
+	for(var i=0;i<=d;i++)
+		ctx.fillRect(x+x1+i*sx,y+y1+i*sy,1,1);
+	}
+
+}
+
+//*********************************************************************
+
+function computeWelcomeData(graph)
+{
+if(graph.w<640) graph.w = 640;
+if(graph.h<450) graph.h = 450;
+
+var panels = [];
+
+
+var p = panel("Chi-square tests","CHI2","CHI2",10,10,200,200);
+hLabel(p,p.x+p.w-60,p.y+5);
+vLabel(p,p.x+10,p.y+5);
+panels.push(p);
+
+var p = panel("Normality tests","NORM","NORM",220,10,200,200);
+hValue(p,p.x+p.w-60,p.y+5);
+panels.push(p);
+
+var p = panel("Analysis of variance","TEST","TEST",430,10,200,410);
+hValue(p,p.x+p.w-60,p.y+5);
+hValue(p,p.x+p.w-60,p.y+20);
+hValue(p,p.x+p.w-60,p.y+35);
+vLabel(p,p.x+10,p.y+5);
+vLabel(p,p.x+25,p.y+5);
+panels.push(p);
+
+var p = panel("Non parametric tests","NONPARAM","NONPARAM",10,220,200,200);
+vValue(p,p.x+10,p.y+5);
+hLabel(p,p.x+p.w-60,p.y+5);
+hLabel(p,p.x+p.w-60,p.y+20);
+hLabel(p,p.x+p.w-60,p.y+35);
+panels.push(p);
+
+var p = panel("Regressions","REGRES","REGR",220,220,200,200);
+vValue(p,p.x+10,p.y+5);
+hValue(p,p.x+p.w-60,p.y+5);
+hValue(p,p.x+p.w-60,p.y+20);
+hValue(p,p.x+p.w-60,p.y+35);
+panels.push(p);
+
+graph._z.panels = panels;
+graph._z.overpanel = -1;
+
+	
+	function panel(title,type,menu,x,y,w,h)
+	{
+	return {title:title,type:type,menu:menu,x:x,y:y,w:w,h:h,hl:[],vl:[],hv:[],vv:[]};
+	}
+
+	function hLabel(p,x,y) { p.hl.push({x:x,y:y}); }
+	function vLabel(p,x,y) { p.vl.push({x:x,y:y}); }
+	function hValue(p,x,y) { p.hv.push({x:x,y:y}); }
+	function vValue(p,x,y) { p.vv.push({x:x,y:y}); }
+	
+}
+
+//*********************************************************************
+
+function drawWelcomeGraph(ctx,graph)
+{
+
+var xo = graph.x;
+var yo = graph.y + graph.hbar;
+
+var font = ctx.font;
+
+var panels = graph._z.panels;
+
+
+for(var i=0;i<panels.length;i++)
+	{
+
+	var p = panels[i];
+	
+	if(graph._z.overpanel==i)
+		ctx.fillStyle = "#CCCCCC";
+	else
+		ctx.fillStyle = "#EEEEEE";
+
+	ctx.fillRect(xo+p.x,yo+p.y,p.w,p.h);
+	ctx.fillStyle = "#000000";
+	ctx.textAlign = "center";
+	ctx.font = "bold 20px Times";
+	ctx.fillStyle = "#666666";
+	ctx.fillText(p.title,xo+p.x+p.w/2,yo+p.y+75);
+
+	ctx.font = "10px helvetica";
+	var m = MENU[p.menu];
+	var yy = p.y+75;
+	for(var j=0;j<MENU[p.menu].length;j++)
+		{			
+		if(MENU[p.menu][j]=="-") continue;
+		yy+=15;
+		ctx.fillText(MENU[p.menu][j],xo+p.x+p.w/2,yo+yy);
+		}
+
+	ctx.font = font;
+
+	for(var j=0;j<p.hl.length;j++)
+		hLabel(p.hl[j].x,p.hl[j].y);
+
+	for(var j=0;j<p.vl.length;j++)
+		vLabel(p.vl[j].x,p.vl[j].y);
+
+	for(var j=0;j<p.hv.length;j++)
+		hValue(p.hv[j].x,p.hv[j].y);
+	
+	for(var j=0;j<p.vv.length;j++)
+		vValue(p.vv[j].x,p.vv[j].y);
+	}
+
+
+	function vValue(x,y)
+	{
+	var w = 10;
+	var h = 50;
+	ctx.fillStyle = BLUE
+	ctx.strokeStyle = "#000000"
+	pathValue(ctx,xo+x,yo+y,w,h,w/5)
+	ctx.fill()
+	ctx.stroke()
+	}
+
+	function hValue(x,y)
+	{
+	var w = 50;
+	var h = 10;
+	ctx.fillStyle = BLUE
+	ctx.strokeStyle = "#000000"
+	pathValue(ctx,xo+x,yo+y,w,h,h/5)
+	ctx.fill()
+	ctx.stroke()
+	}
+
+	function vLabel(x,y)
+	{
+	var w = 10;
+	var h = 50;
+	ctx.fillStyle = PINK;
+	ctx.strokeStyle = "#000000";
+	ctx.beginPath()
+	ctx.moveTo(xo+x,yo+y)
+	ctx.lineTo(xo+x+w,yo+y)
+	ctx.lineTo(xo+x+w,yo+y+h-w/3)
+	ctx.lineTo(xo+x+w-w/3,yo+y+h)
+	ctx.lineTo(xo+x+w/3,yo+y+h)
+	ctx.lineTo(xo+x,yo+y+h-w/3)
+	ctx.lineTo(xo+x,yo+y)
+	ctx.fill()
+	ctx.stroke()
+	}
+
+
+	function hLabel(x,y)
+	{
+	var w = 50;
+	var h = 10;
+	ctx.fillStyle = PINK;
+	ctx.strokeStyle = "#000000";
+	ctx.beginPath();
+	ctx.moveTo(xo+x,yo+y+h/3)
+	ctx.lineTo(xo+x+h/3,yo+y)
+	ctx.lineTo(xo+x+w,yo+y)
+	ctx.lineTo(xo+x+w,yo+y+h)
+	ctx.lineTo(xo+x+h/3,yo+y+h)
+	ctx.lineTo(xo+x,yo+y+2*h/3)
+	ctx.lineTo(xo+x,yo+y+h/3)
+	ctx.fill()
+	ctx.stroke()
+	}
+}
+
+//*********************************************************************
+
+function moveWelcomeGraph(pt,graph)
+{
+var xo = graph.x;
+var yo = graph.y + graph.hbar;
+
+for(var i=0;i<graph._z.panels.length;i++)
+	{
+	var p = graph._z.panels[i];
+	if(inRect(pt,xo+p.x,yo+p.y,p.w,p.h))
+		{
+		graph._z.overpanel = i;
+		message = p.t;
+		document.body.style.cursor = "pointer";
+		return true;
+		}
+	}
+
+document.body.style.cursor = "default";
+graph._z.overpanel = -1;
+return false;
+}
+
+//*********************************************************************
+
+function upWelcomeGraph(graph)
+{
+if(graph._z.overpanel<0) return;
+
+var panel = graph._z.panels[graph._z.overpanel];
+
+graph.type = TYPE[panel.type];
+graph.option = 0;
+
+computeGraphData(graph);
+
+}
 
 //*********************************************************************
 //

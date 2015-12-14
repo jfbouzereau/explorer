@@ -67,7 +67,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Lag plot
 * General statistics
 * Normality tests
-  * Shapiro-Wilk text
+  * Shapiro-Wilk test
   * Anderson-Darling test
   * Lilliefors test
   * D'Agostino test
