@@ -44,7 +44,6 @@ This Explorer allows to perform various statistical analyses and data mining ope
 * Arc diagram
 * Contingency table
 * Multiple Correspondence analysis
-* Self-organizing map
 * 3-variable graph
 * Treemap
 * Chi-2 tests
@@ -71,7 +70,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
   * Shapiro-Wilk text
   * Anderson-Darling test
   * Lilliefors test
-  * D'Agostini test
+  * D'Agostino test
   * Anscombe test
   * Omnibus test
   * Jarque-Bera test
