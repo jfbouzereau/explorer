@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.91";
+var VERSION = "1.92";
 
 /***************************************************************************/
 
@@ -341,6 +341,8 @@ _menu("NONPARAM","-","-");
 _menu("NONPARAM","COCHRAN","Cochran Q");
 _menu("NONPARAM","DURBIN","Durbin");
 _menu("NONPARAM","FRIEDMAN","Friedman");
+_menu("NONPARAM","-","-");
+_menu("NONPARAM","MANTEL","Mantel-Haenszel");
 
 /***************************************************************************/
 
@@ -687,6 +689,8 @@ this.ivalues = [];		// list of values
 this.jvalues = [];		// second list of values
 
 this.omit = {};
+
+this.error = null;
 
 this.type = type;
 this.option = 0;
@@ -5278,7 +5282,8 @@ switch(graph.nonparam)
 	case NONPARAM.JONCK: computeJonck(graph); break;
 	case NONPARAM.COCHRAN: computeCochran(graph); break;
 	case NONPARAM.DURBIN: computeDurbin(graph); break;
-	case NONPARAM.FRIEDMAN: computeFrieman(graph); break;
+	case NONPARAM.FRIEDMAN: computeFriedman(graph); break;
+	case NONPARAM.MANTEL: computeMantel(graph); break;
 	}
 
 }
@@ -5409,13 +5414,13 @@ for(var i=0;i<vrecords.length;i++)
 graph._z.ng = ng;
 if(ng<2)
 	{
-	graph._z.error = "Less than two categories";
+	graph.error = "Less than two categories";
 	return;
 	}
 
 if(ng>2)
 	{
-	graph._z.error = "More than two categories";	
+	graph.error = "More than two categories";	
 	return;
 	}
 
@@ -5743,7 +5748,7 @@ for(var i=0;i<vrecords.length;i++)
 	var key = blocks[b]+"\t"+treats[t];
 	if(key in done)		
 		{
-		graph._z.error = "More than one rating per experiment";
+		graph.error = "More than one rating per experiment";
 		return;
 		}
 	done[key] = 1;
@@ -5776,14 +5781,14 @@ for(var j=0;j<nb;j++)
 for(var j=1;j<nb;j++)
 	if(sumb[j]!=sumb[0])
 		{
-		graph._z.error = "Design not balanced in blocks";
+		graph.error = "Design not balanced in blocks";
 		return;
 		}
 
 for(var k=1;k<nt;k++)
 	if(sumt[k]!=sumt[0])
 		{
-		graph._z.error = "Design not balanced in treatments";
+		graph.error = "Design not balanced in treatments";
 		return;
 		}
 
@@ -5792,7 +5797,7 @@ for(var k=0;k<nt;k++)
 		if(l!=k)
 			if(sumtt[k][l]!=sumtt[1][0])
 				{
-				graph._z.error = "Design not balanced in pairs of treatments";
+				graph.error = "Design not balanced in pairs of treatments";
 				return;
 				}
 
@@ -5887,7 +5892,7 @@ console.log(graph._z);
 
 //*********************************************************************
 
-function computeFrieman(graph)
+function computeFriedman(graph)
 {
 
 graph.placeholder["ilabels0"] = "BLOCKS";
@@ -5921,7 +5926,7 @@ for(var i=0;i<vrecords.length;i++)
 	var key = blocks[b]+"\t"+treats[t];
 	if(key in done)		
 		{
-		graph._z.error = "More than one rating per experiment";
+		graph.error = "More than one rating per experiment";
 		return;
 		}
 	done[key] = 1;
@@ -5934,7 +5939,7 @@ for(var j=0;j<nb;j++)
 		var key = j+"\t"+k;
 		if(!(key in done))
 			{
-			graph._z.error = "Missing data";
+			graph.error = "Missing data";
 			return;
 			}
 		}
@@ -6051,14 +6056,14 @@ for(var i=0;i<vrecords.length;i++)
 	var v = vrecords[i][graph.ivalue1];
 	if((v!=0)&&(v!=1))
 		{
-		graph._z.error = "Rating not 0 or 1";
+		graph.error = "Rating not 0 or 1";
 		return;
 		}
 
 	var key = blocks[b]+"\t"+treats[t];
 	if(key in done)		
 		{
-		graph._z.error = "More than one rating per experiment";
+		graph.error = "More than one rating per experiment";
 		return;
 		}
 	}
@@ -6111,6 +6116,95 @@ console.log(graph._z);
 
 //*********************************************************************
 
+function computeMantel(graph)
+{
+
+graph.placeholder["ilabels0"] = "BINARY";
+graph.placeholder["ilabels1"] = "BINARY";
+graph.placeholder["ilabels2"] = "REPEATS";
+graph.placeholder["leftvalue"] = "MEASURE";
+
+if(graph.ilabels.length<3) return;
+if(graph.ivalue1<0) return;
+
+var l1 = graph.ilabels[0];
+var l2 = graph.ilabels[1];
+var l3 = graph.ilabels[2];
+
+
+var nkey1 = 0;
+var nkey2 = 0;
+var nkey3 = 0;
+var keys1 = {};
+var keys2 = {};
+var keys3 = {};
+
+for(var i=0;i<lrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;	
+	var key1 = lrecords[i][l1];
+	var key2 = lrecords[i][l2];
+	var key3 = lrecords[i][l3];
+
+	if(!(key1 in keys1))
+		{
+		keys1[key1] = nkey1++;
+		if(nkey1>2) {
+			graph.error = "More than 2 categories for "+labels[l1];
+			return;
+			}
+		}
+	
+	if(!(key2 in keys2))
+		{
+		keys2[key2] = nkey2++;
+		if(key2>2) {
+			graph.error = "More than 2 categories for "+labels[l2];
+			return;
+			}
+		}			
+
+	var key3 = lrecords[i][l3];
+	if(!(key3 in keys3))
+		keys3[key3] = [0,0,0,0];
+
+
+	var k = keys1[key1]+2*keys2[key2];
+	keys3[key3][k] += vrecords[i][graph.ivalue1];		
+	}
+
+var num = 0;
+var den = 0;
+
+for(var key3 in keys3)
+	{
+	var t = keys3[key3];
+	var a = t[0];
+	var b = t[2];
+	var c = t[1];
+	var d = t[3];
+	var n = a+b+c+d;
+	num += a-(a+b)*(a+c)/n;
+	den += (a+b)*(a+c)*(b+d)*(c+d)/(n*n*n-n*n);
+	nkey3++;
+	}
+
+num = Math.abs(num)-0.5;
+
+var mh = num*num/den;
+
+graph._z.nkey3 = nkey3;
+graph._z.df = 1;
+graph._z.mh = mh;
+graph._z.cv = qchisq(1-0.05,1);
+graph._z.pvalue = 1-pchisq(mh,1);
+
+console.log(mh);
+
+}
+
+//*********************************************************************
+
 function drawNonparamGraph(ctx,graph)
 {
 
@@ -6123,6 +6217,7 @@ switch(graph.nonparam)
 	case NONPARAM.COCHRAN: drawCochran(ctx,graph); break;
 	case NONPARAM.FRIEDMAN: drawFriedman(ctx,graph); break;
 	case NONPARAM.DURBIN: drawDurbin(ctx,graph); break;
+	case NONPARAM.MANTEL: drawMantel(ctx,graph); break;
 	}
 }
 
@@ -6140,12 +6235,6 @@ if(graph.ilabels.length<1) return;
 if(graph.ivalue1<0) return;
 
 var option = getGraphOption(graph);
-
-if(graph._z.error)
-	{
-	drawGraphError(ctx,graph);
-	return;
-	}
 
 
 
@@ -6493,7 +6582,7 @@ if(graph.ilabels.length<2) return;
 
 if(graph.ivalue1<0) return;
 
-if(graph._z.error)
+if(graph.error)
 	{
 	drawGraphError(ctx,graph);
 	return;
@@ -6578,14 +6667,8 @@ drawChi2Curve(ctx,graph,y,graph._z.dof,0,max,graph._z.q,"Q",graph._z.cv);
 function drawCochran(ctx,graph)
 {
 if(graph.ilabels.length<2) return;
-
 if(graph.ivalue1<0) return;
 
-if(graph._z.error)
-	{
-	drawGraphError(ctx,graph);
-	return;
-	}
 
 var x = graph.x+50;
 var y = graph.y + graph.hbar + 50;
@@ -6655,12 +6738,6 @@ function drawDurbin(ctx,graph)
 {
 if(graph.ilabels.length<2) return;
 if(graph.ivalue1<0) return;
-
-if(graph._z.error)
-	{
-	drawGraphError(ctx,graph);
-	return;
-	}
 
 
 var x = graph.x+50;
@@ -6738,6 +6815,68 @@ var max = Math.max(graph._z.cv,graph._z.t2)*1.2;
 drawFisherCurve(ctx,graph,y,graph._z.dof1,graph._z.dof2,0,max,
 	graph._z.t2,"T2",graph._z.cv);
 }
+
+//*********************************************************************
+
+function drawMantel(ctx,graph)
+{
+if(graph.ilabels.length<3) return;
+if(graph.ivalue1<0) return;
+
+var name3 = labels[graph.ilabels[2]];
+
+var x = graph.x+50;
+var y = graph.y + graph.hbar + 50;
+
+ctx.fillStyle = "#000000";
+
+ctx.textAlign = "left";
+ctx.fillText(name3,x,y);
+ctx.textAlign = "right";
+ctx.fillText(""+graph._z.nkey3,x+220,y);
+ctx.textAlign = "left";
+ctx.fillText(" categories",x+220,y);
+
+y += 20;
+
+ctx.fillText("Degrees of freedom",x,y);
+ctx.textAlign = "right";
+ctx.fillText(""+graph._z.df,x+220,y);
+
+y += 20;
+
+ctx.textAlign = "left";
+ctx.fillText("Critical value C",x,y);
+ctx.textAlign = "right";
+var z = Math.round(graph._z.cv*10000)/10000;
+ctx.fillText(""+z,x+220,y);
+ctx.fillText("(\u03B1=0.05)",x+350,y);
+
+y += 20;
+ctx.textAlign = "left";
+ctx.fillText("Test statistic MH",x,y);
+ctx.textAlign = "right";
+z = Math.round(graph._z.mh*10000)/10000;
+ctx.fillText(""+z,x+220,y);
+z = Math.round(graph._z.pvalue*10000)/10000;
+ctx.fillText("(pvalue="+z+")",x+350,y);
+
+y += 30;
+
+ctx.textAlign = "left";
+if(graph._z.q<graph._z.cv)	
+	multiText(ctx,["#000000","MH < C : proportions are ",
+		"#FF0000","independent of "+name3],x,y);
+else
+	multiText(ctx,["#000000","MH > C : proportions are ",
+		"#FF0000","dependent of "+name3],x,y);
+
+y += 20;
+
+var max = Math.max(graph._z.cv,graph._z.mh)*1.2;
+drawChi2Curve(ctx,graph,y,graph._z.df,0,max,graph._z.mh,"MH",graph._z.cv);
+}
+
 
 //*********************************************************************
 
@@ -16051,14 +16190,14 @@ for(var key in NG)
 	{
 	if(NG[key]==1)
 		{
-		graph._z.error = "Only one observation in group "+key;
+		graph.error = "Only one observation in group "+key;
 		return;
 		}
 	}
 
 if(ng<2)
 	{
-	graph._z.error = "Less than two categories";
+	graph.error = "Less than two categories";
 	return;
 	}
 
@@ -16249,7 +16388,7 @@ if(graph.ilabels.length>1) graph.ilabels.splice(1,graph.ilabels.length-1);
 if(graph.ilabels.length<1) return;
 if(graph.jvalues.length<2) 
 	{
-	graph._z.error = "Less than two variables";
+	graph.error = "Less than two variables";
 	return;
 	}
 
@@ -16465,13 +16604,13 @@ for(var i=0;i<vrecords.length;i++)
 
 if(ng1<2)
 	{
-	graph._z.error = "Less than 2 categories in "+labels[graph.ilabels[0]];
+	graph.error = "Less than 2 categories in "+labels[graph.ilabels[0]];
 	return;
 	}
 
 if(ng2<2)
 	{
-	graph._z.error = "Less than 2 categories in "+labels[graph.ilabels[1]];
+	graph.error = "Less than 2 categories in "+labels[graph.ilabels[1]];
 	return;	
 	}
 
@@ -16527,7 +16666,7 @@ for(var i1=0;i1<ng1;i1++)
 	for(var i2=0;i2<ng2;i2++)
 		if(count12[i1][i2]!=count12[0][0])		
 			{
-			graph._z.error = "Different sample sizes";
+			graph.error = "Different sample sizes";
 			return;
 			}
 
@@ -16631,11 +16770,6 @@ console.log(graph._z);
 
 function drawManovaGraph(ctx,graph)
 {
-if(graph._z.error)
-	{
-	drawGraphError(ctx,graph);
-	return;
-	}
 
 var level = graph._z.level;
 var ng = graph._z.ng;
@@ -16886,11 +17020,6 @@ function drawTwoGraph(ctx,graph)
 if(graph.ilabels.length<2) return;
 if(graph.jvalues.length<1) return;
 
-if(graph._z.error)
-	{
-	drawGraphError(ctx,graph);
-	return;
-	}
 
 var option = getGraphOption(graph);
 
@@ -17268,11 +17397,6 @@ function drawBoxmGraph(ctx,graph)
 {
 var x = graph.x+graph.w/2;
 var y = graph.y+graph.h/2;
-if(graph._z.error)	
-	{
-	drawGraphError(ctx,graph);
-	return;
-	}
 
 ctx.fillStyle = "#000000";
 ctx.strokeStyle = "#000000";
@@ -21441,6 +21565,7 @@ var panel = graph._z.panels[graph._z.overpanel];
 
 graph.type = TYPE[panel.type];
 graph.option = 0;
+initMenu(graph);
 
 computeGraphData(graph);
 
@@ -21608,6 +21733,7 @@ catch(e)
 	}
 graph._z = {}
 
+graph.error = null;
 graph.progress = null;
 
 graph.placeholder = {};
@@ -26463,6 +26589,8 @@ for(var i=0;i<graphs.length;i++)
 
 	if(graph.progress)
 		drawGraphProgress(ctx,graph)
+	else if(graph.error)
+		drawGraphError(ctx,graph)
 	else
 		{
 		ctx.save();	
@@ -27088,7 +27216,7 @@ var yc = graph.y+graph.h/2;
 
 ctx.textAlign = "center";
 ctx.fillStyle = "#000000";
-ctx.fillText(graph._z.error,xc,yc);
+ctx.fillText(graph.error,xc,yc);
 }
 
 //*********************************************************************
