@@ -343,6 +343,8 @@ _menu("NONPARAM","DURBIN","Durbin");
 _menu("NONPARAM","FRIEDMAN","Friedman");
 _menu("NONPARAM","-","-");
 _menu("NONPARAM","MANTEL","Mantel-Haenszel");
+_menu("NONPARAM","BRESLOW","Breslow-Day");
+_menu("NONPARAM","WOOLF","Woolf");
 
 /***************************************************************************/
 
@@ -5284,6 +5286,8 @@ switch(graph.nonparam)
 	case NONPARAM.DURBIN: computeDurbin(graph); break;
 	case NONPARAM.FRIEDMAN: computeFriedman(graph); break;
 	case NONPARAM.MANTEL: computeMantel(graph); break;
+	case NONPARAM.BRESLOW: computeBreslow(graph); break;
+	case NONPARAM.WOOLF: computeWoolf(graph); break;
 	}
 
 }
@@ -6176,6 +6180,9 @@ for(var i=0;i<lrecords.length;i++)
 var num = 0;
 var den = 0;
 
+var onum = 0;
+var oden = 0;
+
 for(var key3 in keys3)
 	{
 	var t = keys3[key3];
@@ -6186,6 +6193,10 @@ for(var key3 in keys3)
 	var n = a+b+c+d;
 	num += a-(a+b)*(a+c)/n;
 	den += (a+b)*(a+c)*(b+d)*(c+d)/(n*n*n-n*n);
+
+	onum += a*d/n;
+	oden += b*c/n;
+
 	nkey3++;
 	}
 
@@ -6193,13 +6204,222 @@ num = Math.abs(num)-0.5;
 
 var mh = num*num/den;
 
+var or = onum/oden;
+
 graph._z.nkey3 = nkey3;
+graph._z.keys3 = keys3;
 graph._z.df = 1;
 graph._z.mh = mh;
 graph._z.cv = qchisq(1-0.05,1);
 graph._z.pvalue = 1-pchisq(mh,1);
+graph._z.or = or;
 
-console.log(mh);
+}
+
+//*********************************************************************
+
+function computeBreslow(graph)
+{
+
+graph.placeholder["ilabels0"] = "BINARY";
+graph.placeholder["ilabels1"] = "BINARY";
+graph.placeholder["ilabels2"] = "REPEATS";
+graph.placeholder["leftvalue"] = "MEASURE";
+
+if(graph.ilabels.length<3) return;
+if(graph.ivalue1<0) return;
+
+var l1 = graph.ilabels[0];
+var l2 = graph.ilabels[1];
+var l3 = graph.ilabels[2];
+
+computeMantel(graph);
+if(graph.error) return;
+
+var or = graph._z.or;
+
+var k = graph._z.nkey3;
+
+var x2hbd = 0;
+var j = 0;
+var suma = 0;
+var sumtildea = 0;
+var sumvara = 0;
+
+for(var key3 in graph._z.keys3)
+	{
+	var t = graph._z.keys3[key3];
+	var a = t[0];
+	var b = t[2];
+	var c = t[1];
+	var d = t[3];
+
+	var mj = [a+b,c+d];	
+	var nj = [a+c,b+d];
+
+	var coef = [ -mj[0]*nj[0]*or, nj[1]-mj[0]+or*(nj[0]+mj[0]),1-or];
+	var sols = polyroot(coef);	
+	
+	var tildeaj = solution(sols,Math.min(mj[0],nj[0]));
+	var tildebj = mj[0] - tildeaj;
+	var tildecj = nj[0] - tildeaj;
+	var tildedj = mj[1] - tildecj;	
+
+	var varaj = 1/tildeaj+1/tildebj+1/tildecj+1/tildedj;
+	varaj = 1/varaj;
+
+	x2hbd += (a-tildeaj)*(a-tildeaj)/varaj;
+
+	suma += a;
+	sumtildea += tildeaj;	
+	sumvara += varaj;
+	}
+
+var bias = (suma-sumtildea)*(suma-sumtildea)/sumvara;
+var x2hbdt = x2hbd - bias;
+
+
+graph._z.x2hbd = x2hbd;
+graph._z.x2hbdt = x2hbdt;
+graph._z.df = k-1;
+graph._z.pvalue = 1-pchisq(x2hbdt,k-1);
+graph._z.cv = qchisq(1-0.05,k-1);
+
+console.log(graph._z);
+
+	function polyroot(coef)
+	{
+	var a = coef[2];
+	var b = coef[1];
+	var c = coef[0];
+	var d = b*b-4*a*c;
+	if(d>0)
+		return [(-b+Math.sqrt(d))/(2*a),(-b-Math.sqrt(d))/(2*a)];	
+	else
+		return [-b/(2*a)];
+	}
+
+	function solution(sols,min)
+	{
+	for(var i=0;i<sols.length;i++)
+		if(sols[i]>0)
+			if(sols[i]<min)
+				return sols[i];
+	return 0;
+	}
+
+}
+
+//*********************************************************************
+
+function computeWoolf(graph)
+{
+
+graph.placeholder["ilabels0"] = "BINARY";
+graph.placeholder["ilabels1"] = "BINARY";
+graph.placeholder["ilabels2"] = "REPEATS";
+graph.placeholder["leftvalue"] = "MEASURE";
+
+if(graph.ilabels.length<3) return;
+if(graph.ivalue1<0) return;
+
+var l1 = graph.ilabels[0];
+var l2 = graph.ilabels[1];
+var l3 = graph.ilabels[2];
+
+
+var nkey1 = 0;
+var nkey2 = 0;
+var nkey3 = 0;
+var keys1 = {};
+var keys2 = {};
+var keys3 = {};
+
+for(var i=0;i<lrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;	
+	var key1 = lrecords[i][l1];
+	var key2 = lrecords[i][l2];
+	var key3 = lrecords[i][l3];
+
+	if(!(key1 in keys1))
+		{
+		keys1[key1] = nkey1++;
+		if(nkey1>2) {
+			graph.error = "More than 2 categories for "+labels[l1];
+			return;
+			}
+		}
+	
+	if(!(key2 in keys2))
+		{
+		keys2[key2] = nkey2++;
+		if(key2>2) {
+			graph.error = "More than 2 categories for "+labels[l2];
+			return;
+			}
+		}			
+
+	var key3 = lrecords[i][l3];
+	if(!(key3 in keys3))
+		keys3[key3] = [0,0,0,0];
+
+
+	var k = keys1[key1]+2*keys2[key2];
+	keys3[key3][k] += vrecords[i][graph.ivalue1];
+	}
+
+var hasnul = false;
+var nkey3 = 0;
+for(var key3 in keys3)
+	{
+	var t = keys3[key3];	
+	nkey3++;
+	if(t[0]==0) { hasnul = true; break; }
+	if(t[1]==0) { hasnul = true; break; }
+	if(t[2]==0) { hasnul = true; break; }
+	if(t[3]==0) { hasnul = true; break; }	
+	}
+
+var o = vector(nkey3);
+var w = vector(nkey3);
+for(var key3 in keys3)
+	{
+	var t = keys3[key3];
+	if(hasnul)
+		{
+		t[0] += 0.5;
+		t[1] += 0.5;
+		t[2] += 0.5;
+		t[3] += 0.5;
+		}
+	var or = t[0]*t[3]/(t[1]*t[2]);
+	o.push(Math.log(or));
+	var ww = 1/t[0]+1/t[1]+1/t[2]+1/t[3];
+	w.push(1/ww);
+	}
+
+
+var so = 0;
+var sw = 0;
+for(var i=0;i<o.length;i++)
+	{
+	so += w[i]*o[i];
+	sw += w[i];
+	}
+
+var e = so/sw;
+
+var s = 0;
+for(var i=0;i<o.length;i++)
+	s += w[i]*(o[i]-e)*(o[i]-e);
+
+graph._z.w = s;
+graph._z.df = nkey3-1;
+graph._z.pvalue = 1-pchisq(s,nkey3-1);
+graph._z.cv = qchisq(1-0.05,nkey3-1);
+
+console.log(graph._z);
 
 }
 
@@ -6218,6 +6438,8 @@ switch(graph.nonparam)
 	case NONPARAM.FRIEDMAN: drawFriedman(ctx,graph); break;
 	case NONPARAM.DURBIN: drawDurbin(ctx,graph); break;
 	case NONPARAM.MANTEL: drawMantel(ctx,graph); break;
+	case NONPARAM.BRESLOW: drawBreslow(ctx,graph); break;
+	case NONPARAM.WOOLF: drawWoolf(ctx,graph); break;
 	}
 }
 
@@ -6839,6 +7061,14 @@ ctx.fillText(" categories",x+220,y);
 
 y += 20;
 
+ctx.textAlign = "left";
+ctx.fillText("Common odds ratio",x,y);
+ctx.textAlign = "right";
+var z = Math.round(graph._z.or*10000)/10000;
+ctx.fillText(""+z,x+220,y);
+
+y += 20;
+ctx.textAlign = "left";
 ctx.fillText("Degrees of freedom",x,y);
 ctx.textAlign = "right";
 ctx.fillText(""+graph._z.df,x+220,y);
@@ -6865,16 +7095,156 @@ y += 30;
 
 ctx.textAlign = "left";
 if(graph._z.q<graph._z.cv)	
-	multiText(ctx,["#000000","MH < C : proportions are ",
-		"#FF0000","independent of "+name3],x,y);
+	multiText(ctx,["#000000","MH < C : common odds ratio  ",
+		"#FF0000","is equal to 1 "],x,y);
 else
-	multiText(ctx,["#000000","MH > C : proportions are ",
-		"#FF0000","dependent of "+name3],x,y);
+	multiText(ctx,["#000000","MH > C : common odds ratio ",
+		"#FF0000","is not equal to 1 "],x,y);
 
 y += 20;
 
 var max = Math.max(graph._z.cv,graph._z.mh)*1.2;
 drawChi2Curve(ctx,graph,y,graph._z.df,0,max,graph._z.mh,"MH",graph._z.cv);
+}
+
+
+//*********************************************************************
+
+function drawBreslow(ctx,graph)
+{
+if(graph.ilabels.length<3) return;
+if(graph.ivalue1<0) return;
+
+var name3 = labels[graph.ilabels[2]];
+
+var x = graph.x+50;
+var y = graph.y + graph.hbar + 50;
+
+ctx.fillStyle = "#000000";
+
+ctx.textAlign = "left";
+ctx.fillText(name3,x,y);
+ctx.textAlign = "right";
+ctx.fillText(""+graph._z.nkey3,x+220,y);
+ctx.textAlign = "left";
+ctx.fillText(" categories",x+220,y);
+
+y += 20;
+
+ctx.textAlign = "left";
+ctx.fillText("Common odds ratio",x,y);
+ctx.textAlign = "right";
+var z = Math.round(graph._z.or*10000)/10000;
+ctx.fillText(""+z,x+220,y);
+
+y += 20;
+ctx.textAlign = "left";
+ctx.fillText("Breslow-Day X-squared",x,y);
+var z = Math.round(graph._z.x2hbd*10000)/10000;
+ctx.textAlign = "right";
+ctx.fillText(""+z,x+220,y);
+
+y += 20;
+ctx.textAlign = "left";
+ctx.fillText("Degrees of freedom",x,y);
+ctx.textAlign = "right";
+ctx.fillText(""+graph._z.df,x+220,y);
+
+y += 20;
+
+ctx.textAlign = "left";
+ctx.fillText("Critical value C",x,y);
+ctx.textAlign = "right";
+var z = Math.round(graph._z.cv*10000)/10000;
+ctx.fillText(""+z,x+220,y);
+ctx.fillText("(\u03B1=0.05)",x+350,y);
+
+y += 20;
+ctx.textAlign = "left";
+ctx.fillText("Breslow-Day Tarone B",x,y);
+ctx.textAlign = "right";
+z = Math.round(graph._z.x2hbdt*10000)/10000;
+ctx.fillText(""+z,x+220,y);
+z = Math.round(graph._z.pvalue*10000)/10000;
+ctx.fillText("(pvalue="+z+")",x+350,y);
+
+y += 30;
+
+ctx.textAlign = "left";
+if(graph._z.x2hbdt<graph._z.cv)	
+	multiText(ctx,["#000000","B < C : odd ratio ",
+		"#FF0000","is independent of "+name3],x,y);
+else
+	multiText(ctx,["#000000","B > C : odd ratio ",
+		"#FF0000","is dependent of "+name3],x,y);
+
+y += 20;
+
+var max = Math.max(graph._z.cv,graph._z.x2hbdt)*1.2;
+drawChi2Curve(ctx,graph,y,graph._z.df,0,max,graph._z.x2hbdt,"B",graph._z.cv);
+}
+
+
+//*********************************************************************
+
+function drawWoolf(ctx,graph)
+{
+if(graph.ilabels.length<3) return;
+if(graph.ivalue1<0) return;
+
+var name3 = labels[graph.ilabels[2]];
+
+var x = graph.x+50;
+var y = graph.y + graph.hbar + 50;
+
+ctx.fillStyle = "#000000";
+
+ctx.textAlign = "left";
+ctx.fillText(name3,x,y);
+ctx.textAlign = "right";
+ctx.fillText(""+graph._z.nkey3,x+220,y);
+ctx.textAlign = "left";
+ctx.fillText(" categories",x+220,y);
+
+y += 20;
+
+ctx.textAlign = "left";
+ctx.fillText("Degrees of freedom",x,y);
+ctx.textAlign = "right";
+ctx.fillText(""+graph._z.df,x+220,y);
+
+y += 20;
+
+ctx.textAlign = "left";
+ctx.fillText("Critical value C",x,y);
+ctx.textAlign = "right";
+var z = Math.round(graph._z.cv*10000)/10000;
+ctx.fillText(""+z,x+220,y);
+ctx.fillText("(\u03B1=0.05)",x+350,y);
+
+y += 20;
+ctx.textAlign = "left";
+ctx.fillText("Test statistic W",x,y);
+ctx.textAlign = "right";
+z = Math.round(graph._z.w*10000)/10000;
+ctx.fillText(""+z,x+220,y);
+z = Math.round(graph._z.pvalue*10000)/10000;
+ctx.fillText("(pvalue="+z+")",x+350,y);
+
+y += 30;
+
+ctx.textAlign = "left";
+if(graph._z.w<graph._z.cv)	
+	multiText(ctx,["#000000","W < C : odd ratio ",
+		"#FF0000","is independent of "+name3],x,y);
+else
+	multiText(ctx,["#000000","W > C : odd ratio ",
+		"#FF0000","is dependent of "+name3],x,y);
+
+y += 20;
+
+var max = Math.max(graph._z.cv,graph._z.w)*1.2;
+drawChi2Curve(ctx,graph,y,graph._z.df,0,max,graph._z.w,"W",graph._z.cv);
 }
 
 

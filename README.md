@@ -94,6 +94,9 @@ This Explorer allows to perform various statistical analyses and data mining ope
   * Cochran Q test
   * Durbin test
   * Friedman test
+  * Mantel-Haenszel test
+  * Breslow-Day test
+  * Woolf test
 * Principal components
 * Canonical correlation analysis
 * K-means
