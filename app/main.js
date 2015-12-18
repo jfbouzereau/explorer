@@ -29,6 +29,11 @@ ipc.on("reader", function() {
 	wreader.loadUrl("file://"+__dirname+"/reader.html");
 });
 
+ipc.on("title", function(event,title) {
+	if(wexplorer)
+		wexplorer.setTitle(title);
+});
+
 ipc.on("filename", function(event,filename) {
 	wreader.close();
 	wreader = null;
@@ -59,7 +64,7 @@ function read_clipboard() {
 
 var content = clipboard.readText() || "";
 
-wexplorer = new BrowserWindow({width:800,height:800});
+wexplorer = new BrowserWindow({width:800,height:800,title:"clipboard"});
 wexplorer.loadUrl("file://"+__dirname+"/explorer.html");
 
 wexplorer.on("closed", function() {

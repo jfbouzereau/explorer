@@ -541,6 +541,8 @@ console.log("process tabular");
 		{
 		var record = lines[i].split(sep);
 		if(record.length!=nv) continue;
+		for(var j=0;j<nv;j++)
+			record[j] = unquote(record[j]);
 		data.push(record);
 		}
 
