@@ -1857,6 +1857,22 @@ for(var i=0;i<params.length;i+=2)
 }
 
 //*********************************************************************
+
+function dispatch(a,graph)
+{
+// place values of a in the right place in b
+
+var b = new Array(vrecords.length);
+var k = 0;
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	b[i] = a[k++];
+	}
+return b;
+}
+
+//*********************************************************************
 //
 //                PIE
 //
@@ -18196,7 +18212,7 @@ graph.placeholder.rightlabel = "LABEL";
 
 
 graph._z.arrows = {};
-graph._z.arrows.fitted = {t:"Regression (fitted values)",n:"fo"};
+graph._z.arrows.fitted = {t:"Regression (fitted values)",n:"fi"};
 graph._z.arrows.predict = {t:"Predicted values",n:"pr"};
 graph._z.arrows.stud = {t:"Studentized residualed",n:"st"};
 graph._z.arrows.cookd = {t:"Cook's distances",n:"ck"};
@@ -18205,6 +18221,9 @@ graph._z.arrows.resid = {t:"Deviance residuals",n:"rs"};
 graph._z.arrows.pearson = {t:"Pearson residuals",n:"ps"};
 graph._z.arrows.raw = {t:"Raw residuals",n:"rw"};
 
+for(var j=0;j<graph.ivalues.length;j++)
+	if(graph.ivalues[j]==graph.ivalue1)
+			{ graph.ivalues.splice(j,1) ; }
 
 switch(graph.regr)
 	{	
@@ -18433,25 +18452,26 @@ graph._z.max = max;
 graph._z.pvalue = pvalue;
 graph._z.pvalues = pvalues;
 graph._z.sigma = sigma;
-
 graph._z.mse = mse;
-
-graph._z.hat = hat;
-
 graph._z.aic = aic;
 
+graph._z.hatvalues = dispatch(hat,graph);
+
+graph._z.arrows.predict.f = createFitted;
 graph._z.arrows.fitted.f = createFitted;
 graph._z.arrows.resid.f = createResidual;
 graph._z.arrows.pearson.f = createResidual;
 graph._z.arrows.cookd.f = createCookd;
-graph._z.arrows.hat.f = createLeverage;
+graph._z.arrows.hat.f = createHat;
 
 	//-----------------------------------------------------------
 
 	function createCookd(i,graph)
 	{
+	if(!recordMatch(i,graph)) return void 0;
+
 	var er = vrecords[i][graph.ivalue1] - predict(i,graph);
-	var ha = graph._z.hat[i];
+	var ha = graph._z.hatvalues[i];
 	var nr = graph._z.nr;
 	var n = graph._z.list.length;
 	var mse = graph._z.mse;
@@ -18462,9 +18482,10 @@ graph._z.arrows.hat.f = createLeverage;
 
 	//-----------------------------------------------------------
 
-	function createLeverage(i,graph)
+	function createHat(i,graph)
 	{
-	return Math.round(graph._z.hat[i]*PREC)/PREC;
+	if(!recordMatch(i,graph)) return void 0;
+	return Math.round(graph._z.hatvalues[i]*PREC)/PREC;
 	}
 
 	//-----------------------------------------------------------
@@ -18654,7 +18675,7 @@ graph._z.df = df;
 graph._z.pvalue = pvalue;
 graph._z.cv = cv;
 
-graph._z.hatvalues = hatvalues();
+graph._z.hatvalues = dispatch(hatvalues(n),graph);
 
 graph._z.arrows.fitted.f = createFitted;
 graph._z.arrows.predict.f = createPredict;
@@ -18730,8 +18751,10 @@ graph._z.aic = aic(coef);
 
 	function createCook(i,graph)
 	{
+	if(!recordMatch(i,graph)) return void 0;
+
 	var pe = createPearson(i,graph);
-	var ha = createHat(i,graph);
+	var ha = graph._z.hatvalues[i];
 	var cook = pe*pe*ha/((1-ha)*(1-ha));
 	cook /= graph._z.coef.length;
 	return Math.round(cook*PREC)/PREC;
@@ -18741,8 +18764,9 @@ graph._z.aic = aic(coef);
 
 	function createHat(i,graph)
 	{
-	var h = graph._z.hatvalues[i];	
-	return Math.round(h*PREC)/PREC;
+	if(!recordMatch(i,graph)) return void 0;
+	var ha = graph._z.hatvalues[i];	
+	return Math.round(ha*PREC)/PREC;
 	}
 
 	//-----------------------------------------------------------
@@ -18815,7 +18839,7 @@ graph._z.aic = aic(coef);
 
 	//-----------------------------------------------------------
 
-	function hatvalues()
+	function hatvalues(n)
 	{
 	var M = matrix(n,n);
 
@@ -18995,7 +19019,7 @@ graph._z.df = df;
 graph._z.pvalue = pvalue;
 graph._z.cv = cv;
 
-graph._z.hatvalues = hatvalues();
+graph._z.hatvalues = dispatch(hatvalues(n),graph);
 
 graph._z.arrows.resid.f = createResidual;
 graph._z.arrows.fitted.f = createFitted;
@@ -19161,6 +19185,7 @@ console.log("aic="+graph._z.aic);
 
 	function createHat(i,graph)
 	{
+	if(!recordMatch(i,graph)) return void 0;
 	return Math.round(graph._z.hatvalues[i]*PREC)/PREC;
 	}
 
@@ -19168,8 +19193,10 @@ console.log("aic="+graph._z.aic);
 
 	function createCook(i,graph)
 	{
+	if(!recordMatch(i,graph)) return 0;
+
 	var pe = createPearson(i,graph);
-	var ha = createHat(i,graph);
+	var ha = graph._z.hatvalues[i];
 	var cook = pe*pe*ha/((1-ha)*(1-ha));
 	cook /= graph._z.coef.length;
 	return Math.round(cook*PREC)/PREC;
@@ -19177,7 +19204,7 @@ console.log("aic="+graph._z.aic);
 
 	//-----------------------------------------------------------
 
-	function hatvalues()
+	function hatvalues(n)
 	{
 	var M = matrix(n,n);
 
@@ -19198,7 +19225,7 @@ console.log("aic="+graph._z.aic);
 			}
 		}
 
-	var I = invN(M);
+	var I = invM(M);
 
 	var hat = vector(vrecords.length);
 
@@ -19323,11 +19350,13 @@ graph._z.df = df;
 
 graph._z.phi = phi;
 
-graph._z.hat = hatvalues();
+graph._z.hatvalues = dispatch(hatvalues(n),graph);
 
 graph._z.level = level;
 graph._z.pvalue = pvalue;
 graph._z.cv = cv;
+
+graph._z.aic = aic(coef);
 
 graph._z.arrows.fitted.f = createFitted;
 graph._z.arrows.resid.f = createResidual;
@@ -19337,6 +19366,24 @@ graph._z.arrows.pearson.f = createPearson;
 graph._z.arrows.cookd.f = createCook;
 
 console.log(graph._z);
+
+	//--------------------------------------------------------------
+
+	function aic(coef)
+	{
+	var a = 0;
+	for(var i=0;i<vrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var l = lambda(i,coef);
+		var y = vrecords[i][graph.ivalue1];
+		a += y*Math.log(l) - l;
+		var t = 0;
+		for(var j=1;j<=y;j++)
+			a -= Math.log(j);
+		}
+	return -2*a+2*coef.length;
+	}
 
 	//--------------------------------------------------------------
 
@@ -19350,18 +19397,11 @@ console.log(graph._z);
 
 	//--------------------------------------------------------------
 
-	function createRaw(i,graph)
-	{
-	var y = vrecords[i][graph.ivalue1];
-	var r = y - lambda(i,graph._z.coef);
-	return Math.round(r*PREC)/PREC;
-	}
-
-	//--------------------------------------------------------------
 
 	function createHat(i,graph)
 	{
-	return Math.round(graph._z.hat[i]*PREC)/PREC;
+	if(!recordMatch(i,graph)) return void 0;
+	return Math.round(graph._z.hatvalues[i]*PREC)/PREC;
 	}
 
 	//--------------------------------------------------------------
@@ -19399,8 +19439,10 @@ console.log(graph._z);
 
 	function createCook(i,graph)
 	{
+	if(!recordMatch(i,graph)) return void 0;
+
 	var pe = createPearson(i,graph);
-	var ha = createHat(i,graph);
+	var ha = graph._z.hatvalues[i];
 	var n = graph._z.coef.length;
 	var r = ha/((1-ha)*(1-ha))*pe*pe/n;
 	return Math.round(r*PREC)/PREC;
@@ -19473,7 +19515,7 @@ console.log(graph._z);
 
 	//--------------------------------------------------------------
 
-	function hatvalues()
+	function hatvalues(n)
 	{
 	var M = matrix(n,n);
 
@@ -19656,7 +19698,7 @@ graph._z.df = df;
 graph._z.pvalue = pvalue;
 graph._z.cv = cv;
 
-graph._z.hat = hatvalues(beta,ka);
+graph._z.hatvalues = dispatch(hatvalues(beta,ka),graph);
 
 graph._z.aic = aic(beta,ka);
 
@@ -19672,7 +19714,8 @@ graph._z.arrows.cookd.f = createCook;
 
 	function createHat(i,graph)
 	{
-	var h = graph._z.hat[i];
+	if(!recordMatch(i,graph)) return void 0;
+	var h = graph._z.hatvalues[i];
 	return Math.round(h*PREC)/PREC;
 	}
 
@@ -19725,8 +19768,10 @@ graph._z.arrows.cookd.f = createCook;
 
 	function createCook(i,graph)
 	{
+	if(!recordMatch(i,graph)) return void 0;
+
 	var pe = createPearson(i,graph);
-	var ha = createHat(i,graph);
+	var ha = graph._z.hatvalues[i];
 	var n = graph._z.beta.length;
 	var r = ha/((1-ha)*(1-ha))*pe*pe/n;
 	return Math.round(r*PREC)/PREC;
@@ -20591,7 +20636,7 @@ if(option==0)
 	var z = Math.round(deviance*PREC)/PREC;
 	ctx.fillText(z+"",x+230,y);
 	z = Math.round(pvalue*PREC)/PREC;
-	ctx.fillText("(pvalue="+z+")",x+350,y);
+	ctx.fillText("(pvalue="+z+")",x+370,y);
 	ctx.textAlign = "left";
 	ctx.fillText("(df="+df+")",x+400,y);
 
@@ -20602,7 +20647,7 @@ if(option==0)
 	var z = Math.round(cv*PREC)/PREC;
 	ctx.textAlign = "right";
 	ctx.fillText(z+"",x+230,y);
-	ctx.fillText("(\u03B1="+level+")",x+350,y);
+	ctx.fillText("(\u03B1="+level+")",x+370,y);
 
 	y += 40;
 
