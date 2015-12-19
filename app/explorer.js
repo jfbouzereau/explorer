@@ -168,6 +168,8 @@ _action("RESIZE_LABELS","Resize list");
 _action("RESIZE_VALUES","Resize list");
 _action("DRAG_RESULT","");
 _action("CREATE_RESULT","Create field from result");
+_action("PASTE_RESULT_LEFT","Define field");
+_action("PASTE_RESULT_TOP","Define field");
 _action("DRAG_VALUELIST","");
 _action("DRAG_LABELLIST","");
 
@@ -443,6 +445,7 @@ var valueindex = -1
 var valueindex2 = -1;
 var titleindex = -1
 var menuindex = -1;
+var resultkey = null;
 
 var selection = null;
 var selecthue = 0;
@@ -11345,6 +11348,7 @@ graph._z.ellipse = computeScatterEllipse(V);
 graph._z.zmin = zmin;
 graph._z.zmax = zmax;
 
+
 if(graph.ilabel1>=0)
 	{
 	var H = matrix(2,2);
@@ -11634,9 +11638,6 @@ var zmax = graph._z.zmax;
 ctx.strokeStyle = "#000000";
 ctx.strokeRect(xleft,ytop,xright-xleft,ybottom-ytop);
 
-ctx.save();
-ctx.rect(xleft,ytop,xright-xleft,ybottom-ytop);
-ctx.clip();
 
 // draw regression line
 if(option==0)
@@ -11644,15 +11645,15 @@ if(option==0)
 	ctx.strokeStyle = GREEN;
 	ctx.lineWidth = 1
 	ctx.beginPath()
-	var xx = graph._z.min;
+	var xx = xmin;
 	var yy = graph._z.a * xx + graph._z.b;
-	x = xleft+(xx-graph._z.xmin)*xscale;
-	y = ybottom-(yy-graph._z.ymin)*yscale
+	x = xleft+(xx-xmin)*xscale;
+	y = ybottom-(yy-ymin)*yscale
 	ctx.moveTo(x,y)
-	xx = graph._z.max;
+	xx = xmax;
 	yy = graph._z.a * xx + graph._z.b;
-	x = xleft+(xx-graph._z.xmin)*xscale;
-	y = ybottom-(yy-graph._z.ymin)*yscale
+	x = xleft+(xx-xmin)*xscale;
+	y = ybottom-(yy-ymin)*yscale
 	ctx.lineTo(x,y)
 	ctx.stroke()
 	}
@@ -11685,6 +11686,10 @@ ctx.fillRect(graph.x+5,y,graph.w-10,1)
 
 if(option==0)
 	{
+	ctx.save();
+	ctx.rect(xleft,ytop,xright-xleft,ybottom-ytop);
+	ctx.clip();
+
 	// draw points
 	for(var i=0;i<lrecords.length;i++)
 		{
@@ -11760,6 +11765,8 @@ if(option==0)
 		}
 
 
+	ctx.restore();
+
 	ctx.fillStyle = "#000000";
 	ctx.textAlign = "center";
 	ctx.font = font;
@@ -11771,6 +11778,10 @@ if(option==0)
 
 if((option==1)&&(graph.ilabel1<0))
 	{
+	ctx.save();
+	ctx.rect(xleft,ytop,xright-xleft,ybottom-ytop);
+	ctx.clip();
+
 	var xcenter = graph._z.center[0];
 	var ycenter = graph._z.center[1];
 
@@ -11801,10 +11812,16 @@ if((option==1)&&(graph.ilabel1<0))
 	ctx.fillStyle = "#000000";
 	ctx.fillRect(x-1,y-5,2,10);
 	ctx.fillRect(x-5,y-1,10,2);
+
+	ctx.restore();
 	}
 
 if((option==1)&&(graph.ilabel1>=0))
 	{
+	ctx.save();
+	ctx.rect(xleft,ytop,xright-xleft,ybottom-ytop);
+	ctx.clip();
+
 	var xcenter = graph._z.center[0];
 	var ycenter = graph._z.center[1];
 
@@ -11860,9 +11877,10 @@ if((option==1)&&(graph.ilabel1>=0))
 	ctx.fillStyle = "#000000";
 	ctx.fillRect(x-1,y-5,2,10);
 	ctx.fillRect(x-5,y-1,10,2);
+
+	ctx.restore();
 	}
 
-ctx.restore();
 
 }
 
@@ -21190,7 +21208,7 @@ for(var key in graph._z.arrows)
 	var y = graph._z.arrows[key].y;
 	if(inRect(pt,graph.x+x-10,graph.y+y-10,20,20))
 		{	
-		valueindex = key;
+		resultkey = key;
 		return DRAG_RESULT;
 		}
 	}
@@ -21204,49 +21222,33 @@ return -1;
 function upRegresGraph(graph)
 {
 
-if(action==CREATE_RESULT)
+if((action==CREATE_RESULT)||(action==PASTE_RESULT_LEFT)||(action==PASTE_RESULT_TOP))
 	{
-	var f = graph._z.arrows[valueindex].f;
-	var name = values[graph.ivalue1];
-	name += "."+graph._z.arrows[valueindex].n;
-	if(!f) return;
-	createResult(f,graph,name);
-	}
-
-/*
-if(action==CREATE_PROJECTION)
-	{
-	if(zvalue==values.length) zvalue++;
-	if(valueindex==1)
-		values.push(values[graph.ivalue1]+"."+(++newfield));
-	else
-		values.push("RES"+"."+(++newfield));
-
-	var list = graph._z.list;
-	var A = graph._z.a;
-	var t;
-	for(var i=0;i<vrecords.length;i++)
+	if(!graph._z.arrows[resultkey].vi)
 		{
-		var y = 0;	
-		for(var k=0;k<list.length;k++)
-			{
-			var x = 1;
-			for(var j=0;j<list[k].length;j++) switch(list[k][j])
-				{
-				case 1 : t = vrecords[i][graph.ivalues[j]]; x *= t; break;
-				case 2 : t = vrecords[i][graph.ivalues[j]]; x *= t*t; break;
-				case 3 : t = vrecords[i][graph.ivalues[j]]; x *= t*t*t; break;
-				}
-			y += x*A[k];	
-			}		
-		
-		if(valueindex==1)
-			vrecords[i].push(y);
-		else
-			vrecords[i].push(y-vrecords[i][graph.ivalue1]);
+		var f = graph._z.arrows[resultkey].f;
+		var name = values[graph.ivalue1];
+		name += "."+graph._z.arrows[resultkey].n;
+		if(!f) return;
+		createResult(f,graph,name);
+		graph._z.arrows[resultkey].vi = values.length-1;
 		}
 	}
-*/
+
+if(action==PASTE_RESULT_LEFT)
+	{
+	valueindex =  graph._z.arrows[resultkey].vi;
+	var graph2 = graphs[graphindex2];
+	setGraphValue(graph2,"leftvalue");
+	}
+
+if(action==PASTE_RESULT_TOP)
+	{
+	valueindex =  graph._z.arrows[resultkey].vi;
+	var graph2 = graphs[graphindex2];
+	setGraphValue(graph2,"topvalue");
+	}
+	
 
 }
 
@@ -24076,6 +24078,7 @@ optionindex = -1;
 titleindex = -1
 stickerindex = -1
 menuindex = -1;
+resultkey = null;
 
 var index = -1;
 
@@ -26474,7 +26477,23 @@ else if(faction==DRAG_AXIS)
 	}
 else if(faction==DRAG_RESULT)
 	{
-	action = inValue(ptmove)>=0  ? CREATE_RESULT : DRAG_RESULT;
+	var i = inFullGraph(ptmove);
+	if(inValue(ptmove)>=0)
+		action = CREATE_RESULT;
+	else if(i<0)
+		action = DRAG_RESULT;
+	else if(inGraphLeftValue(ptmove,graphs[i]))
+		{
+		action = PASTE_RESULT_LEFT;
+		graphindex2 = i;
+		}
+	else if(inGraphTopValue(ptmove,graphs[i]))
+		{
+		action = PASTE_RESULT_TOP;
+		graphindex2 = i;
+		}
+	else
+		action = DRAG_RESULT;
 	}
 else if(faction==DRAG_SET)
 	{
@@ -27639,9 +27658,23 @@ if((action==SET_TOPLABEL)||(action==SET_TOPVALUE)||(action==SWAP_VALUE_LT))
 	ctx.fillRect( graph.x+graph.w-100-graph.topshift, graph.y+graph.hbar+5,100,20)
 	}
 
+if(action==PASTE_RESULT_TOP)
+	{
+	var graph = graphs[graphindex2];
+	ctx.fillStyle = GRAY
+	ctx.fillRect( graph.x+graph.w-100-graph.topshift, graph.y+graph.hbar+5,100,20)
+	}
+
 if((action==SET_LEFTLABEL)||(action==SET_LEFTVALUE)||(action==SWAP_VALUE_TL))
 	{
 	var graph = graphs[graphindex]
+	ctx.fillStyle = GRAY
+	ctx.fillRect(graph.x+5,graph.y+graph.hbar+graph.leftshift,20,100)
+	}
+
+if(action==PASTE_RESULT_LEFT)
+	{
+	var graph = graphs[graphindex2];
 	ctx.fillStyle = GRAY
 	ctx.fillRect(graph.x+5,graph.y+graph.hbar+graph.leftshift,20,100)
 	}
