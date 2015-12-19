@@ -230,8 +230,8 @@ _type("MOMENTS","Statistics",{ivalues:1});
 _type("NORM","Normality tests",{topvalue:1,menu:"norm"});
 _type("HISTO","Histogram",{topvalue:1,leftlabel:1});
 _type("DISTRIB","Distribution curve",{topvalue:1});
-_type("PROBA","Probability plot",{topvalue:1,menu:"law"});
-_type("TUKEY","Tukey lambda PPCC plot",{topvalue:1});
+_type("PROBA","Q-Q plot",{leftvalue:2,rightlabel:3,menu:"law"});
+_type("TUKEY","Tukey lambda PPCC plot",{leftvalue:2});
 _type("SCATTER","Scatter plot",{topvalue:1,leftvalue:2,bottomlabel:1,rightlabel:3,options:2,unit:1});
 _type("POLAR","Polar plot",{topvalue:1,leftvalue:2,bottomlabel:1,rightlabel:3,options:2,menu:"angle",unit:1});
 _type("LAG","Lag plot",{topvalue:1});
@@ -303,8 +303,8 @@ _menu("CHI2","YATES","Yates' \u03C72 test");
 _menu("CHI2","G","G-test");
 _menu("CHI2","EXACT","Fisher's exact test");
 
-_menu("LAW","UNIFORM","Uniform");
 _menu("LAW","NORMAL","Normal");
+_menu("LAW","UNIFORM","Uniform");
 _menu("LAW","LOGNORMAL","Log-Normal");
 _menu("LAW","EXPONENTIAL","Exponential");
 
@@ -10845,14 +10845,14 @@ else if(faction==DRAG_CURSORV)
 
 function computeProbaData(graph)
 {
-if(graph.ivalue1<0) return;
+if(graph.ivalue2<0) return;
 
 graph._z.y = [];
 
 for(var i=0;i<vrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;
-	graph._z.y.push(vrecords[i][graph.ivalue1]);
+	graph._z.y.push(vrecords[i][graph.ivalue2]);
 	}
 
 graph._z.y.sort( function(a,b) { return a-b });
@@ -10975,19 +10975,15 @@ graph._z.corr = a/Math.sqrt(b*c);
 
 function drawProbaIcon(ctx,x,y)
 	{		
+	var font = ctx.font;
+	ctx.font = "bold 12px helvetica";
+	
 	ctx.fillStyle = "#000000";
-	for(var i=2;i<=18;i++)
-		ctx.fillRect(x+i,y+20-i,1,1);
+	ctx.textAlign = "center";
+	ctx.fillText("Q",x+6,y+11);
+	ctx.fillText("Q",x+15,y+18);
 
-	ctx.strokeStyle = "#000000";	
-	ctx.beginPath();
-	ctx.moveTo(x+2,y+20-3);
-	ctx.lineTo(x+3,y+20-6);
-	ctx.lineTo(x+4,y+20-8);
-	ctx.lineTo(x+17,y+20-12);
-	ctx.lineTo(x+18,y+20-14);
-	ctx.lineTo(x+19,y+20-16);
-	ctx.stroke();
+	ctx.font = font;
 	}
 
 //*********************************************************************
@@ -10995,11 +10991,12 @@ function drawProbaIcon(ctx,x,y)
 function drawProbaGraph(ctx,graph)
 {
 
+if(graph.ivalue2<0) return;
 
-if(graph.ivalue1>=0)
-	{
+var display = graph.ilabel3;
+
 	var x1 = graph.x+30;
-	var x2 = graph.x+graph.w-20;
+	var x2 = graph.x+graph.w-30;
 	var y1 = graph.y+graph.hbar+60;
 	var y2 = graph.y+graph.h-40;
 	var dx = x2-x1;
@@ -11035,14 +11032,23 @@ if(graph.ivalue1>=0)
 	ctx.stroke();
 	ctx.restore();
 
-	// draw points
+	// draw points	
+	var font = ctx.font;
+	ctx.textAlign = "center";
 	ctx.fillStyle = "#000000";
+	ctx.font = "9px helvetica";
+
 	for(var i=0;i<n;i++)
 		{
 		x = Math.round(x1 + (x2-x1)*(graph._z.x[i]-xmin)/(xmax-xmin));
 		y = Math.round(y2 - (y2-y1)*(graph._z.y[i]-ymin)/(ymax-ymin));
-		ctx.fillRect(x-2,y-2,4,4);
+		if(display>=0)
+			ctx.fillText(lrecords[i][display],x,y+3)
+		else
+			ctx.fillRect(x-2,y-2,4,4);
 		}
+
+	ctx.font = font;
 
 	ctx.strokeStyle = "#000000";
 	ctx.strokeRect(x1,y1,dx,dy);
@@ -11062,7 +11068,6 @@ if(graph.ivalue1>=0)
 	ctx.rotate(-Math.PI/2);
 	ctx.fillText("Data",0,0);
 	ctx.restore();
-	}
 
 }
 
@@ -11076,14 +11081,14 @@ if(graph.ivalue1>=0)
 
 function computeTukeyData(graph)
 {
-if(graph.ivalue1<0) return;
+if(graph.ivalue2<0) return;
 
 // data
 var y = [];
 for(var i=0;i<vrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;
-	y.push(vrecords[i][graph.ivalue1]);
+	y.push(vrecords[i][graph.ivalue2]);
 	}
 y.sort( function(a,b) { return a-b; });
 
@@ -11166,7 +11171,7 @@ function drawTukeyIcon(ctx,x,y)
 function drawTukeyGraph(ctx,graph)
 {
 
-if(graph.ivalue1>=0)
+if(graph.ivalue2>=0)
 	{
 	var x1 = graph.x+30;
 	var x2 = graph.x+graph.w-20;
@@ -20563,7 +20568,7 @@ var y = graph.y+60;
 			}
 		}
 
-	function link(title,x,y,code)
+	function link(title,x,y,key)
 	{
 	ctx.textAlign = "left";
 	ctx.fillStyle = "#000000";
@@ -20571,8 +20576,16 @@ var y = graph.y+60;
 	ctx.fillStyle = BLUE;
 	drawRightArrow(ctx,x+90,y-5);
 	
-	graph._z.arrows[code].x = x+90-graph.x;
-	graph._z.arrows[code].y = y-graph.y;
+	graph._z.arrows[key].x = x+90-graph.x;
+	graph._z.arrows[key].y = y-5-graph.y;
+
+	if(graph._z.overresult==key)
+		{
+		ctx.fillStyle = GRAY;
+		ctx.beginPath();
+		ctx.arc(x+88,y-5,10,0,Math.PI*2,false);
+		ctx.fill();
+		}
 
 	ctx.fillStyle = "#000000";
 	}
@@ -20740,7 +20753,7 @@ if(option==2)
 		}
 	}
 
-	function link(title,x,y,code)
+	function link(title,x,y,key)
 	{
 	ctx.textAlign = "left";
 	ctx.fillStyle = "#000000";
@@ -20748,8 +20761,16 @@ if(option==2)
 	ctx.fillStyle = BLUE;
 	drawRightArrow(ctx,x+90,y-5);
 	
-	graph._z.arrows[code].x = x+90-graph.x;
-	graph._z.arrows[code].y = y-graph.y;
+	graph._z.arrows[key].x = x+90-graph.x;
+	graph._z.arrows[key].y = y-5-graph.y;
+
+	if(graph._z.overresult==key)
+		{
+		ctx.fillStyle = GRAY;
+		ctx.beginPath();
+		ctx.arc(x+88,y-5,10,0,Math.PI*2,false);
+		ctx.fill();
+		}
 
 	ctx.fillStyle = "#000000";
 	}
@@ -21206,7 +21227,7 @@ for(var key in graph._z.arrows)
 	if(!graph._z.arrows[key].x) continue;
 	var x = graph._z.arrows[key].x;
 	var y = graph._z.arrows[key].y;
-	if(inRect(pt,graph.x+x-10,graph.y+y-10,20,20))
+	if(inRect(pt,graph.x+x-12,graph.y+y-12,24,24))
 		{	
 		resultkey = key;
 		return DRAG_RESULT;
@@ -21214,6 +21235,29 @@ for(var key in graph._z.arrows)
 	}
 
 return -1;
+
+}
+
+//*********************************************************************
+
+function moveRegresGraph(pt,graph)
+{
+if(graph.ivalues.length==0) return -1;
+if(graph.ivalue1<0) return -1;
+
+if(!graph._z) return -1;
+if(!graph._z.arrows) return -1;
+
+graph._z.overresult = null;
+
+for(var key in graph._z.arrows)
+	{
+	if(!graph._z.arrows[key].x) continue;
+	var x = graph._z.arrows[key].x;
+	var y = graph._z.arrows[key].y;
+	if(inRect(pt,graph.x+x-12,graph.y+y-12,24,24))
+		graph._z.overresult = key;
+	}
 
 }
 
