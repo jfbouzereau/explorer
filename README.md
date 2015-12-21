@@ -309,7 +309,7 @@ There are two kinds of fields :
 
 The Explorer is written in javascript and built with [electron](http://electron.atom.io),
 
-Pre-built binaries for OSX and Windows can be downloaded from [the release page](https://github.com/jfbouzereau/explorer/releases).
+Pre-built binaries for OSX and Windows can be downloaded from [the release page](https://github.com/jfbouzereau/explorer/releases), then double-click the Explorer application.
 
 For Linux, download [electron](https://github.com/atom/electron/releases), 
 download the source of the Data Explorer from [the release page](https://github.com/jfbouzereau/explorer/releases) and copy the app folder into electron/resources.
@@ -318,7 +318,6 @@ download the source of the Data Explorer from [the release page](https://github.
 
 The Explorer can also be executed in any modern browser. Open app/index.html, 
 paste the data from the clipboard, and click OK.
-![](http://88.162.232.107/explorer.jpg)
 
 ## Contact
 

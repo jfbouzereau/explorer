@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.92";
+var VERSION = "1.93";
 
 /***************************************************************************/
 
@@ -168,10 +168,14 @@ _action("RESIZE_LABELS","Resize list");
 _action("RESIZE_VALUES","Resize list");
 _action("DRAG_RESULT","");
 _action("CREATE_RESULT","Create field from result");
-_action("PASTE_RESULT_LEFT","Define field");
-_action("PASTE_RESULT_TOP","Define field");
+_action("PASTE_RESULT_LEFT","Set definition");
+_action("PASTE_RESULT_TOP","Set definition");
+_action("PASTE_RESULT_I","Add field");
+_action("PASTE_RESULT_J","Add field");
 _action("DRAG_VALUELIST","");
 _action("DRAG_LABELLIST","");
+_action("SWAP_CORNERS","Swap axes");
+
 
 // actions that gray the graph
 var GACTIONS = {}
@@ -238,7 +242,7 @@ _type("LAG","Lag plot",{topvalue:1});
 _type("CORR","Correlations",{ivalues:1,options:2});
 _type("AUTOCORR","Autocorrelation plot",{topvalue:1});
 _type("ACP","Principal components",{ivalues:1,bottomlabel:1,rightlabel:3,options:3,unit:1});
-_type("CANON","Canonical correlation analysis",{leftlabel:1,ivalues:1,jvalues:1,rightlabel:3,options:5,unit:1});
+_type("CANON","Canonical correlation analysis",{bottomlabel:1,ivalues:1,jvalues:1,rightlabel:3,options:5,unit:1});
 _type("CLUSTERING","Clustering",{ivalues:1,menu:"clustering"});
 //_type("TYPE_HUEN","Huen diagram");
 _type("DENDRO","Dendrogram",{ivalues:1,options:2});
@@ -250,7 +254,7 @@ _type("G3D","3D plot",{ivalues:1,leftlabel:1});
 
 var NBTYPE2 = KNUM; 		//  max plot types
 
-_type("DISCRI","Discriminant analysis",{ivalues:1,leftlabel:1,bottomlabel:3,options:3,unit:1});
+_type("DISCRI","Discriminant analysis",{ivalues:1,bottomlabel:1,rightlabel:3,options:3,unit:1});
 _type("TEST","Analysis of variance",{jvalues:1,ilabels:1,menu:"test",options:3});
 _type("NONPARAM","Non parametric tests",{ilabels:1,leftvalue:1,menu:"nonparam",options:2});
 _type("BOX","Box plot",{ivalues:1,leftlabel:1});
@@ -729,6 +733,7 @@ this.timerid = null;	// for long computation
 this.hbar = (this.selection.length/2)*16;
 if(this.hbar==0) this.hbar = 16;
 
+// positions of slots
 this.topshift = 5;
 this.leftshift = 5;
 this.bottomshift = 5;
@@ -744,6 +749,12 @@ this.ncontour = 0;
 this.stickers = [];
 
 this.iunit = 0;
+
+// axes orientation
+this.fromCorner = -1;
+this.toCorner = -1;
+this.xsign = 1;
+this.ysign = 1;
 
 this.placeholder = {};	// labelling the slots
 this.limit = {};		// limiting the slots
@@ -1784,6 +1795,105 @@ if(graph.hbar==0) graph.hbar = 16
 			break;
 		}
 	return x;
+	}
+}
+
+//*********************************************************************
+
+function initCorners(graph)
+{
+if(!graph._z) return;
+graph._z.corners = new Array(4);
+for(var i=0;i<4;i++)
+	graph._z.corners[i] = {x:0,y:0};
+
+}
+
+//*********************************************************************
+
+function setGraphCorner(graph,corner,x,y)
+{
+graph._z.corners[corner].x = x;
+graph._z.corners[corner].y = y;
+}
+
+//*********************************************************************
+
+function drawCorner(ctx,graph,x,y,corner)
+{
+
+var r = 20;
+
+ctx.fillStyle = GRAY;
+
+ctx.beginPath();		
+ctx.moveTo(x,y);
+switch(corner)
+	{
+	case 0:
+		ctx.lineTo(x+r,y);
+		ctx.arc(x,y,r,0,Math.PI/2,false);
+		break;
+
+	case 1:
+		ctx.lineTo(x-r,y);
+		ctx.arc(x,y,r,Math.PI,Math.PI/2,true);
+		break;
+
+	case 2:
+		ctx.lineTo(x+r,y);
+		ctx.arc(x,y,r,0,-Math.PI/2,true);
+		break;
+
+	case 3:
+		ctx.lineTo(x-r,y);
+		ctx.arc(x,y,r,Math.PI,-Math.PI/2,false);
+		break;
+	}
+
+ctx.closePath();
+ctx.fill();	
+
+}
+
+//*********************************************************************
+
+function createResult(result,func)
+{
+
+// if result not allready created
+if(!result.vi)
+	{
+	func();
+	result.vi = values.length-1;
+	}
+
+if(action==PASTE_RESULT_LEFT)
+	{	
+	valueindex = result.vi;
+	var graph2 = graphs[graphindex2];
+	setGraphValue(graph2,"leftvalue");
+	}
+
+if(action==PASTE_RESULT_TOP)
+	{
+	valueindex = result.vi;
+	var graph2 = graphs[graphindex2];
+	setGraphValue(graph2,"topvalue");
+	}
+	
+if(action==PASTE_RESULT_I)
+	{
+	valueindex = result.vi;
+	graph = graphs[graphindex2]
+	setGraphValuei(graph);
+	}
+
+if(action==PASTE_RESULT_J)
+	{
+	valueindex = result.vi;
+	graph = graphs[graphindex2]
+	setGraphValuej(graph);
 	}
 }
 
@@ -11775,8 +11885,8 @@ if(option==0)
 	ctx.fillStyle = "#000000";
 	ctx.textAlign = "center";
 	ctx.font = font;
-	var t = "SLOPE: "+(Math.round(graph._z.a*10000)/10000)+
-		"   INTERCEPT: "+(Math.round(graph._z.b*10000)/1000);
+	var t = "SLOPE: "+(Math.round(graph._z.a*PREC)/PREC)+
+		"   INTERCEPT: "+(Math.round(graph._z.b*PREC)/PREC);
 	ctx.fillText(t,graph.x+graph.w/2,graph.y+graph.h-7);
 	ctx.textAlign = "left";
 	}
@@ -12903,8 +13013,13 @@ graph.placeholder.rightlabel = "LABEL";
 
 if(graph.ivalues.length<2) return;
 
-
 computeCorrelationMatrix(graph)
+
+graph._z.results = {};
+graph._z.results.horiz = {x:0,y:0};
+graph._z.results.vert = {x:0,y:0};
+
+
 
 var n = graph.ivalues.length
 
@@ -12927,6 +13042,10 @@ graph._z.I = I;
 var nr = lrecords.length;
 var rows = matrix(nr,n);
 
+var xmin = Number.MAX_VALUE;
+var xmax = -Number.MAX_VALUE;
+var ymin = Number.MAX_VALUE;
+var ymax = -Number.MAX_VALUE;
 var zmin = Number.MAX_VALUE;
 var zmax = -Number.MAX_VALUE;
 
@@ -12978,6 +13097,23 @@ for(var j=0;j<n;j++)
 		sumxy[j][k] = sumxy[j][k]/count;
 
 
+for(var i=0;i<rows.length;i++)
+	{
+	if(rows[i][0]<xmin) xmin = rows[i][0];
+	if(rows[i][0]>xmax) xmax = rows[i][0];
+	if(rows[i][1]<ymin) ymin = rows[i][1];
+	if(rows[i][1]>ymax) ymax = rows[i][1];
+	}
+
+var dx = xmax-xmin;
+var dy = ymax-ymin;
+		
+graph._z.xmin = xmin-dx/25;
+graph._z.xmax = xmax+dx/25;
+graph._z.ymin = ymin-dy/25;
+graph._z.ymax = ymax+dy/25;
+
+graph._z.I = I;
 graph._z.rows = rows
 
 graph._z.proj = sumxy;
@@ -12987,6 +13123,7 @@ graph._z.zmax = zmax;
 
 computeGraphData1(graph);
 
+initCorners(graph);
 
 }
 
@@ -13017,63 +13154,74 @@ if(graph.ivalues.length>=2)
 	if(option==0)
 		{
 		var display = graph.ilabel3;
+		var xsign = graph.xsign;
+		var ysign = graph.ysign;
 
-		var x1 = graph.x+5
-		var x2 = graph.x + graph.w -115
+
+		var x1 = graph.x;
+		var x2 = graph.x + graph.w -110;
 		var xc = (x1+x2)/2
 
 		var y1 = graph.y + graph.hbar + 5
-		var y2 = graph.y + graph.h -5
+		var y2 = graph.y + graph.h -30;
 		var yc = (y1+y2)/2
 
-		xmin = Number.MAX_VALUE;
-		xmax = -Number.MAX_VALUE;
-		ymin = Number.MAX_VALUE;
-		ymax = -Number.MAX_VALUE;
-
-		zmin = graph._z.zmin;
-		zmax = graph._z.zmax;
+		var xmin = graph._z.xmin;
+		var xmax = graph._z.xmax;
+		var ymin = graph._z.ymin;
+		var ymax = graph._z.ymax;
+		var zmin = graph._z.zmin;
+		var zmax = graph._z.zmax;
 
 		var rows = graph._z.rows;
-
-		for(var i=0;i<rows.length;i++)
-			{
-			if(rows[i][0]<xmin) xmin = rows[i][0];
-			if(rows[i][0]>xmax) xmax = rows[i][0];
-			if(rows[i][1]<ymin) ymin = rows[i][1];
-			if(rows[i][1]>ymax) ymax = rows[i][1];
-			}
 
 		var scale = (x2-x1)/(xmax-xmin)
 		if((ymax-ymin)*scale>y2-y1)
 			scale = (y2-y1)/(ymax-ymin)
-
 
 		x1 = xc - (xmax-xmin)*scale/2
 		x2 = xc + (xmax-xmin)*scale/2
 		y1 = yc - (ymax-ymin)*scale/2
 		y2 = yc + (ymax-ymin)*scale/2
 
+		setGraphCorner(graph,0,x1,y1);
+		setGraphCorner(graph,1,x2,y1);
+		setGraphCorner(graph,2,x1,y2);
+		setGraphCorner(graph,3,x2,y2);
 
 		ctx.strokeStyle = "#000000"
 		ctx.fillStyle = "#000000"
-		var x = x1+scale*(0-xmin)
-		var y = y2-scale*(0-ymin)
+
+		ctx.strokeRect(x1,y1,x2-x1,y2-y1);
+
+		// origin	
+		if(xsign>0)
+			var xo = x1+scale*(0-xmin);
+		else
+			var xo = x2-scale*(0-xmin);
+
+		if(ysign>0)
+			var yo = y2-scale*(0-ymin)
+		else
+			var yo = y1+scale*(0-ymin);
 
 		// draw axes
-		ctx.fillStyle = "#999999"
-		ctx.fillRect(x,y1,1,y2-y1)
-		ctx.fillRect(x1,y,x2-x1,1)
+		ctx.fillStyle = vdotted;
+		ctx.fillRect(xo,y1,1,y2-y1)
+		ctx.fillStyle = hdotted;
+		ctx.fillRect(x1,yo,x2-x1,1)
 
 		// draw arrows
 		ctx.fillStyle = BLUE
 		ctx.strokeStyle = "#000000"
 
-		drawTopArrow(ctx,x,y1)
-		drawRightArrow(ctx,x2,y)
-	
-		graph._z.xaxis = {x:x2,y:y}
-		graph._z.yaxis = {x:x,y:y1}
+		drawTopArrow(ctx,xo,y1+5)
+		drawRightArrow(ctx,x2-5,yo)
+
+		graph._z.results.vert.x = xo;
+		graph._z.results.vert.y = y1;
+		graph._z.results.horiz.x = x2;
+		graph._z.results.horiz.y = yo;
 
 		// draw points
 
@@ -13085,8 +13233,8 @@ if(graph.ivalues.length>=2)
 			{		
 			if(!recordMatch(i,graph)) continue;
 
-			var x = x1+scale*(rows[i][0]-xmin)
-			var y = y2-scale*(rows[i][1]-ymin)
+			var x = xo+xsign*scale*(rows[i][0])
+			var y = yo-ysign*scale*(rows[i][1])
 
 			if(graph.ilabel1<0)
 				ctx.fillStyle = "#000000";
@@ -13118,8 +13266,8 @@ if(graph.ivalues.length>=2)
 				if(typeof(rows[i][0])=="undefined") continue;
 				if(!recordHilite(lrecords[i])) continue
 
-				var x = x1+scale*(rows[i][0]-xmin)
-				var y = y2-scale*(rows[i][1]-ymin)
+				var x = x1+xsign*scale*(rows[i][0]-xmin)
+				var y = y2-ysign*scale*(rows[i][1]-ymin)
 
 				if(display>=0)
 					{
@@ -13137,6 +13285,27 @@ if(graph.ivalues.length>=2)
 		
 				}
 			}
+
+		if((action==SWAP_CORNERS)&&(graphs[graphindex]==graph))
+			{
+			ctx.fillStyle = GRAY;
+			if(graph.toCorner==0)
+				ctx.fillRect(x1,y1,xo-x1,yo-y1);
+			else if(graph.toCorner==1)
+				ctx.fillRect(xo,y1,x2-xo,yo-y1);
+			else if(graph.toCorner==2)
+				ctx.fillRect(x1,yo,xo-x1,y2-yo);
+			else if(graph.toCorner==3)
+				ctx.fillRect(xo,yo,x2-xo,y2-yo);
+			}
+		else if(graph._z.overcorner==0)
+			drawCorner(ctx,graph,x1,y1,0);
+		else if(graph._z.overcorner==1)
+			drawCorner(ctx,graph,x2,y1,1);
+		else if(graph._z.overcorner==2)
+			drawCorner(ctx,graph,x1,y2,2);
+		else if(graph._z.overcorner==3)
+			drawCorner(ctx,graph,x2,y2,3);
 		}
 
 	if(option==1)
@@ -13196,11 +13365,11 @@ if(graph.ivalues.length>=2)
 		// VARIANCES
 
 		var x1 = graph.x+40
-		var x2 = graph.x + graph.w -115
+		var x2 = graph.x + graph.w -110;
 		var xc = (x1+x2)/2
 
 		var y1 = graph.y + graph.hbar + 5
-		var y2 = graph.y + graph.h -5
+		var y2 = graph.y + graph.h-30;
 		var yc = (y1+y2)/2
 
 		var n = graph._z.lambda.length;
@@ -13239,23 +13408,183 @@ ctx.font = font;
 
 //*********************************************************************
 
-function downAcpGraph(pt,graph)
+function moveAcpGraph(pt,graph)
 {
-if(typeof(graph._z.xaxis)=="undefined") return -1;
+var option = getGraphOption(graph);
 
-if(inRect(pt,graph._z.xaxis.x-10,graph._z.xaxis.y-10,20,20)) 
+if(option==0)
 	{
-	valueindex = 0;
-	return DRAG_AXIS;
+	if(!graph._z) return;
+	if(!graph._z.corners) return;
+
+	graph._z.overcorner = -1;
+
+	for(var i=0;i<4;i++)
+		{
+		var c = graph._z.corners[i];
+		if(inRect(pt,c.x-20,c.y-20,40,40))
+			{
+			graph._z.overcorner = i;
+			return;
+			}
+		}
 	}
 
-if(inRect(pt,graph._z.yaxis.x-10,graph._z.yaxis.y-10,20,20))
+if(option==2)
 	{
-	valueindex = 1;
-	return DRAG_AXIS;
+	var x1 = graph.x+40
+	var x2 = graph.x + graph.w -110;
+	var xc = (x1+x2)/2
+
+	var y1 = graph.y + graph.hbar + 5
+	var y2 = graph.y + graph.h -5
+	var yc = (y1+y2)/2
+
+	var n = graph._z.lambda.length;
+	var dx = (x2-x1)/n;
+
+	var sum = 0
+	for(var i=0;i<n;i++)
+		sum += graph._z.lambda[i];
+
+	for(var i=0;i<n;i++)
+		{
+		var x = x1 + i*dx;
+		if(inRect(pt,x,y1,dx,y2-y1))
+			{
+			var val = graph._z.lambda[i];
+			var pct = graph._z.lambda[i]*100/sum;
+			message = (Math.round(val*PREC)/PREC)+"  ( "+
+				(Math.round(pct*PREC)/PREC)+"% )";
+			return true;
+			}
+		}
+	}
+
+}
+
+//*********************************************************************
+
+function downAcpGraph(pt,graph)
+{
+var option = getGraphOption(graph);
+if(option!=0) return -1;
+
+for(var i=0;i<4;i++)
+	{
+	var c = graph._z.corners[i];
+	if(inRect(pt,c.x-20,c.y-20,40,40))
+		{
+		graph.fromCorner = i;
+		graph.toCorner = i;
+		return SWAP_CORNERS;
+		}
+	}
+
+var results = graph._z.results;
+
+if(inRect(pt,results.horiz.x-10,results.horiz.y-10,20,20)) 
+	{
+	resultkey = "horiz";
+	return DRAG_RESULT;
+	}
+
+if(inRect(pt,results.vert.x-10,results.vert.y-10,20,20))
+	{
+	resultkey = "vert";
+	return DRAG_RESULT;
 	}
 
 return -1;
+}
+
+//*********************************************************************
+
+function dragAcpGraph(pt,graph)
+{
+if(action!=SWAP_CORNERS) return;
+
+var x1 = graph.x;
+var x2 = graph.x + graph.w -110;
+var xc = (x1+x2)/2
+
+var y1 = graph.y + graph.hbar + 5
+var y2 = graph.y + graph.h -30;
+var yc = (y1+y2)/2
+
+var xmin = graph._z.xmin;
+var xmax = graph._z.xmax;
+var ymin = graph._z.ymin;
+var ymax = graph._z.ymax;
+var zmin = graph._z.zmin;
+var zmax = graph._z.zmax;
+
+var scale = (x2-x1)/(xmax-xmin)
+if((ymax-ymin)*scale>y2-y1)
+	scale = (y2-y1)/(ymax-ymin)
+
+x1 = xc - (xmax-xmin)*scale/2
+x2 = xc + (xmax-xmin)*scale/2
+y1 = yc - (ymax-ymin)*scale/2
+y2 = yc + (ymax-ymin)*scale/2
+
+if(inRect(pt,x1,y1,xc-x1,yc-y1))
+	graph.toCorner = 0;
+else if(inRect(pt,xc,y1,x2-xc,yc-y1))
+	graph.toCorner = 1;
+else if(inRect(pt,x1,yc,xc-x1,y2-yc))
+	graph.toCorner = 2;
+else if(inRect(pt,xc,yc,x2-xc,y2-yc))
+	graph.toCorner = 3;
+
+}
+
+//*********************************************************************
+
+function upAcpGraph(graph)
+{
+
+if(action==SWAP_CORNERS)
+	{
+	var x1 = graph.fromCorner%2;
+	var x2 = graph.toCorner%2;
+	if(x1!=x2) graph.xsign  = -graph.xsign;
+
+	var y1 = graph.fromCorner-x1;
+	var y2 = graph.toCorner-x2;
+	if(y1!=y2) graph.ysign = -graph.ysign;
+	}
+
+if((action==CREATE_RESULT)||
+	(action==PASTE_RESULT_LEFT)||
+	(action==PASTE_RESULT_TOP)||
+	(action==PASTE_RESULT_I)||	
+	(action==PASTE_RESULT_J))
+		createResult(graph._z.results[resultkey],fcreate);
+
+	function fcreate()
+	{
+	var n = graph.ivalues.length;
+	var I = graph._z.I;
+	var x;
+	var y;
+	valueindex = resultkey=="horiz" ? 0 : 1;
+
+	for(var i=0;i<lrecords.length;i++)
+		{
+		x = 0
+		for(var j=0;j<n;j++)
+			{
+			y = (vrecords[i][graph.ivalues[j]]-graph._z.avg[j])/graph._z.std[j]
+			x += y*I[j][valueindex];
+			}
+		vrecords[i].push(x)
+		}
+
+	if(zvalue==values.length) zvalue++;
+	values.push("PCA."+(++newfield));
+	}
+
 }
 
 //*********************************************************************
@@ -15371,11 +15700,15 @@ function drawDiscriIcon(ctx,x,y)
 function computeDiscriData(graph)
 {
 
-graph.placeholder.leftlabel = "CLASSES";
-graph.placeholder.bottomlabel = "LABEL";
+graph.placeholder.bottomlabel = "CLASSES";
+graph.placeholder.rightlabel = "LABEL";
 
 if(graph.ilabel1<0) return;
 if(graph.ivalues.length<2) return
+
+graph._z.results = {};
+graph._z.results.horiz = {x:0,y:0};
+graph._z.results.vert = {x:0,y:0};
 
 computeGraphData1(graph)
 
@@ -15512,6 +15845,9 @@ for(var i=0;i<rows.length;i++)
 	if(rows[i][1]>ymax) ymax = rows[i][1];
 	}	
 
+var dx = xmax-xmin;
+var dy = ymax-ymin;
+
 var zmin = Number.MAX_VALUE;
 var zmax = -Number.MAX_VALUE;
 if(graph.iunit>0)
@@ -15526,10 +15862,10 @@ for(var i=0;i<vrecords.length;i++)
 graph._z.nv = nv;
 graph._z.ng = ng;
 graph._z.rows = rows;
-graph._z.xmin = xmin;
-graph._z.xmax = xmax;
-graph._z.ymin = ymin;
-graph._z.ymax = ymax;
+graph._z.xmin = xmin-dx/25;
+graph._z.xmax = xmax+dx/25;
+graph._z.ymin = ymin-dy/25;
+graph._z.ymax = ymax+dy/25;
 graph._z.lambda = wr;
 graph._z.corr = corr;
 graph._z.ellipse = ellipse;
@@ -15736,10 +16072,10 @@ if(option==0)
 	{
 	var display = graph.ilabel3;
 
-	var xleft = graph.x + 5
-	var xright = graph.x + graph.w -115
-	var ytop = graph.y + graph.hbar + 5
-	var ybottom = graph.y + graph.h -5
+	var xleft = graph.x + 10;
+	var xright = graph.x + graph.w -110;
+	var ytop = graph.y + graph.hbar +10;
+	var ybottom = graph.y + graph.h -30;
 
 	var xmin = graph._z.xmin;
 	var xmax = graph._z.xmax;
@@ -15767,26 +16103,32 @@ if(option==0)
 	var x;
 	var y;
 
+	// draw frame
+	ctx.strokeStyle = "#000000";
+	ctx.strokeRect(xleft,ytop,xright-xleft,ybottom-ytop);
+
 	// draw axes
-	ctx.fillStyle = "#999999"
-
+	ctx.fillStyle = vdotted;
 	x = x1 + scale*(0-xmin)
-	ctx.fillRect(x,y1,1,y2-y1)
+	ctx.fillRect(x,ytop,1,ybottom-ytop);
 
+	ctx.fillStyle = hdotted;
 	y = y2 - scale*(0-ymin)
-	ctx.fillRect(x1,y,x2-x1,1);
+	ctx.fillRect(xleft,y,xright-xleft,1);
 
 	// draw arrows
 	ctx.fillStyle = BLUE
 	ctx.strokeStyle = "#000000"
 
-	drawTopArrow(ctx,x,y1)
-	drawRightArrow(ctx,x2,y)
+	drawTopArrow(ctx,x,ytop+4)
+	drawRightArrow(ctx,xright-4,y)
 
-	graph._z.xaxis = {x:x2,y:y}
-	graph._z.yaxis = {x:x,y:y1}
+	graph._z.results.vert.x = x;
+	graph._z.results.vert.y = ytop;
+	graph._z.results.horiz.x = xright;
+	graph._z.results.horiz.y = y;
 
-	for(var key in graph._z.xcenter)
+	for(var key in graph._z.pcenters)
 		{
 		draw_ellipse(key,x1,y2,0.5);
 		draw_ellipse(key,x1,y2,1);
@@ -15941,8 +16283,8 @@ if(option==2)
 	function draw_ellipse(key,x1,y,ratio)
 	{	
 	ctx.strokeStyle = graph._colors1[key];
-	var xe = x1 + scale*(graph._z.xcenter[key]-xmin)	
-	var ye = y2 - scale*(graph._z.ycenter[key]-ymin);
+	var xe = x1 + scale*(graph._z.pcenters[key][0]-xmin)	
+	var ye = y2 - scale*(graph._z.pcenters[key][1]-ymin);
 	ctx.beginPath();
 	for(var i=0;i<graph._z.ellipse[key].x.length;i++)
 		{
@@ -15963,19 +16305,24 @@ if(option==2)
 
 function downDiscriGraph(pt,graph)
 {
-if(graph.ilabel1<0) return;
-if(graph.ivalues.length<2) return;
+if(graph.ilabel1<0) return -1;
+if(graph.ivalues.length<2) return -1;
 
-if(inRect(pt,graph._z.xaxis.x-10,graph._z.xaxis.y-10,20,20)) 
+var option = getGraphOption(graph);
+if(option!=0) return -1;
+
+var results = graph._z.results;
+
+if(inRect(pt,results.horiz.x-10,results.horiz.y-10,20,20)) 
 	{
-	valueindex = 0;
-	return DRAG_AXIS;
+	resultkey = "horiz";
+	return DRAG_RESULT;
 	}
 
-if(inRect(pt,graph._z.yaxis.x-10,graph._z.yaxis.y-10,20,20))
+if(inRect(pt,results.vert.x-10,results.vert.y-10,20,20))
 	{
-	valueindex = 1;
-	return DRAG_AXIS;
+	resultkey = "vert";
+	return DRAG_RESULT;
 	}
 
 return -1;
@@ -15987,50 +16334,121 @@ return -1;
 function moveDiscriGraph(ptmove,graph)
 {
 var option = getGraphOption(graph);
-if(option!=0) return;
 
-var xleft = graph.x + 5
-var xright = graph.x + graph.w -115
-var ytop = graph.y + graph.hbar + 5
-var ybottom = graph.y + graph.h -5
-
-var xmin = graph._z.xmin;
-var xmax = graph._z.xmax;
-var ymin = graph._z.ymin;
-var ymax = graph._z.ymax;
-
-var scale = (xright-xleft)/(xmax-xmin)
-if((ymax-ymin)*scale>ybottom-ytop)
-	scale = (ybottom-ytop)/(ymax-ymin)
-
-var x1 = (xleft+xright)/2-(xmax-xmin)*scale/2
-var x2 = xleft + (xmax-xmin)*scale
-var y2 = (ytop+ybottom)/2+(ymax-ymin)*scale/2
-var y1 = ybottom - (ymax-ymin)*scale
-
-var dmin = 50*50;
-var kmin = "";
-
-for(var key in graph._z.xcenter)
+if(option==0)
 	{
-	var xe = x1 + scale*(graph._z.xcenter[key]-xmin)	
-	var ye = y2 - scale*(graph._z.ycenter[key]-ymin);	
-	var d = (xe-ptmove.x)*(xe-ptmove.x)+(ye-ptmove.y)*(ye-ptmove.y);
-	if(d<dmin)
+	var xleft = graph.x + 5
+	var xright = graph.x + graph.w -115
+	var ytop = graph.y + graph.hbar + 5
+	var ybottom = graph.y + graph.h -5
+
+	var xmin = graph._z.xmin;
+	var xmax = graph._z.xmax;
+	var ymin = graph._z.ymin;
+	var ymax = graph._z.ymax;
+
+	var scale = (xright-xleft)/(xmax-xmin)
+	if((ymax-ymin)*scale>ybottom-ytop)
+		scale = (ybottom-ytop)/(ymax-ymin)
+
+	var x1 = (xleft+xright)/2-(xmax-xmin)*scale/2
+	var x2 = xleft + (xmax-xmin)*scale
+	var y2 = (ytop+ybottom)/2+(ymax-ymin)*scale/2
+	var y1 = ybottom - (ymax-ymin)*scale
+
+	var dmin = 50*50;
+	var kmin = "";
+
+	for(var key in graph._z.xcenter)
 		{
-		dmin = d;
-		kmin = key;
+		var xe = x1 + scale*(graph._z.xcenter[key]-xmin)	
+		var ye = y2 - scale*(graph._z.ycenter[key]-ymin);	
+		var d = (xe-ptmove.x)*(xe-ptmove.x)+(ye-ptmove.y)*(ye-ptmove.y);
+		if(d<dmin)
+			{
+			dmin = d;
+			kmin = key;
+			}
+		}
+
+	if(kmin!="")	
+		{
+		message = kmin;
+		return true;
+		}
+	else
+		return false;
+	}
+
+if(option==2)
+	{
+	var x1 = graph.x+40
+	var x2 = graph.x + graph.w -115
+	var xc = (x1+x2)/2
+
+	var y1 = graph.y + graph.hbar + 5
+	var y2 = graph.y + graph.h -30;
+	var yc = (y1+y2)/2
+
+	var nv = graph._z.nv;
+	var ng = graph._z.ng;
+	var n = Math.min(nv,ng-1);
+
+	var dx = (x2-x1)/n;
+
+	var sum = 0
+	for(var i=0;i<n;i++)
+		sum += graph._z.lambda[i];
+
+	for(var i=0;i<n;i++)
+		{
+		var x = x1 + i*dx;
+		if(inRect(ptmove,x,y1,dx,y2-y1))
+			{
+			var val = graph._z.lambda[i];
+			var pct = graph._z.lambda[i]*100/sum;
+			message = (Math.round(val*PREC)/PREC)+"  ( "+
+				(Math.round(pct*PREC)/PREC)+"% )";
+			return true;
+			}
 		}
 	}
 
-if(kmin!="")	
-	{
-	message = kmin;
-	return true;
-	}
-else
-	return false;
+}
 
+//*********************************************************************
+
+function upDiscriGraph(graph)
+{
+if((action==CREATE_RESULT)||
+	(action==PASTE_RESULT_LEFT)||
+	(action==PASTE_RESULT_TOP)||	
+	(action==PASTE_RESULT_I)||
+	(action==PASTE_RESULT_J))
+		createResult(graph._z.results[resultkey],fcreate);
+
+	function fcreate()
+	{
+	valueindex = resultkey=="horiz" ? 0 : 1;
+
+	var n= graph.ivalues.length;
+	var x;
+	var y;
+
+	for(var i=0;i<lrecords.length;i++)
+		{
+		x = 0
+		for(var j=0;j<n;j++)
+			{
+			y = vrecords[i][graph.ivalues[j]]-graph._z.avg[j]
+			x += y*graph._z.E[j][valueindex];
+			}
+		vrecords[i].push(x)
+		}
+
+	if(zvalue==values.length) zvalue++;
+	values.push("DISCRI."+(++newfield));
+	}
 }
 
 //*********************************************************************
@@ -18234,15 +18652,15 @@ graph.placeholder.bottomlabel = "COLOR";
 graph.placeholder.rightlabel = "LABEL";
 
 
-graph._z.arrows = {};
-graph._z.arrows.fitted = {t:"Regression (fitted values)",n:"fi"};
-graph._z.arrows.predict = {t:"Predicted values",n:"pr"};
-graph._z.arrows.stud = {t:"Studentized residualed",n:"st"};
-graph._z.arrows.cookd = {t:"Cook's distances",n:"ck"};
-graph._z.arrows.hat = {t:"Leverages (hat values)",n:"lv"};
-graph._z.arrows.resid = {t:"Deviance residuals",n:"rs"};
-graph._z.arrows.pearson = {t:"Pearson residuals",n:"ps"};
-graph._z.arrows.raw = {t:"Raw residuals",n:"rw"};
+graph._z.results = {};
+graph._z.results.fitted = {t:"regression (fitted values)",n:"fi"};
+graph._z.results.predict = {t:"predicted values",n:"pr"};
+graph._z.results.stud = {t:"studentized residualed",n:"st"};
+graph._z.results.cookd = {t:"cook's distances",n:"ck"};
+graph._z.results.hat = {t:"leverages (hat values)",n:"lv"};
+graph._z.results.resid = {t:"deviance residuals",n:"rs"};
+graph._z.results.pearson = {t:"pearson residuals",n:"ps"};
+graph._z.results.raw = {t:"raw residuals",n:"rw"};
 
 for(var j=0;j<graph.ivalues.length;j++)
 	if(graph.ivalues[j]==graph.ivalue1)
@@ -18480,12 +18898,12 @@ graph._z.aic = aic;
 
 graph._z.hatvalues = dispatch(hat,graph);
 
-graph._z.arrows.predict.f = createFitted;
-graph._z.arrows.fitted.f = createFitted;
-graph._z.arrows.resid.f = createResidual;
-graph._z.arrows.pearson.f = createResidual;
-graph._z.arrows.cookd.f = createCookd;
-graph._z.arrows.hat.f = createHat;
+graph._z.results.predict.f = createFitted;
+graph._z.results.fitted.f = createFitted;
+graph._z.results.resid.f = createResidual;
+graph._z.results.pearson.f = createResidual;
+graph._z.results.cookd.f = createCookd;
+graph._z.results.hat.f = createHat;
 
 	//-----------------------------------------------------------
 
@@ -18700,12 +19118,12 @@ graph._z.cv = cv;
 
 graph._z.hatvalues = dispatch(hatvalues(n),graph);
 
-graph._z.arrows.fitted.f = createFitted;
-graph._z.arrows.predict.f = createPredict;
-graph._z.arrows.resid.f = createResidual;
-graph._z.arrows.pearson.f = createPearson;
-graph._z.arrows.hat.f = createHat;
-graph._z.arrows.cookd.f =  createCook;
+graph._z.results.fitted.f = createFitted;
+graph._z.results.predict.f = createPredict;
+graph._z.results.resid.f = createResidual;
+graph._z.results.pearson.f = createPearson;
+graph._z.results.hat.f = createHat;
+graph._z.results.cookd.f =  createCook;
 
 graph._z.aic = aic(coef);
 
@@ -19044,12 +19462,12 @@ graph._z.cv = cv;
 
 graph._z.hatvalues = dispatch(hatvalues(n),graph);
 
-graph._z.arrows.resid.f = createResidual;
-graph._z.arrows.fitted.f = createFitted;
-graph._z.arrows.predict.f = createPredict;
-graph._z.arrows.pearson.f = createPearson;
-graph._z.arrows.hat.f = createHat;
-graph._z.arrows.cookd.f = createCook;
+graph._z.results.resid.f = createResidual;
+graph._z.results.fitted.f = createFitted;
+graph._z.results.predict.f = createPredict;
+graph._z.results.pearson.f = createPearson;
+graph._z.results.hat.f = createHat;
+graph._z.results.cookd.f = createCook;
 
 graph._z.aic = aic(coef);
 
@@ -19381,12 +19799,12 @@ graph._z.cv = cv;
 
 graph._z.aic = aic(coef);
 
-graph._z.arrows.fitted.f = createFitted;
-graph._z.arrows.resid.f = createResidual;
-graph._z.arrows.predict.f = createPredict;
-graph._z.arrows.hat.f = createHat;
-graph._z.arrows.pearson.f = createPearson;
-graph._z.arrows.cookd.f = createCook;
+graph._z.results.fitted.f = createFitted;
+graph._z.results.resid.f = createResidual;
+graph._z.results.predict.f = createPredict;
+graph._z.results.hat.f = createHat;
+graph._z.results.pearson.f = createPearson;
+graph._z.results.cookd.f = createCook;
 
 console.log(graph._z);
 
@@ -19725,12 +20143,12 @@ graph._z.hatvalues = dispatch(hatvalues(beta,ka),graph);
 
 graph._z.aic = aic(beta,ka);
 
-graph._z.arrows.fitted.f = createFitted;
-graph._z.arrows.predict.f = createPredict;
-graph._z.arrows.resid.f = createResid;
-graph._z.arrows.pearson.f = createPearson;
-graph._z.arrows.hat.f = createHat;
-graph._z.arrows.cookd.f = createCook;
+graph._z.results.fitted.f = createFitted;
+graph._z.results.predict.f = createPredict;
+graph._z.results.resid.f = createResid;
+graph._z.results.pearson.f = createPearson;
+graph._z.results.hat.f = createHat;
+graph._z.results.cookd.f = createCook;
 
 
 	//--------------------------------------------------------------
@@ -20362,12 +20780,12 @@ function drawRegresIcon(ctx,x,y)
 function drawRegresGraph(ctx,graph)
 {
 
-graph._z.arrows.fitted.x = 0;
-graph._z.arrows.resid.x = 0;
-graph._z.arrows.predict.x = 0;
-graph._z.arrows.stud.x = 0;
-graph._z.arrows.cookd.x = 0;
-graph._z.arrows.hat.x = 0;
+graph._z.results.fitted.x = 0;
+graph._z.results.resid.x = 0;
+graph._z.results.predict.x = 0;
+graph._z.results.stud.x = 0;
+graph._z.results.cookd.x = 0;
+graph._z.results.hat.x = 0;
 
 switch(graph.regr)
 	{	
@@ -20559,9 +20977,9 @@ var y = graph.y+60;
 	if(option==2)
 		{			
 		var xmed = graph.x+graph.w/2;
-		for(var key in graph._z.arrows)
+		for(var key in graph._z.results)
 			{
-			var arrow = graph._z.arrows[key];
+			var arrow = graph._z.results[key];
 			if(!arrow.f) continue;		
 			y += 30;
 			link(arrow.t,xmed,y,key);		
@@ -20576,8 +20994,8 @@ var y = graph.y+60;
 	ctx.fillStyle = BLUE;
 	drawRightArrow(ctx,x+90,y-5);
 	
-	graph._z.arrows[key].x = x+90-graph.x;
-	graph._z.arrows[key].y = y-5-graph.y;
+	graph._z.results[key].x = x+90-graph.x;
+	graph._z.results[key].y = y-5-graph.y;
 
 	if(graph._z.overresult==key)
 		{
@@ -20744,9 +21162,9 @@ if(option==2)
 	{
 	var y = graph.y+60;
 	var xmed = graph.x+graph.w/2;
-	for(var key in graph._z.arrows)
+	for(var key in graph._z.results)
 		{
-		var arrow = graph._z.arrows[key];
+		var arrow = graph._z.results[key];
 		if(!arrow.f) continue;		
 		y += 30;
 		link(arrow.t,xmed,y,key);		
@@ -20761,8 +21179,8 @@ if(option==2)
 	ctx.fillStyle = BLUE;
 	drawRightArrow(ctx,x+90,y-5);
 	
-	graph._z.arrows[key].x = x+90-graph.x;
-	graph._z.arrows[key].y = y-5-graph.y;
+	graph._z.results[key].x = x+90-graph.x;
+	graph._z.results[key].y = y-5-graph.y;
 
 	if(graph._z.overresult==key)
 		{
@@ -21220,13 +21638,13 @@ if(graph.ivalue1<0) return -1;
 
 
 if(!graph._z) return -1;
-if(!graph._z.arrows) return -1;
+if(!graph._z.results) return -1;
 
-for(var key in graph._z.arrows)
+for(var key in graph._z.results)
 	{
-	if(!graph._z.arrows[key].x) continue;
-	var x = graph._z.arrows[key].x;
-	var y = graph._z.arrows[key].y;
+	if(!graph._z.results[key].x) continue;
+	var x = graph._z.results[key].x;
+	var y = graph._z.results[key].y;
 	if(inRect(pt,graph.x+x-12,graph.y+y-12,24,24))
 		{	
 		resultkey = key;
@@ -21246,15 +21664,15 @@ if(graph.ivalues.length==0) return -1;
 if(graph.ivalue1<0) return -1;
 
 if(!graph._z) return -1;
-if(!graph._z.arrows) return -1;
+if(!graph._z.results) return -1;
 
 graph._z.overresult = null;
 
-for(var key in graph._z.arrows)
+for(var key in graph._z.results)
 	{
-	if(!graph._z.arrows[key].x) continue;
-	var x = graph._z.arrows[key].x;
-	var y = graph._z.arrows[key].y;
+	if(!graph._z.results[key].x) continue;
+	var x = graph._z.results[key].x;
+	var y = graph._z.results[key].y;
 	if(inRect(pt,graph.x+x-12,graph.y+y-12,24,24))
 		graph._z.overresult = key;
 	}
@@ -21266,33 +21684,25 @@ for(var key in graph._z.arrows)
 function upRegresGraph(graph)
 {
 
-if((action==CREATE_RESULT)||(action==PASTE_RESULT_LEFT)||(action==PASTE_RESULT_TOP))
-	{
-	if(!graph._z.arrows[resultkey].vi)
-		{
-		var f = graph._z.arrows[resultkey].f;
-		var name = values[graph.ivalue1];
-		name += "."+graph._z.arrows[resultkey].n;
-		if(!f) return;
-		createResult(f,graph,name);
-		graph._z.arrows[resultkey].vi = values.length-1;
-		}
-	}
 
-if(action==PASTE_RESULT_LEFT)
-	{
-	valueindex =  graph._z.arrows[resultkey].vi;
-	var graph2 = graphs[graphindex2];
-	setGraphValue(graph2,"leftvalue");
-	}
+if((action==CREATE_RESULT)||
+	(action==PASTE_RESULT_LEFT)||
+	(action==PASTE_RESULT_TOP)||
+	(action==PASTE_RESULT_I)||
+	(action==PASTE_RESULT_J))	
+		createResult(graph._z.results[resultkey],fcreate);
 
-if(action==PASTE_RESULT_TOP)
+	function fcreate()
 	{
-	valueindex =  graph._z.arrows[resultkey].vi;
-	var graph2 = graphs[graphindex2];
-	setGraphValue(graph2,"topvalue");
+	var f = graph._z.results[resultkey].f;
+	for(var i=0;i<vrecords.length;i++)
+		vrecords[i].push(f(i,graph));
+
+	if(zvalue==values.length) zvalue++;
+	var name = values[graph.ivalue1];
+	name += "."+graph._z.results[resultkey].n;
+	values.push(name);
 	}
-	
 
 }
 
@@ -21698,10 +22108,9 @@ ctx.fillRect(x+16,y+12,2,2);
 
 function computeCanonData(graph)
 {
-graph.placeholder.leftlabel = "COLOR";
+graph.placeholder.bottomlabel = "COLOR";
 graph.placeholder.rightlabel = "LABEL";
 
-try {
 if(graph.ivalues.length<2) return;
 if(graph.jvalues.length<2) return;
 
@@ -21858,13 +22267,42 @@ graph._z.ycorrj1 = corr(graph.jvalues,yfactor1);
 graph._z.xcorrj2 = corr(graph.jvalues,xfactor2);
 graph._z.ycorrj2 = corr(graph.jvalues,yfactor2);
 
+var xmin = Number.MAX_VALUE;
+var xmax = -Number.MAX_VALUE;
+var ymin = Number.MAX_VALUE;
+var ymax = -Number.MAX_VALUE;
+
+for(var i=0;i<vrecords.length;i++)
+	{
+	if(!recordMatch(i,graph)) continue;
+	if(xfactor1[i]<xmin) xmin = xfactor1[i];
+	if(xfactor1[i]>xmax) xmax = xfactor1[i];
+	if(xfactor2[i]<xmin) xmin = xfactor2[i];
+	if(xfactor2[i]>xmax) xmax = xfactor2[i];
+
+	if(yfactor1[i]<ymin) ymin = yfactor1[i];
+	if(yfactor1[i]>ymax) ymax = yfactor1[i];
+	if(yfactor2[i]<ymin) ymin = yfactor2[i];
+	if(yfactor2[i]>ymax) ymax = yfactor2[i];
+	}
+
+var dx = xmax-xmin;
+var dy = ymax-ymin;
+
+graph._z.xmin = xmin-dx/25;
+graph._z.xmax = xmax+dx/25;
+graph._z.ymin = ymin-dy/25;
+graph._z.ymax = ymax+dy/25;
 graph._z.zmin = zmin;
 graph._z.zmax = zmax;
+
 
 if(graph.ilabel1>=0)
 	computeGraphData1(graph);
 
-} catch(e) { console.log("compute err "+e) }
+initCorners(graph);
+
+	//---------------------------------------------------------------------
 
 	function corr(indices,factor)
 	{
@@ -21901,6 +22339,8 @@ if(graph.ilabel1>=0)
 	return sumxv;
 	}
 
+	//---------------------------------------------------------------------
+
 	function cc(a,b)
 	{	
 	var nr = 0;
@@ -21928,6 +22368,8 @@ if(graph.ilabel1>=0)
 	return sumab;
 	}
 
+	//---------------------------------------------------------------------
+
 }
 
 //*********************************************************************
@@ -21938,12 +22380,7 @@ var font = ctx.font;
 
 if((graph.ivalues.length>=2)&&(graph.jvalues.length>=2))
 	{
-	var xleft = graph.x+10;
-	var xright= graph.x+graph.w-100;
-	var ytop = graph.y+graph.hbar+10;
-	var ybottom = graph.y+graph.h-10;	
-
-	var option = graph.option%5;
+	var option = getGraphOption(graph);
 
 	if(option==0)
 		drawCanonGraphXY(ctx,graph,graph._z.xfactor1,graph._z.yfactor1);
@@ -21968,7 +22405,6 @@ if((graph.ivalues.length>=2)&&(graph.jvalues.length>=2))
 ctx.textAlign = "center"
 ctx.font = font;
 
-
 }
 
 //*********************************************************************
@@ -21981,42 +22417,56 @@ ctx.save();
 
 var display = graph.ilabel3;
 
-var xleft = graph.x+10;
+var xleft = graph.x+30;
 var xright = graph.x+graph.w-110;
 var ytop = graph.y+graph.hbar+10;
-var ybottom = graph.y+graph.h-10;
+var ybottom = graph.y+graph.h-30;
 
-var xmin = Number.MAX_VALUE;
-var xmax = -Number.MAX_VALUE;
-var ymin = Number.MAX_VALUE;
-var ymax = -Number.MAX_VALUE;
-
+var xmin = graph._z.xmin;
+var xmax = graph._z.xmax;
+var ymin = graph._z.ymin;
+var ymax = graph._z.ymax;
 var zmin = graph._z.zmin;
 var zmax = graph._z.zmax;
-
-for(var i=0;i<vrecords.length;i++)
-	{
-	if(!recordMatch(i,graph)) continue;
-
-	if(xproj[i]<xmin) xmin = xproj[i];
-	if(xproj[i]>xmax) xmax = xproj[i];
-
-	if(yproj[i]<ymin) ymin = yproj[i];
-	if(yproj[i]>ymax) ymax = yproj[i];
-	}
 
 var xscale = (xright-xleft)/(xmax-xmin);
 var yscale = (ybottom-ytop)/(ymax-ymin);
 
+ctx.strokeStyle = "#000000";
+ctx.strokeRect(xleft,ytop,xright-xleft,ybottom-ytop);
+
+// origin
+if(graph.xsign>0)
+	var xo = xleft+xscale*(0-xmin);
+else
+	var xo = xright-xscale*(0-xmin);
+
+if(graph.ysign>0)
+	var yo = ybottom-yscale*(0-ymin);
+else
+	var yo = ytop+yscale*(0-ymin);
+
+setGraphCorner(graph,0,xleft,ytop);
+setGraphCorner(graph,1,xright,ytop);
+setGraphCorner(graph,2,xleft,ybottom);
+setGraphCorner(graph,3,xright,ybottom);
+
 ctx.textAlign = "center";
 ctx.font = "9px helvetica";
 
+// draw axes
+ctx.fillStyle = hdotted;
+ctx.fillRect(xleft,yo,xright-xleft,1);
+ctx.fillStyle = vdotted;
+ctx.fillRect(xo,ytop,1,ybottom-ytop);
+
+// draw points
 for(var i=0;i<vrecords.length;i++)
 	{
 	if(!recordMatch(i,graph)) continue;
 
-	var x = Math.round(xleft+(xproj[i]-xmin)*xscale);
-	var y = Math.round(ybottom-(yproj[i]-ymin)*yscale);	
+	var x = xo+graph.xsign*xscale*xproj[i];
+	var y = yo+graph.ysign*yscale*yproj[i];
 	
 	if(graph.ilabel1<0)
 		ctx.fillStyle = "#000000";
@@ -22046,8 +22496,8 @@ if(overlabel1>=0)
 		if(!recordMatch(i,graph)) continue;
 		if(!recordHilite(lrecords[i])) continue
 
-		var x = Math.round(xleft+(xproj[i]-xmin)*xscale);
-		var y = Math.round(ybottom-(yproj[i]-ymin)*yscale);	
+		var x = xo+graph.xsign*xscale*xproj[i];
+		var y = yo+graph.ysign*yscale*yproj[i];
 		
 		if(display<0)
 			{
@@ -22065,6 +22515,27 @@ if(overlabel1>=0)
 		}
 	}
 
+if((action==SWAP_CORNERS)&&(graphs[graphindex]==graph))
+	{
+	ctx.fillStyle = GRAY;
+	if(graph.toCorner==0)
+		ctx.fillRect(xleft,ytop,xo-xleft,yo-ytop);
+	else if(graph.toCorner==1)
+		ctx.fillRect(xo,ytop,xright-xo,yo-ytop);
+	else if(graph.toCorner==2)
+		ctx.fillRect(xleft,yo,xo-xleft,ybottom-yo);
+	else if(graph.toCorner==3)
+		ctx.fillRect(xo,yo,xright-xo,ybottom-yo);
+	}
+else if(graph._z.overcorner==0)
+	drawCorner(ctx,graph,xleft,ytop,0);
+else if(graph._z.overcorner==1)
+	drawCorner(ctx,graph,xright,ytop,1);
+else if(graph._z.overcorner==2)
+	drawCorner(ctx,graph,xleft,ybottom,2);
+else if(graph._z.overcorner==3)
+	drawCorner(ctx,graph,xright,ybottom,3);
+
 ctx.restore();
 }
 
@@ -22075,7 +22546,7 @@ function drawCanonGraphCircle(ctx,graph,xi,yi,indi,xj,yj,indj)
 var xleft = graph.x+10;
 var xright = graph.x+graph.w-110;
 var ytop = graph.y + graph.hbar+10;
-var ybottom = graph.y + graph.h -10;
+var ybottom = graph.y + graph.h -30;
 
 var rad = Math.min((xright-xleft)/2,(ybottom-ytop)/2);
 var xc = xleft+ (xright-xleft)/2;
@@ -22141,12 +22612,20 @@ if(!lambda) return;
 var xleft = graph.x+30;
 var xright = graph.x+graph.w-110;
 var ytop = graph.y+graph.hbar+10;
-var ybottom = graph.y+graph.h-10;
+var ybottom = graph.y+graph.h-30;
 
 var min = Number.MAX_VALUE;
 var max = -Number.MAX_VALUE;
 
-var n = lambda.length;
+var n = 0;
+var sum = 0;
+for(var i=0;i<lambda.length;i++)	
+	if(lambda[i]>1e-10)
+		{
+		n = i+1;
+		sum += Math.sqrt(lambda[i]);
+		}
+
 var dx = (xright-xleft)/n;
 
 ctx.fillStyle = "#008800";
@@ -22156,7 +22635,7 @@ for(var i=0;i<n;i++)
 	{
 	var l = Math.sqrt(lambda[i]);
 	var x = xleft+i*dx;
-	var dy = (ybottom-ytop)*l;
+	var dy = (ybottom-ytop)*(l/sum);
 	ctx.fillRect(x,ybottom-dy,dx-2,dy);
 	ctx.strokeRect(x,ybottom-dy,dx-2,dy);
 	}
@@ -22172,6 +22651,146 @@ for(var i=0;i<=10;i++)
 
 }
 
+
+//*********************************************************************
+
+function moveCanonGraph(pt,graph)
+{
+var option = getGraphOption(graph);
+
+if(option<2)
+	{
+	if(!graph._z) return;
+	if(!graph._z.corners) return;
+
+	graph._z.overcorner = -1;
+
+	for(var i=0;i<4;i++)
+		{
+		var c = graph._z.corners[i];
+		if(inRect(pt,c.x-20,c.y-20,40,40))
+			{
+			graph._z.overcorner = i;
+			return;
+			}
+		}
+	}
+
+if(option==4)
+	{
+	var xleft = graph.x+30;
+	var xright = graph.x+graph.w-110;
+	var ytop = graph.y+graph.hbar+10;
+	var ybottom = graph.y+graph.h-30;
+
+	var lambda = graph._z.lambda1;
+
+	var n = 0;
+	var sum = 0;
+	for(var i=0;i<lambda.length;i++)
+		if(lambda[i]>1e-10)	
+			{
+			n = i+1;
+			sum += Math.sqrt(lambda[i]);
+			}
+
+	var dx = (xright-xleft)/n;
+
+	for(var i=0;i<n;i++)
+		{
+		var l = Math.sqrt(lambda[i]);
+		var pct = l*100/sum;
+		var x = xleft+i*dx;
+		if(inRect(pt,x,ytop,dx,ybottom-ytop))
+			{
+			message = (Math.round(l*PREC)/PREC)+"  ( "+
+				(Math.round(pct*PREC)/PREC)+"% )";
+			return true;
+			}
+		}
+	}
+}
+
+//*********************************************************************
+
+function downCanonGraph(pt,graph)
+{
+var option = getGraphOption(graph);
+if(option>1) return -1;
+
+for(var i=0;i<4;i++)
+	{
+	var c = graph._z.corners[i];
+	if(inRect(pt,c.x-20,c.y-20,40,40))
+		{
+		graph.fromCorner = i;
+		graph.toCorner = i;
+		return SWAP_CORNERS;
+		}
+	}
+}
+
+//*********************************************************************
+
+function dragCanonGraph(pt,graph)
+{
+if(action!=SWAP_CORNERS) return;
+
+var xleft = graph.x+30;
+var xright = graph.x+graph.w-110;
+var ytop = graph.y+graph.hbar+10;
+var ybottom = graph.y+graph.h-30;
+
+var xmin = graph._z.xmin;
+var xmax = graph._z.xmax;
+var ymin = graph._z.ymin;
+var ymax = graph._z.ymax;
+var zmin = graph._z.zmin;
+var zmax = graph._z.zmax;
+
+var xscale = (xright-xleft)/(xmax-xmin);
+var yscale = (ybottom-ytop)/(ymax-ymin);
+
+// origin
+if(graph.xsign>0)
+	var xo = xleft+xscale*(0-xmin);
+else
+	var xo = xright-xscale*(0-xmin);
+
+if(graph.ysign>0)
+	var yo = ybottom-yscale*(0-ymin);
+else
+	var yo = ytop+yscale*(0-ymin);
+
+
+if(inRect(pt,xleft,ytop,xo-xleft,yo-ytop))
+	graph.toCorner = 0;
+else if(inRect(pt,xo,ytop,xright-xo,yo-ytop))
+	graph.toCorner = 1;
+else if(inRect(pt,xleft,yo,xo-xleft,ybottom-yo))
+	graph.toCorner = 2;
+else if(inRect(pt,xo,yo,xright-xo,ybottom-yo))
+	graph.toCorner = 3;
+
+}
+
+//*********************************************************************
+
+function upCanonGraph(graph)
+{
+
+if(action==SWAP_CORNERS)
+	{
+	var x1 = graph.fromCorner%2;
+	var x2 = graph.toCorner%2;
+	if(x1!=x2) graph.xsign  = -graph.xsign;
+
+	var y1 = graph.fromCorner-x1;
+	var y2 = graph.toCorner-x2;
+	if(y1!=y2) graph.ysign = -graph.ysign;
+	}
+
+}
 
 //*********************************************************************
 //
@@ -23548,46 +24167,9 @@ return (i%2==0) ? j : (n2+j)
 
 //*********************************************************************
 
-function createResult(f,graph,name)
-{
-for(var i=0;i<vrecords.length;i++)
-	{
-	var v = f(i,graph);
-	vrecords[i].push(v);
-	}
-
-if(zvalue==values.length) zvalue++;
-values.push(name);
-
-}
-
-//*********************************************************************
-
 function createProjectionValue(graph,index)
 {
 
-
-if(graph.type==TYPE.ACP)
-	{
-	if(zvalue==values.length) zvalue++;
-	values.push("PCA."+(++newfield));
-
-	var n = graph.ivalues.length;
-	var x;
-	var y;
-	var coef = (index==0) ? graph._z.xcoef : graph._z.ycoef;
-
-	for(var i=0;i<lrecords.length;i++)
-		{
-		x = 0
-		for(var j=0;j<n;j++)
-			{
-			y = (vrecords[i][graph.ivalues[j]]-graph._z.avg[j])/graph._z.std[j]
-			x += y* coef[j];
-			}
-		vrecords[i].push(x)
-		}
-	}
 
 if(graph.type==TYPE.DISCRI)
 	{	
@@ -24673,12 +25255,14 @@ else if(action==DRAG_VALUELIST)
 	graph.uppershift += ptmove.y - ptclick.y;
 	if(graph.uppershift<5) graph.uppershift = 5;
 	}
+/*
 else if(action==CREATE_PROJECTION)
 	{	
 	graph = graphs[graphindex];
 	createProjectionValue(graph,valueindex)
 	draw()
 	}
+*/
 else if(action==REMOVE_TOPLABEL)
 	{
 	graph = graphs[graphindex];
@@ -26536,6 +27120,16 @@ else if(faction==DRAG_RESULT)
 		action = PASTE_RESULT_TOP;
 		graphindex2 = i;
 		}
+	else if(inGraphValuei(ptmove,graphs[i],true))
+		{
+		graphindex2 = i;
+		action = PASTE_RESULT_I;
+		}
+	else if(inGraphValuej(ptmove,graphs[i],true))
+		{
+		graphindex2 = i;
+		action = PASTE_RESULT_J;
+		}
 	else
 		action = DRAG_RESULT;
 	}
@@ -26886,7 +27480,7 @@ ctx.fillRect(x+w,y,1,h+1)
 
 //*********************************************************************
 
-function drawCorner(ctx,x,y,h)
+function drawMarker(ctx,x,y,h)
 {
 ctx.fillStyle = "#000000"
 for(var i=h;i>=1;i--)
@@ -27523,8 +28117,9 @@ for(var i=0;i<graphs.length;i++)
 		}
 
 	// border
-	ctx.strokeStyle = "#000000"
-	ctx.strokeRect(graph.x,graph.y,graph.w,graph.h)
+	ctx.strokeStyle = "#000000";
+	ctx.strokeRect(graph.x,graph.y,graph.w,graph.h);
+
 	// title bar	
 	ctx.beginPath()		
 	ctx.moveTo(graph.x,graph.y+graph.hbar)
@@ -27624,7 +28219,7 @@ for(var i=0;i<ni*5;i++)
 		{
 		GINFO[i].icon(ctx,x,y);
 		if(GINFO[i].options)
-			drawCorner(ctx,x+20-4,y,4);
+			drawMarker(ctx,x+20-4,y,4);
 		}
 	frameIcon(ctx,x,y);
 	if((i%5)==4) y += 20
@@ -27751,9 +28346,25 @@ if(action==SET_VALUEI)
 	ctx.fillRect(graph.x+graph.w-105,y,100,20)	;
 	}
 
+if(action==PASTE_RESULT_I)
+	{
+	var graph = graphs[graphindex2];
+	ctx.fillStyle = GRAY;
+	var y = graph.y+graph.hbar+graph.uppershift+25*destvalueindex;
+	ctx.fillRect(graph.x+graph.w-105,y,100,20)	;
+	}
+
 if(action==SET_VALUEJ)
 	{
 	var graph = graphs[graphindex]
+	ctx.fillStyle = GRAY;
+	var y = getListOffset(graph)+(SLOTH+5)*destvalueindex;
+	ctx.fillRect(graph.x+graph.w-105,y,100,20)	;
+	}
+
+if(action==PASTE_RESULT_J)
+	{
+	var graph = graphs[graphindex2];
 	ctx.fillStyle = GRAY;
 	var y = getListOffset(graph)+(SLOTH+5)*destvalueindex;
 	ctx.fillRect(graph.x+graph.w-105,y,100,20)	;
