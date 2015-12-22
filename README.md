@@ -32,8 +32,8 @@ This Explorer allows to perform various statistical analyses and data mining ope
 
 ## Screenshots
 
-![explorer screenshot](http://jfbouzereau.free.fr/explorer/explorer2.png)
-![explorer screenshot](http://jfbouzereau.free.fr/explorer/explorer3.png)
+![explorer screenshot](screenshots/explorer2.png)
+![explorer screenshot](screenshots/explorer3.png)
 
 ## Types of analysis
 * Pie chart
