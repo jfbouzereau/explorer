@@ -35,35 +35,35 @@ This Explorer allows to perform various statistical analyses and data mining ope
 ![explorer screenshot](screenshots/explorer2.png)
 ![explorer screenshot](screenshots/explorer3.png)
 
-[Installation and run](#Installation and run)
+[Installation and run](#installation-and-run)
 
-[Data loading](#Data loading)
+[Data loading](#data-loading)
 
-[Main window](#Main window)
+[Main window](#main-window)
 
-[Graph](#Graph)
+[Graph](#graph)
 
-[Tools](#Tools)
+[Tools](#tools)
 
-[Selection](#Selection)
+[Selection](#selection)
 
-[Types of analyses](#Types of analyses)
+[Types of analyses](#types-of-analyses)
 
-[In the browser](#In the browser)
+[In the browser](#in-the-browser)
 
-[Contact](#Contact)
+[Contact](#contact)
 
 ## Installation and run
 
 The Explorer is written in javascript and built with [electron](http://electron.atom.io),
 
-#### OSX
+##### OSX
 Download the latest version for darwin from [the release page](https://github.com/jfbouzereau/explorer/releases). 
 
-#### Windows
+##### Windows
 Download the latest version corresponding to your system (32bit or 64bit) from [the release page](https://github.com/jfbouzereau/explorer/releases). Open the downloaded folder, and run Explorer.exe.
 
-#### Linux
+##### Linux
 Download [electron](https://github.com/atom/electron/releases) for linux, download the source of the Explorer from [the release page](https://github.com/jfbouzereau/explorer/releases), copy the app folder into electron/resources, then run Electron.
 
 ## Data loading
@@ -247,7 +247,7 @@ To change the type of a graph, drag the icon of the new type onto the graph. The
 Every analysis can be restricted to a part of the data only. The set of observations (records) currently processed by a graph is named the selection, and is displayed in the title bar .
 Initially, the selection consists of all the observations, and the title is blank.
 
-#### Selection based on a categorical field
+##### Selection based on a categorical field
 * Use a type of graph that allows to split the dataset into the desired groups : pie chart, bar chart, treemap.
 * Drag the slice of the group to be processed out of the graph, onto the workspace.
 * This creates a new pie graph with a selection equal to the slice's category.
@@ -256,10 +256,10 @@ Initially, the selection consists of all the observations, and the title is blan
 Conversely, the selection of an existing graph can be changed by dragging a pie slice onto its
 title. This allows to conduct successively the same analysis on different parts of the data.
 
-#### Selection based on a numerical field
+##### Selection based on a numerical field
 * Drag a numerical field from the blue zone to the title of an existing graph. The selection will consists of all the observations with a non-null value of the field. Typically a dummy variable (with values 0 or 1) would be used for this, but not necessarily.
 
-#### Combining selections
+##### Combining selections
 Dragging a slice to the title of a graph which already has a selection will combine the two
 sets. 
 
