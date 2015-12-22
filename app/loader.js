@@ -137,50 +137,59 @@ return true;
 function process_xlsx_content(content,callback)
 {
 
+console.log("process xlsx content "+content.length);
+
 var zlib = require("zlib");
 
+var offset,header,buffers,temp;
+var lname,lextra,lcompress,lucompress;
+var signature;
+var strings = [];
+
 try	{
-	var header = new Buffer(30);
-	var temp = new Buffer(1000);
-	var offset = 0;
-	var buffer = null;
-	var strings = [];
+
+	scan("xl/sharedStrings.xml",read_strings);
+	scan("xl/worksheets/sheet1.xml",read_sheet);
+
+	check_data_type(callback);
+	}
+catch(e)
+	{
+	console.log(e.stack);
+	callback(null);
+	}
+
+	function scan(name,func)
+	{
+	header = new Buffer(30);
+	temp = new Buffer(1000);
+	offset = 0;
+	buffer = null;
 
 	while(true)
 		{
 		header = content.slice(offset,offset+30);
 		offset += 30;
 
-		var signature = header.readUInt32LE(0);
+		signature = header.readUInt32LE(0);
 		if(signature!= 0x04034B50) break;
 
-		var lname = header.readUInt16LE(26);
-		var lextra = header.readUInt16LE(28);
-		var lcompress = header.readUInt32LE(18);
-		var lucompress = header.readUInt32LE(22);
+		lname = header.readUInt16LE(26);
+		lextra = header.readUInt16LE(28);
+		lcompress = header.readUInt32LE(18);
+		lucompress = header.readUInt32LE(22);
 
 		temp = content.slice(offset,offset+lname+lextra);
 		offset += lname+lextra;
 
 		fname = temp.toString("utf8",0,lname);
 
-		if(fname=="xl/sharedStrings.xml") 
-			read_strings();
-		else if(fname=="xl/worksheets/sheet1.xml") 
-			read_sheet();
+		if(fname==name) {func(); return; }
 		else
 			offset += lcompress;
 		}
 
-	check_data_type(callback);
-
 	}
-catch(e)
-	{
-	console.log(e);
-	callback(null);
-	}
-
 	
 	function read_strings()
 	{
@@ -191,13 +200,15 @@ catch(e)
 	b = b.toString("utf8",0,b.length);
 
 	var result;
-	var pattern = new RegExp("<si><t>([^<]*)</t></si>","g");
+	var pattern = new RegExp("<si><t[^>]*>([^<]*)</t></si>","g");
 	while((result=pattern.exec(b))!=null)
 		strings.push(result[1]);
 	}
 
 	function read_sheet()
 	{
+	var row1 = null;
+
 	buffer = content.slice(offset,offset+lcompress);
 	offset += lcompress;
 
@@ -231,7 +242,9 @@ catch(e)
 			row.push(value);
 			kk = jj+4;
 			}
-		data.push(row);
+		if(row1==null) row1 = row;
+		if(row.length==row1.length)
+			data.push(row);
 		k = j+6;	
 		}
 	}
@@ -2885,6 +2898,7 @@ callback(data);
 
 function unquote(s)
 {
+if(s==void 0) s= "";
 var m = s.match(/^"(.*)"$/);
 return m==null ? s : m[1];
 }
