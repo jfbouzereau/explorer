@@ -35,91 +35,42 @@ This Explorer allows to perform various statistical analyses and data mining ope
 ![explorer screenshot](screenshots/explorer2.png)
 ![explorer screenshot](screenshots/explorer3.png)
 
-## Types of analysis
-* Pie chart
-* Bar chart
-* Line chart
-* Association diagram
-* Word cloud
-* Arc diagram
-* Contingency table
-* Multiple Correspondence analysis
-* 3-variable graph
-* Treemap
-* Chi-2 tests
-  * Pearson' chi-square test
-  * Yates' chi-square test
-  * G-test
-  * Fisher's exact test
-* Gini impurity
-* Entropy
-* Repartition curve
-* Distribution curve
-* Scatter plot
-* Ternary plot
-* Andrew's curves
-* Survey plot
-* 3D plot
-* Correlations
-* Autocorrelation plot
-* Probability plot
-* Tukey-lambda PPCC plot
-* Lag plot
-* General statistics
-* Normality tests
-  * Shapiro-Wilk test
-  * Anderson-Darling test
-  * Lilliefors test
-  * D'Agostino test
-  * Anscombe test
-  * Omnibus test
-  * Jarque-Bera test
-* Analysis of variance
-  * Bartlett's test
-  * F-test
-  * Levene test
-  * Brown Forsythe test
-  * Box's M test
-  * Student's T-test
-  * Welch T-test
-  * Hotelling's test
-  * Wilk's lambda
-  * Lawley-Hotelling trace
-  * Pillai trace
-  * Two-way anova
-* Non-parametric tests
-  * Kolmogorov-Smirnov test
-  * Kruskal-Wallis test
-  * Jonckheere test
-  * Cochran Q test
-  * Durbin test
-  * Friedman test
-  * Mantel-Haenszel test
-  * Breslow-Day test
-  * Woolf test
-* Principal components
-* Canonical correlation analysis
-* K-means
-* K-medoids
-* Fuzzy C-means
-* Huen diagram
-* Dendogram
-* Radviz
-* Discriminant analysis
-* Regressions
-  * Linear regression
-  * Poisson regression
-  * Negative binomial regression
-  * Logistic regression
-  * Least angle regression
-* Influence plot
-* QQ plot
-* Box plot
-* Parallel coordinates
+[Installation and run](#Installation and run)
 
-## Loading data
+[Data loading](#Data loading)
 
-Data can be loaded from various sources :
+[Main window](#Main window)
+
+[Graph](#Graph)
+
+[Tools](#Tools)
+
+[Types of analyses](#Types of analyses)
+
+[In the browser](#In the browser)
+
+[Contact](#Contact)
+
+## Installation and run
+
+The Explorer is written in javascript and built with [electron](http://electron.atom.io),
+
+#### OSX
+Download the latest version for darwin from [the release page](https://github.com/jfbouzereau/explorer/releases). 
+
+#### Windows
+Download the latest version corresponding to your system (32bit or 64bit) from [the release page](https://github.com/jfbouzereau/explorer/releases). Open the downloaded folder, and run Explorer.exe.
+
+#### Linux
+Download [electron](https://github.com/atom/electron/releases) for linux, download the source of the Explorer from [the release page](https://github.com/jfbouzereau/explorer/releases), copy the app folder into electron/resources, then run Electron.
+
+## Data loading
+
+At launch time, the Explorer shows a window to choose the dataset to use. You can either drag and drop a file from your computer desktop, or click the clipboard button.
+
+![explorer screenshot](screenshots/loader.png)
+
+Various file formats are accepted :
 
 <table border="0">
 <tr>
@@ -132,11 +83,6 @@ Data can be loaded from various sources :
 	<td>Access</td>
 	<td>mdb , accdb</td>
 	<td>Access 2000 or higher</td>
-</tr>
-<tr>
-	<td>Clipboard</td>
-	<td>N/A</td>
-	<td>The data must be in tabular form, with the names of the fields on the first line</td
 </tr>
 <tr>
 	<td>dBase</td>
@@ -244,75 +190,156 @@ query:select * from mytable <br>
 </tr>
 </table>
 
-## Principles
+If you click the clipboard button, the data must be in tabular form, with the name of the fields on the first line. 
 
-##### Fields
+## Main window
 
-There are two kinds of fields :
+Once the data have been successfully loaded, the main window is displayed :
 
-* Categorical (or qualitative) fields represended in pink.
-* Numerical (or quantitative) fields represented in pale blue.
+![workspace](screenshots/workspace.jpg)
 
-##### Basic gestures
+Here are the elements of the interface :
 
-* Drag an icon to the workspace to create a new graph.
+  1 List of the categorical fields (aka "the pink zone"). By default only 10 fields are displayed. To resize the list, move the mouse just below the list and drag to shrink or extend the list.
+  
+  2 Icons of the existing analyses (graphs). To run a new analysis, just drag its icon to the workspace.  
+  
+  3 List of the numerical fields (aka "the blue zone"). By default only 10 fields are displayed. To resize the list, move the mouse just below the list and drag to shrin or extend the list.
+  
+  4 Icons of the tools
+  
+  5 Status bar. This area gives at any time details about the object under the mouse, or the action your are about to do.
+  
+  6 Dock This area is used to keep graphs that are temporarily removed from the workspace.
+  
+  7 Version number
+  
+  8 Memory usage
+  
+  9 Workspace. This area is where the graphs are created and arranged.
+  
+  
+  
+## Graph
 
-* Right-click or control-Click on the workspace to create a new graph.
+To create a new graph, drag its icon to the workspace. Alternatively if you dont know which icon to look at, you can right-click or control-click on the workspace to get a menu with all the possible analyses.
 
-* Drag a icon to an existing graph to change its type.
+A graph is represented by an area with different noticeable parts :
+![graph](screenshots/graph.jpg)
 
-* Drag a icon to a graph of same type to change its option.
+  1 Close box. Click on this box to close the graph. All the computations done will be lost.
+  
+  2 Option menu. Some graphs have different ways of representing the results. In that case   click on this sign to bring up the menu to choose from. Alternatively, right-click or control-click within the graph.
+  
+  3 Title bar. This area shows the current selection (see below). Click on this area to drag the graph around. 
+  
+  4 Slots. These are the places where you can define the parameters of the analysis. In function of the graph, different combinations of slots are shown. On a pink slot you can drag a categorical field. On a blue slot you can drag a numerical slot.
+  
+  5 Resize box. Click on this box and drag to resize the graph.
+  
+  
+To change the type of a graph, drag the icon of the new type onto the graph. The new analysis will retain the parameters and selection of the previous one.
+  
+## Tools
 
-* Right-click or control-click on a graph to change its option.
+Here are the various tools proposed by the toolbar at the bottom of the screen :
 
-* Drag a qualitative (pink) field or a quantitative (blue) field to the corresponding slot of a graph to change its definition.
+![graph](screenshots/tools.jpg)
 
-* Drag away a field from a slot to remove the definition.
+* Sort : drag this icon onto a field, or drag a field onto this icon to sort the data in ascending order. Do the same sort again to sort in descending order. The sort is stable : to sort the data by a key consisting of field1,field2,field3,  you must sort by field3 first, then field2, and finally field1.
 
-* Drag a slice of a pie chart to the workspace to create a subset of the data.
+* Clone. Drag this icon onto a graph to get a copy of it, with the same parameters. If the computation is slow, this allows to bypass the second computation.
 
-* Drag a slice of a pie chart to the title of another graph to change its selection.
+* Add : Drag this icon to the pink or blue zone to create a new field. See below.
 
-* Drag a bar of a bar chart to the workspace to create a subset of the data.
+* Help. Drag this icon onto a graph to get some informations about the analysis, the results produced,  the representation options, and the possible actions.
 
-* Drag a bar of a bar chart to the title of another graph to change its selection.
+* Table : Drag this icon to the pink or blue zone to get a table of the values of the dataset.
+Drag this icon onto a graph to get a table of the numerical results. They can be copied and pasted into another software.
 
-* Move the mouse over an element of a graph to highlight the corresponding element in all the graphs.
+* Dustbin : Drag this icon onto a field, or drag a field onto this icon to delete the field from the dataset in memory. The original input file is not modified. If the field is in use by any graph, it cannot be deleted.
 
-* Drag a categorical field to the numerical fields to generale dummy variables.
-
-* Drag a numerical field to the categorical fields to convert it to categorical.
-
-* Drag the "1" field to the categorical fields to pivot the data.
-
-* Drag a field to the trash icon, or drag the trash icon to a field, to remove this field.
-
-* Drag a field to the sort icon, or drag the sort icon to a field, to sort the data according to this field.
-
-* Drag the help icon (exclamation mark) to a graph to get info about this type of graph.
-
-* Drag the grid icon to the fields to get a spreadsheet of the data.
-
-* Drag the grid icon to a graph to get a spreadsheet of its values.
-
-* Drag the background to scroll the workspace.
-
-* Use the mouse wheel to scroll the workspace vertically.
-
-* Use the mouse wheel on a field list to scroll it.
-
-* Move the mouse at the right of a field list to scroll it.
-
-* Move the mouse under a field list to resize it.
-
-## Installation
-
-The Explorer is written in javascript and built with [electron](http://electron.atom.io),
-
-Pre-built binaries for OSX and Windows can be downloaded from [the release page](https://github.com/jfbouzereau/explorer/releases), then double-click the Explorer application.
-
-For Linux, download [electron](https://github.com/atom/electron/releases), 
-download the source of the Data Explorer from [the release page](https://github.com/jfbouzereau/explorer/releases) and copy the app folder into electron/resources.
+## Types of analysis
+* Pie chart
+* Bar chart
+* Line chart
+* Association diagram
+* Word cloud
+* Arc diagram
+* Contingency table
+* Multiple Correspondence analysis
+* 3-variable graph
+* Treemap
+* Chi-2 tests
+  * Pearson' chi-square test
+  * Yates' chi-square test
+  * G-test
+  * Fisher's exact test
+* Gini impurity
+* Entropy
+* Repartition curve
+* Distribution curve
+* Scatter plot
+* Ternary plot
+* Andrew's curves
+* Survey plot
+* 3D plot
+* Correlations
+* Autocorrelation plot
+* Probability plot
+* Tukey-lambda PPCC plot
+* Lag plot
+* General statistics
+* Normality tests
+  * Shapiro-Wilk test
+  * Anderson-Darling test
+  * Lilliefors test
+  * D'Agostino test
+  * Anscombe test
+  * Omnibus test
+  * Jarque-Bera test
+* Analysis of variance
+  * Bartlett's test
+  * F-test
+  * Levene test
+  * Brown Forsythe test
+  * Box's M test
+  * Student's T-test
+  * Welch T-test
+  * Hotelling's test
+  * Wilk's lambda
+  * Lawley-Hotelling trace
+  * Pillai trace
+  * Two-way anova
+* Non-parametric tests
+  * Kolmogorov-Smirnov test
+  * Kruskal-Wallis test
+  * Jonckheere test
+  * Cochran Q test
+  * Durbin test
+  * Friedman test
+  * Mantel-Haenszel test
+  * Breslow-Day test
+  * Woolf test
+* Principal components
+* Canonical correlation analysis
+* K-means
+* K-medoids
+* Fuzzy C-means
+* Huen diagram
+* Dendogram
+* Radviz
+* Discriminant analysis
+* Regressions
+  * Linear regression
+  * Poisson regression
+  * Negative binomial regression
+  * Logistic regression
+  * Least angle regression
+* Influence plot
+* QQ plot
+* Box plot
+* Parallel coordinates
 
 ## In the browser
 

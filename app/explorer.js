@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.93";
+var VERSION = "1.94";
 
 /***************************************************************************/
 
@@ -211,7 +211,7 @@ var GINFO = {};
 var TYPE = {};
 
 var KNUM = 0;
-_type("PIE","Pie chart",{toplabel:1,bin:1,options:4,unit:1});
+_type("PIE","Pie chart",{toplabel:1,bin:1,options:2,unit:1});
 _type("BAR","Bar chart",{toplabel:1,leftlabel:2,bin:1,options:2,unit:1});
 _type("LINE","Line chart",{toplabel:1,leftlabel:2,unit:1});
 _type("TAG","Word cloud",{toplabel:1,unit:1});
@@ -709,7 +709,9 @@ this.omit = {};
 this.error = null;
 
 this.type = type;
-this.option = 0;
+
+this.option = 0;		// current option
+this.options = [];		// options titles
 
 this.origin = 0;		// for TYPE.POLAR
 
@@ -1989,6 +1991,13 @@ return b;
 //
 //                PIE
 //
+//*********************************************************************
+
+function computePieData(graph)
+{
+graph.options = ["Normal","Equidistributed"];
+}
+
 //*********************************************************************
 
 
@@ -13011,6 +13020,8 @@ function computeAcpData(graph)
 graph.placeholder.bottomlabel = "COLOR";
 graph.placeholder.rightlabel = "LABEL";
 
+graph.options = ["Main plane","Correlation circle","Inertias"];
+
 if(graph.ivalues.length<2) return;
 
 computeCorrelationMatrix(graph)
@@ -13410,11 +13421,12 @@ ctx.font = font;
 
 function moveAcpGraph(pt,graph)
 {
+if(!graph._z) return;
+
 var option = getGraphOption(graph);
 
 if(option==0)
 	{
-	if(!graph._z) return;
 	if(!graph._z.corners) return;
 
 	graph._z.overcorner = -1;
@@ -13432,6 +13444,8 @@ if(option==0)
 
 if(option==2)
 	{
+	if(!graph._z.lambda) return;
+
 	var x1 = graph.x+40
 	var x2 = graph.x + graph.w -110;
 	var xc = (x1+x2)/2
@@ -13470,6 +13484,9 @@ function downAcpGraph(pt,graph)
 var option = getGraphOption(graph);
 if(option!=0) return -1;
 
+if(!graph._z) return -1;
+if(!graph._z.corners) return;
+
 for(var i=0;i<4;i++)
 	{
 	var c = graph._z.corners[i];
@@ -13482,6 +13499,7 @@ for(var i=0;i<4;i++)
 	}
 
 var results = graph._z.results;
+if(!results) return -1;
 
 if(inRect(pt,results.horiz.x-10,results.horiz.y-10,20,20)) 
 	{
@@ -15702,6 +15720,8 @@ function computeDiscriData(graph)
 
 graph.placeholder.bottomlabel = "CLASSES";
 graph.placeholder.rightlabel = "LABEL";
+
+graph.options = ["Main plane","Correlation circle","Inertias"];
 
 if(graph.ilabel1<0) return;
 if(graph.ivalues.length<2) return
@@ -23268,6 +23288,7 @@ graph._z = {}
 
 graph.error = null;
 graph.progress = null;
+graph.options = [];
 
 graph.placeholder = {};
 
@@ -24857,6 +24878,13 @@ if(i>=0)
 	if(graph.closeable&&inRect(ptclick,graph.x+5,graph.y+4,10,10))
 		{
 		faction = CLOSE_GRAPH;
+		graphindex = i;
+		}
+	else if(inRect(ptclick,graph.x+18,graph.y,14,20))
+		{
+		faction = SELECT_OPTION;
+		ptclick.x = graph.x+20;
+		ptclick.y = graph.y+16;
 		graphindex = i;
 		}
 	else if((index=inGraphHandle(ptclick,graph))>=0)
@@ -28776,8 +28804,6 @@ function drawOptionMenu(ctx)
 if(graphindex<0) return;
 
 var graph = graphs[graphindex];
-var no = GINFO[graph.type].options;
-if(!no) return;
 
 var font = ctx.font;
 ctx.font = "12px helvetica";
@@ -28785,13 +28811,31 @@ ctx.textAlign = "center";
 
 var x = ptclick.x
 var y = ptclick.y;
-for(var i=0;i<no;i++)
+
+if(graph.options.length>0)
 	{
-	ctx.fillStyle = "#CCCCCC";
-	ctx.fillRect(x,y+i*14,100,14);
-	ctx.fillStyle = "#000000";
-	ctx.fillText("Option "+(i+1),x+50,y+i*14+12);
+	var no = graph.options.length;
+	for(var i=0;i<no;i++)
+		{
+		ctx.fillStyle = "#DDDDDD";
+		ctx.fillRect(x,y+i*14,100,14);
+		ctx.fillStyle = "#000000";
+		ctx.fillText(graph.options[i],x+50,y+i*14+12);
+		}
 	}
+else if(GINFO[graph.type].options)
+	{
+	var no = GINFO[graph.type].options;
+	for(var i=0;i<no;i++)
+		{
+		ctx.fillStyle = "#DDDDDD";
+		ctx.fillRect(x,y+i*14,100,14);
+		ctx.fillStyle = "#000000";
+		ctx.fillText("Option "+(i+1),x+50,y+i*14+12);
+		}
+	}
+else
+	return;
 
 if(optionindex>=0)
 	{
@@ -28807,17 +28851,14 @@ ctx.strokeRect(x,y,100,14*no);
 
 function drawGraphOption(ctx,graph)
 {
-var max = GINFO[graph.type].options;
-if(!max) return;
+var hasoption = GINFO[graph.type].options || graph.options;
+if(!hasoption) return;
 
-for(var i=0;i<max;i++)
-	{
-	ctx.strokeStyle = (graph.option%max)==i ? "#000000" : GRAY;
-	ctx.beginPath();
-	ctx.moveTo(graph.x+18+i*5,graph.y+4);
-	ctx.lineTo(graph.x+18+i*5,graph.y+12);
-	ctx.stroke();
-	}
+ctx.fillStyle = "#666666";
+ctx.fillRect(graph.x+20,graph.y+3,10,2);
+ctx.fillRect(graph.x+20,graph.y+7,10,2);
+ctx.fillRect(graph.x+20,graph.y+11,10,2);
+
 }
 
 //*********************************************************************
