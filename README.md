@@ -45,6 +45,8 @@ This Explorer allows to perform various statistical analyses and data mining ope
 
 [Tools](#Tools)
 
+[Selection](#Selection)
+
 [Types of analyses](#Types of analyses)
 
 [In the browser](#In the browser)
@@ -200,23 +202,23 @@ Once the data have been successfully loaded, the main window is displayed :
 
 Here are the elements of the interface :
 
-  1 List of the categorical fields (aka "the pink zone"). By default only 10 fields are displayed. To resize the list, move the mouse just below the list and drag to shrink or extend the list.
+  1. List of the categorical fields (aka "the pink zone"). By default only 10 fields are displayed. To resize the list, move the mouse just below the list and drag to shrink or extend the list.
   
-  2 Icons of the existing analyses (graphs). To run a new analysis, just drag its icon to the workspace.  
+  2. Icons of the existing analyses (graphs). To run a new analysis, just drag its icon to the workspace.  
   
-  3 List of the numerical fields (aka "the blue zone"). By default only 10 fields are displayed. To resize the list, move the mouse just below the list and drag to shrin or extend the list.
+  3. List of the numerical fields (aka "the blue zone"). By default only 10 fields are displayed. To resize the list, move the mouse just below the list and drag to shrin or extend the list.
   
-  4 Icons of the tools
+  4. Icons of the tools
   
-  5 Status bar. This area gives at any time details about the object under the mouse, or the action your are about to do.
+  5. Status bar. This area gives at any time details about the object under the mouse, or the action your are about to do.
   
-  6 Dock This area is used to keep graphs that are temporarily removed from the workspace.
+  6. Dock This area is used to keep graphs that are temporarily removed from the workspace.
   
-  7 Version number
+  7. Version number
   
-  8 Memory usage
+  8. Memory usage
   
-  9 Workspace. This area is where the graphs are created and arranged.
+  9. Workspace. This area is where the graphs are created and arranged.
   
   
   
@@ -227,19 +229,45 @@ To create a new graph, drag its icon to the workspace. Alternatively if you dont
 A graph is represented by an area with different noticeable parts :
 ![graph](screenshots/graph.jpg)
 
-  1 Close box. Click on this box to close the graph. All the computations done will be lost.
+  1. Close box. Click on this box to close the graph. All the computations done will be lost.
   
-  2 Option menu. Some graphs have different ways of representing the results. In that case   click on this sign to bring up the menu to choose from. Alternatively, right-click or control-click within the graph.
+  2. Option menu. Some graphs have different ways of representing the results. In that case   click on this sign to bring up the menu to choose from. Alternatively, right-click or control-click within the graph.
   
-  3 Title bar. This area shows the current selection (see below). Click on this area to drag the graph around. 
+  3. Title bar. This area shows the current selection (see below). Click on this area to drag the graph around. 
   
-  4 Slots. These are the places where you can define the parameters of the analysis. In function of the graph, different combinations of slots are shown. On a pink slot you can drag a categorical field. On a blue slot you can drag a numerical slot.
+  4. Slots. These are the places where you can define the parameters of the analysis. In function of the graph, different combinations of slots are shown. On a pink slot you can drag a categorical field. On a blue slot you can drag a numerical slot.
   
-  5 Resize box. Click on this box and drag to resize the graph.
+  5. Resize box. Click on this box and drag to resize the graph.
   
   
 To change the type of a graph, drag the icon of the new type onto the graph. The new analysis will retain the parameters and selection of the previous one.
   
+## Selection
+ 
+Every analysis can be restricted to a part of the data only. The set of observations (records) currently processed by a graph is named the selection, and is displayed in the title bar .
+Initially, the selection consists of all the observations, and the title is blank.
+
+#### Selection based on a categorical field
+* Use a type of graph that allows to split the dataset into the desired groups : pie chart, bar chart, treemap.
+* Drag the slice of the group to be processed out of the graph, onto the workspace.
+* This creates a new pie graph with a selection equal to the slice's category.
+* Drag the icon of the wanted analysis onto this second graph. It will change its type, but will retain the selection. The type of graph can be changed as many times as wished, all the analyses will be conducted on the same selection.
+
+Conversely, the selection of an existing graph can be changed by dragging a pie slice onto its
+title. This allows to conduct successively the same analysis on different parts of the data.
+
+#### Selection based on a numerical field
+* Drag a numerical field from the blue zone to the title of an existing graph. The selection will consists of all the observations with a non-null value of the field. Typically a dummy variable (with values 0 or 1) would be used for this, but not necessarily.
+
+#### Combining selections
+Dragging a slice to the title of a graph which already has a selection will combine the two
+sets. 
+
+If the two variables are the same, the resulting selection will be the union of the two sets. Example: a pie graph splits the data into Apples, Pears, Peaches, and Apricots. If you drag the apple slice to the title of another graph, the selection will be Apples. If you then drag the peach slice to the title of the graph, the selection will be Apples + Peaches
+
+If the two variables are not the same, the resulting selection will be the intersection of the two sets. Example : a pie graph splits the data into Apples, Pears, Peaches and Apricots. If you drag the apple slice to the title of another graph, the selection will be Apples. If you change the variable defining the pie to split the data into Organic and Non-Organic, and drag the Organic
+slice to the title of the second graph, the selection will be Apples AND Organic.
+
 ## Tools
 
 Here are the various tools proposed by the toolbar at the bottom of the screen :
