@@ -35,23 +35,23 @@ This Explorer allows to perform various statistical analyses and data mining ope
 ![explorer screenshot](screenshots/explorer2.png)
 ![explorer screenshot](screenshots/explorer3.png)
 
-[Installation and run](#installation-and-run)
+- [Installation and run](#installation-and-run)
 
-[Data loading](#data-loading)
+- [Data loading](#data-loading)
 
-[Main window](#main-window)
+- [Main window](#main-window)
 
-[Graph](#graph)
+- [Graph](#graph)
 
-[Tools](#tools)
+- [Tools](#tools)
 
-[Selection](#selection)
+- [Selection](#selection)
 
-[Types of analyses](#types-of-analyses)
+- [Types of analyses](#types-of-analyses)
 
-[In the browser](#in-the-browser)
+- [In the browser](#in-the-browser)
 
-[Contact](#contact)
+- [Contact](#contact)
 
 ## Installation and run
 
@@ -235,7 +235,7 @@ A graph is represented by an area with different noticeable parts :
   
   3. Title bar. This area shows the current selection (see below). Click on this area to drag the graph around. 
   
-  4. Slots. These are the places where you can define the parameters of the analysis. In function of the graph, different combinations of slots are shown. On a pink slot you can drag a categorical field. On a blue slot you can drag a numerical slot.
+  4. Slots. These are the places where you can define the parameters of the analysis. Depending on the graph, different combinations of slots are shown. On a pink slot you can drag a categorical field. On a blue slot you can drag a numerical slot. Parameters can be swapped by dragging from one slot to another one ( of the same graph, and of the same color ).
   
   5. Resize box. Click on this box and drag to resize the graph.
   
@@ -250,7 +250,7 @@ Initially, the selection consists of all the observations, and the title is blan
 ##### Selection based on a categorical field
 * Use a type of graph that allows to split the dataset into the desired groups : pie chart, bar chart, treemap.
 * Drag the slice of the group to be processed out of the graph, onto the workspace.
-* This creates a new pie graph with a selection equal to the slice's category.
+* This creates a new pie chart with a selection equal to the slice's category.
 * Drag the icon of the wanted analysis onto this second graph. It will change its type, but will retain the selection. The type of graph can be changed as many times as wished, all the analyses will be conducted on the same selection.
 
 Conversely, the selection of an existing graph can be changed by dragging a pie slice onto its
@@ -267,6 +267,38 @@ If the two variables are the same, the resulting selection will be the union of 
 
 If the two variables are not the same, the resulting selection will be the intersection of the two sets. Example : a pie graph splits the data into Apples, Pears, Peaches and Apricots. If you drag the apple slice to the title of another graph, the selection will be Apples. If you change the variable defining the pie to split the data into Organic and Non-Organic, and drag the Organic
 slice to the title of the second graph, the selection will be Apples AND Organic.
+
+## Conversions
+When loading the data, the Explorer identifies fields containing only numbers as numeric, and all others fields as categorical. Sometimes it is desirable to change this. Several possibilities exist.
+
+* Drag a numerical field to the pink zone. The field is converted to categorical, the values are the same but as  strings of characters.
+
+* Drag a categorical field to the blue zone. Each category gives a dummy variable of the same name, Therefore, there are as many dummies as categories of the initial field, and all the dummies are exclusive (only one of them is equal to 1, all the others are 0).
+
+* Drag the special numerical field "1" to the pink zone. This "pivots" the data. Each numerical field becomes a category of a new PIVOT field, whose value is in a new COUNT field.
+Each original record gives as many records as the number of numerical fields. Example: HEIGHT, WIDTH and DEPTH are the numerical fields.
+
+Original data :
+<table>
+<tr><td>ID</td><td>COLOR</td><td>HEIGHT</td><td>WIDTH</td><td>DEPTH</td></tr>
+<tr><td>1</td><td>Blue</td><td>142</td><td>25</td><td>11</td></tr>
+<tr><td>2</td><td>Red</td><td>175</td><td>12</td><td>16</td></tr>
+<tr><td>3</td><td>Green</td><td>109</td><td>48</td><td>14</td></tr>
+</table>
+	
+Data after the pivot :
+<table>
+<tr><td>ID</td><td>COLOR</td><td>PIVOT</td><td>COUNT</td></tr>
+<tr><td>1</td><td>Blue</td><td>HEIGHT</td><td>142</td></tr>
+<tr><td>1</td><td>Blue</td><td>WIDTH</td><td>25</td></tr>
+<tr><td>1</td><td>Blue</td><td>DEPTH</td><td>11</td></tr>
+<tr><td>2</td><td>Red</td><td>HEIGHT</td><td>175</td></tr>
+<tr><td>2</td><td>Red</td><td>WIDTH</td><td>12</td></tr>
+<tr><td>2</td><td>Red</td><td>DEPTH</td><td>16</td></tr>
+<tr><td>3</td><td>Green</td><td>HEIGHT</td><td>109</td></tr>
+<tr><td>3</td><td>Green</td><td>WIDTH</td><td>48</td></tr>
+<tr><td>3</td><td>Green</td><td>DEPTH</td><td>14</td></tr>
+<table>
 
 ## Tools
 
