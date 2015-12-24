@@ -55,7 +55,7 @@ The Explorer is written in javascript and built with [electron](http://electron.
 Download the latest version for darwin from [the release page](https://github.com/jfbouzereau/explorer/releases). 
 
 ##### Windows
-Download the latest version corresponding to your system (32bit or 64bit) from [the release page](https://github.com/jfbouzereau/explorer/releases). Open the downloaded folder, and run Explorer.exe.
+Download the latest version corresponding to your system (32bit or 64bit) from [the release page](https://github.com/jfbouzereau/explorer/releases). The application is bundled into a single exe file, thanks to [BoxedApp Packer](http://www.boxedapp.com/boxedapppacker/index.html) .
 
 ##### Linux
 Download [electron](https://github.com/atom/electron/releases) for linux, download the source of the Explorer from [the release page](https://github.com/jfbouzereau/explorer/releases), copy the app folder into electron/resources, then run Electron.
