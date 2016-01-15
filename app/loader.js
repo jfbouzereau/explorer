@@ -347,7 +347,7 @@ try	{
 			}
 
 		cnx.end();
-		callback(data);
+		check_data_type(callback);
 		});
 
 	}

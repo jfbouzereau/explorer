@@ -30,13 +30,15 @@ ipc.on("reader", function() {
 });
 
 ipc.on("title", function(event,title) {
+	// if title message is sent from explorer, reader is no longer needed
+	if(wreader)
+		wreader.close();
+	wreader = null;
 	if(wexplorer)
 		wexplorer.setTitle(title);
 });
 
 ipc.on("filename", function(event,filename) {
-	wreader.close();
-	wreader = null;
 	read_file(filename);
 });
 
@@ -57,6 +59,9 @@ ipc.on("help", function(event, name) {
 	whelp.loadUrl("file://"+__dirname+"/help/"+name+".html");
 });
 
+ipc.on("exit", function() {
+	process.exit(0);
+});
 
 //****************************************************************************
 

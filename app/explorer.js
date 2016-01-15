@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.94";
+var VERSION = "1.95";
 
 /***************************************************************************/
 
@@ -469,6 +469,8 @@ var randomfiles = [];
 ipc.on("start",  function (filename)
 {
 
+	console.log("start "+filename);
+
 	var loader = require("./loader");
 
 	loader.load(filename,loaded)
@@ -563,7 +565,6 @@ draw();
 
 function closing()
 {
-console.log("CLOSING");
 var fs = require("fs");
 for(var i=0;i<randomfiles.length;i++)
 	{
@@ -25887,15 +25888,43 @@ h += "</style>\n";
 h += "</head>\n";
 h += "<body onload='init()'>\n";
 h += "<script>\n";
-h += "function init() { \n";
-h += "document.querySelector('div').style.display = 'none';\n";
-h += "document.querySelector('table').style.display = 'table';\n";
-h += "}\n";
+h += init.toString();
+h += "\n";
+h += keydown.toString();
+h += "\n";
 h += "</script>\n";
 h += "<div>Loading ...</div>\n";
 h += t;
 t += "</body>";
 h += "</html>\n";
+
+function init() {
+	document.querySelector('div').style.display = 'none';
+	document.querySelector('table').style.display = 'table';
+	document.body.addEventListener('keydown',keydown,false);
+}
+
+function keydown(event) {
+	// control-C  copies content to the clipboard
+	if(event.keyCode!=67) return;
+	if(!(event.ctrlKey||event.metaKey)) return;
+
+	var text = '';
+	var trs = document.querySelectorAll('tr');
+	for(var i=0;i<trs.length;i++)
+	   {
+	   var tds = trs[i].querySelectorAll('td');
+	   for(var j=0;j<tds.length;j++)
+		  {
+		  if(j!=0) text += '\t';
+		  text += tds[j].innerText; 
+		  }
+	   text += '\n';
+	   }
+	var clipboard = require('clipboard')
+	clipboard.writeText(text);
+}
+
 
 if(window.inbrowser)
 	{
