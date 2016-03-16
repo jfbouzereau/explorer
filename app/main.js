@@ -5,6 +5,8 @@ var fs = require("fs");
 var clipboard = require("clipboard");
 
 
+var locale = null;
+
 wreader = null;
 wexplorer = null;
 
@@ -12,6 +14,15 @@ wexplorer = null;
 //****************************************************************************
 
 app.on("ready", function() {
+	locale = app.getLocale();
+	try {
+		var stat = fs.statSync(__dirname+"/help/"+locale);
+		}
+	catch(err)
+		{
+		locale = "en";
+		}
+
 	if(process.argv.length>2)
 		{
 		read_file(process.argv[2]);
@@ -56,7 +67,7 @@ ipc.on("window", function(event,options)  {
 
 ipc.on("help", function(event, name) {
 	var whelp = new BrowserWindow({});
-	whelp.loadUrl("file://"+__dirname+"/help/"+name+".html");
+	whelp.loadUrl("file://"+__dirname+"/help/"+locale+"/"+name+".html");
 });
 
 ipc.on("exit", function() {
@@ -94,6 +105,7 @@ wexplorer.on("closed", function() {
 	});
 
 wexplorer.webContents.on("did-finish-load", function() {
+	wexplorer.webContents.send("locale",app.getLocale());
 	wexplorer.webContents.send("start",filename);
 	});
 }

@@ -326,6 +326,8 @@ try	{
 			params.database = m[1];
 		if(m=lines[i].match(/query:(.*)/))
 			params.query = m[1];
+		else 
+			params.query += lines[i];
 		}
 
 	var cnx = mysql.createConnection(params);

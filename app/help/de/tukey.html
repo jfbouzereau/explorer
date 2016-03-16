@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>
+Tukey-Lambda PPCC-Plot
+</title>
+<link rel="stylesheet" type="text/css" href="help.css">
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=AM_HTMLorMML"></script>
+<body>
+
+<div class="header">Definition</div>
+Graphische Technik, um den Formparameter für eine Verteilungsfamilie zu finden, die die Daten am besten beschreibt.<br>
+Für die Quantile der Tukey-Lambda-Verteilung gilt `Q(p) = (p^lambda-(1-p)^lambda)/lambda`.<br>
+
+Wir betrachten eine Reihe von Tukey-Lambda-Verteilungen mit &lambda; zwischen -1 und 1 und plotten die Korrelationen mit den Daten. Das Maximum der Kurve zeigt den besten Formparameter an:<br>
+<table border="0">
+<tr><td> &lambda; = -1</td><td>Ungefähr Cauchy-verteilt C(0,&pi;)</td></tr>
+<tr><td> &lambda; = 0</td><td>Exakt logistisch</td></tr>
+<tr><td> &lambda; = 0.14</td><td>Ungefähr normalverteilt N(0,2.142)</td></tr>
+<tr><td> &lambda; = 0.5</td><td>Strikt konkav</td></tr>
+<tr><td> &lambda; = 1</td><td>Exakt gleichverteilt U(-1,1)</td></tr>
+</table>
+<br>
+
+<div class="header">Parameter</div>
+Oberes Feld: quantitative Variable, die analysiert werden soll.
+</body>
+</html>

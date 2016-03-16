@@ -14,9 +14,10 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.95";
+var VERSION = "1.96";
 
 /***************************************************************************/
+
 
 var AHELP = {};
 
@@ -385,6 +386,7 @@ var PREC = 1000000;
 //***************************************************************************
 
 var myconfig = null;
+var mylocale;
 
 var mywindow = null;
 var canvas = null;
@@ -465,7 +467,6 @@ var randomfiles = [];
 //***************************************************************************
 //***************************************************************************
 
-
 ipc.on("start",  function (filename)
 {
 
@@ -491,6 +492,10 @@ ipc.on("start",  function (filename)
 });
 
 //***************************************************************************
+
+ipc.on("locale", function(locale) {
+	mylocale = locale;
+});
 
 ipc.on("clipboard", function(content)
 {
@@ -26107,7 +26112,19 @@ var graph = graphs[graphindex];
 var name = GINFO[graph.type].name.toLowerCase();
 
 if(window.inbrowser)
-	window.open("help/"+name+".html",name,"width=500;status=no;toolbar=no;menubar=no;location=no");
+	{
+	var options = "width=500;status=no;toolbar=no;menubar=no;location=no";
+	var whelp = window.open("help/"+mylocale+"/"+name+".html",name,options);
+	whelp.onload = function() { 		
+		var h = whelp.document.querySelectorAll(".header");
+		if(h.length==0)
+			{
+			whelp.close();
+			mylocale = "en";
+			whelp = window.open("help/en/"+name+".html",name,options);
+			}
+		}
+	}
 else
 	ipc.send("help",name);
 

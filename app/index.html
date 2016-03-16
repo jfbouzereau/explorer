@@ -9,6 +9,9 @@
 </body>
 <script>
 
+var language = window.navigator.userLanguage || window.navigator.language || "en";
+var mylocale = language.substring(0,2);
+
 window.inbrowser = true;
 
 function require(name) {
