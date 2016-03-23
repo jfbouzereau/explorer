@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.96";
+var VERSION = "1.97";
 
 /***************************************************************************/
 
@@ -9323,7 +9323,6 @@ function computeMomentsData(graph)
 {
 if(graph.ivalues.length<1) return;
 
-
 var nv = graph.ivalues.length;
 
 var m1 = vector(nv);
@@ -10323,7 +10322,11 @@ function computeHistoData(graph)
 {
 if(graph.ivalue1<0) return;
 
-computeMomentsData(graph)
+// fake list of values
+var temp = graph.ivalues;
+graph.ivalues = [graph.ivalue1];
+computeMomentsData(graph);
+graph.ivalues = temp;
 
 if(!graph.nslot)
 	graph.nslot = 10;
@@ -10359,39 +10362,6 @@ for(var i=0;i<lrecords.length;i++)
 		graph._z.subhisto[k][key1]++;
 	}
 
-}
-
-//*********************************************************************
-
-function createLabelFromHisto(graph)
-{
-var i1 = graph.ivalue1 
-if(i1<0) return
-
-var initial = values[i1].substring(0,1)
-
-var xslot = (graph._z.xmax - graph._z.xmin)/graph.nslot;
-var xmin = graph._z.xmin;
-var xmax = graph._z.xmax;
-
-var name = "";
-
-for(var i=0;i<lrecords.length;i++)
-	{
-	var k = Math.floor((vrecords[i][graph.ivalue1]-xmin)/xslot)
-	if(k<0)
-		name = "";
-	else if(k==graph._z.histo.length)
-		name = initial + ((k<10) ? "0" : "") + k;
-	else if(k>graph._z.histo.length)
-		name = "";
-	else
-		name = initial + ((k+1<10) ? "0" : "" ) + (k+1);
-	lrecords[i].push(name)
-	}
-
-name = values[graph.ivalue1]+"_"+(labels.length+1);
-labels.push(name);
 }
 
 //*********************************************************************
@@ -10587,11 +10557,12 @@ if(graph.ivalue1>=0)
 	// draw normal curve
 	var scale = area*(xmax-xmin)/(x2-x1);
 	ctx.strokeStyle = GREEN;
+	ctx.lineWidth = 2;
 	ctx.beginPath();
 	for(var i=0;i<=100;i++)
 		{
 		var xx = xmin+i*(xmax-xmin)/100;
-		var dd = normal(xx,graph._z.stats.mean1,graph._z.stats.stdev);
+		var dd = normal(xx,graph._z.mean1,graph._z.stdev);
 		var x = x1+i*(x2-x1)/100;
 		var y = y1-dd*scale;
 		if(i==0)
@@ -10604,6 +10575,7 @@ if(graph.ivalue1>=0)
 	// draw cursor
 	ctx.strokeStyle = "#000000";
 	ctx.fillStyle = "#FFFFFF";
+	ctx.lineWidth = 1;
 	var x = x1+(x2-x1)*graph.nslot/50;
 	ctx.fillRect(x-5,y1+20,10,20)
 	ctx.strokeRect(x-5,y1+20,10,20)
@@ -10674,6 +10646,45 @@ if(faction==DRAG_SLIDER)
 	}
 
 }
+
+//*********************************************************************
+
+function upHistoGraph(graph)
+{
+if(action!=CREATE_LABEL) return;
+
+var i1 = graph.ivalue1 
+if(i1<0) return
+
+var initial = values[i1].substring(0,1)
+
+var xslot = (graph._z.xmax - graph._z.xmin)/graph.nslot;
+var xmin = graph._z.xmin;
+var xmax = graph._z.xmax;
+
+var name = "";
+
+for(var i=0;i<lrecords.length;i++)
+	{
+	var k = Math.floor((vrecords[i][graph.ivalue1]-xmin)/xslot)
+	if(k<0)
+		name = "";
+	else if(k==graph._z.histo.length)
+		name = initial + ((k<10) ? "0" : "") + k;
+	else if(k>graph._z.histo.length)
+		name = "";
+	else
+		name = initial + ((k+1<10) ? "0" : "" ) + (k+1);
+	lrecords[i].push(name)
+	}
+
+if(zlabel==labels.length) zlabel++;
+newfield++;
+name = values[graph.ivalue1]+"_"+newfield;
+labels.push(name);
+}
+
+//*********************************************************************
 
 //*********************************************************************
 //
@@ -21908,9 +21919,25 @@ for(var j=0;j<nv;j++)
 	ctx.fillText(values[graph.ivalues[j]],xleft+dx*j+dx/2,ybottom+10);
 	}
 	
+
+// draw keys
+ctx.fillStyle = "#000000";
+
+var y = ytop+dy/2;
+for(var i=0;i<graph._z.keys.length;i++)
+	{	
+	ctx.save();
+	ctx.translate(xleft-15,y);
+	ctx.rotate(-Math.PI/2);
+	ctx.fillText(graph._z.keys[i],0,0);
+	ctx.restore();
+	y += dy;
+	}
+
+// draw boxes		
 ctx.strokeStyle = "#000000";
 ctx.fillStyle = getColor(graph.hue,1,1)
-		
+
 for(var j=0;j<nv;j++)
 	{
 	var y = ytop+dy/2;
@@ -25581,8 +25608,6 @@ else if(action==CREATE_LABEL)
 	var graph = graphs[graphindex];
 	if(graph.type==TYPE.DISTRIB)
 		createLabelFromDistrib(graph);
-	else if(graph.type==TYPE.HISTO)
-		createLabelFromHisto(graph);
 	else if(graph.type==TYPE.DENDRO)
 		createLabelFromDendro(graph);
 	}
