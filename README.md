@@ -83,10 +83,10 @@ Various file formats are accepted :
 <tr>
 	<td>BigQuery</td>
 	<td>*</td>
-	<td>A config file with a content like this:
+	<td>A config file with a content like this: <br>
 BigQuery <br>
-client_secret:my_private_key.json
-query:select * from lookerdata:cdc.project_tycho_reports limit 1000
+client_secret:my_private_key.json <br>
+query:select * from lookerdata:cdc.project_tycho_reports limit 1000 <br>
 	</td>
 </tr>
 <tr>
