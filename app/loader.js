@@ -102,6 +102,9 @@ else if(check(content,'W','O','R','K','S','H','E','E','T',' ',
 else if((content[0]>=0x69)&&(content[0]<=0x72)&&(content[1]>=0x01)&&(content[1]<=0x02))
 	process_stata_content(content,callback);
 
+else if(check(content,'B','i','g','Q','u','e','r','y'))
+	process_bigquery(content,callback);
+
 else
 	process_tabular_content(content,callback);
 
@@ -2844,6 +2847,103 @@ check_data_type(callback);
 		}
 	}
 
+}
+
+//****************************************************************************
+
+function process_bigquery(content, callback) {
+
+	var GAPI = require("gapitoken");
+	var util = require("util");
+	var request = require("request");
+
+	content = content+"";
+
+	var lines = content.split("\n");
+	if(lines.length<2)
+		lines = content.split("\r");
+
+	var params = {};
+	var m;
+	for(var i=0;i<lines.length;i++)
+		{
+		if(m=lines[i].match(/client_secret:(.*)/))
+			params.client_secret = m[1];
+		if(m=lines[i].match(/query:(.*)/))
+			params.query = m[1];
+		else 
+			params.query += lines[i];
+		}
+
+	
+	try {	
+		var json = JSON.parse(fs.readFileSync(params.client_secret));
+		}
+	catch(err) {
+		console.log(err);
+		return callback(null);
+		}
+		
+	var burl = "https://www.googleapis.com/bigquery/v2/projects/%s/queries";
+
+	var gapi = new GAPI( {
+		iss : json.client_email,
+		scope : "https://www.googleapis.com/auth/bigquery https://www.googleapis.com/auth/cloud-platform",
+		key : json.private_key
+	},	function() {
+		gapi.getToken(function(err,token) {
+
+		if(err) {
+			console.log("TOKEN ERR "+err);
+			return callback(null);
+			}
+
+		request( {
+			url:util.format(burl,json.project_id),
+			method:"POST",
+			headers: {
+				Authorization:"Bearer "+token
+				},
+			json:{
+				query:params.query
+				}
+			},
+			onreply);	
+		});
+	});
+
+	function onreply(err,r,d) {
+		if(err) {
+			console.log("REPLY ERR "+err);
+			return callback(null);
+			}
+
+		data = [];
+
+		var record = [];
+		var fields = d.schema.fields;
+		for(var j=0;j<fields.length;j++)
+			if((fields[j].type==="INTEGER")||(fields[j].type==="FLOAT"))
+				record.push(fields[j].name+":n");
+			else
+				record.push(fields[j].name);
+		data.push(record);
+
+		var rows = d.rows;
+		for(var i=0;i<rows.length;i++)
+			{
+			record = new Array(fields.length);
+			var f = rows[i].f;
+			for(var j=0;j<f.length;j++)
+				if((fields[j].type==="INTEGER")||(fields[j].type==="FLOAT"))
+					record[j] = Number(f[j].v);
+				else
+					record[j] = f[j].v;
+			data.push(record);
+			}
+
+		callback(data);
+		}
 }
 
 //****************************************************************************

@@ -81,6 +81,15 @@ Various file formats are accepted :
 	<td>Access 2000 or higher</td>
 </tr>
 <tr>
+	<td>BigQuery</td>
+	<td>*</td>
+	<td>A config file with a content like this:
+BigQuery <br>
+client_secret:my_private_key.json
+query:select * from lookerdata:cdc.project_tycho_reports limit 1000
+	</td>
+</tr>
+<tr>
 	<td>dBase</td>
 	<td>dbf</td>
 	<td></td>
