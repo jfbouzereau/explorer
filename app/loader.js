@@ -2853,71 +2853,100 @@ check_data_type(callback);
 
 function process_bigquery(content, callback) {
 
+console.log("process bigquery  content "+content.length);
+
+var burl1 = "https://www.googleapis.com/bigquery/v2/projects/%s/queries";
+var burl2 = "https://www.googleapis.com/bigquery/v2/projects/%s/queries/%s?timeoutMs=%d";
+var scope = "https://www.googleapis.com/auth/bigquery https://www.googleapis.com/auth/cloud-platform";
+
+content = content+"";
+
+try {	
 	var GAPI = require("gapitoken");
 	var util = require("util");
 	var request = require("request");
-
-	content = content+"";
 
 	var lines = content.split("\n");
 	if(lines.length<2)
 		lines = content.split("\r");
 
-	var params = {};
+	var params = { timeout:10000 };
 	var m;
 	for(var i=0;i<lines.length;i++)
 		{
 		if(m=lines[i].match(/client_secret:(.*)/))
 			params.client_secret = m[1];
-		if(m=lines[i].match(/query:(.*)/))
+		else if(m=lines[i].match(/timeout:(.*)/))
+			params.timeout = Number(m[1]);
+		else if(m=lines[i].match(/query:(.*)/))
 			params.query = m[1];
 		else 
 			params.query += lines[i];
 		}
 
-	
-	try {	
 		var json = JSON.parse(fs.readFileSync(params.client_secret));
 		}
-	catch(err) {
+catch(err) {
 		console.log(err);
 		return callback(null);
 		}
 		
-	var burl = "https://www.googleapis.com/bigquery/v2/projects/%s/queries";
+var gapi = new GAPI( {
+	scope:scope,
+	iss : json.client_email,
+	key : json.private_key
+	},
+	 function() { gapi.getToken(ontoken) }
+	);
 
-	var gapi = new GAPI( {
-		iss : json.client_email,
-		scope : "https://www.googleapis.com/auth/bigquery https://www.googleapis.com/auth/cloud-platform",
-		key : json.private_key
-	},	function() {
-		gapi.getToken(function(err,token) {
 
+	function ontoken(err,token) {
+
+		console.log("token "+token);
 		if(err) {
 			console.log("TOKEN ERR "+err);
-			return callback(null);
+			callback(null);
+			return;
 			}
 
+		// submit query
 		request( {
-			url:util.format(burl,json.project_id),
+			url:util.format(burl1,json.project_id),
 			method:"POST",
-			headers: {
-				Authorization:"Bearer "+token
-				},
-			json:{
-				query:params.query
-				}
+			headers: { Authorization:"Bearer "+token },
+			json:{ query:params.query, timeoutMs:params.timeout }
 			},
 			onreply);	
-		});
-	});
+		};
+
 
 	function onreply(err,r,d) {
 		if(err) {
 			console.log("REPLY ERR "+err);
-			return callback(null);
+			callback(null);
+			return;
 			}
+	
+		// if result is already available
+		if(d.jobComplete)
+			{
+			ondata(d);
+			return;
+			}
+	
+		// retrieve result
+		request( {
+			url:util.format(burl2,d.jobReference.projectId,d.jobReference.jobId,params.timeout),
+			method:"GET",
+			headers: {
+				Authorization:"Bearer "+token
+				}
+			},
+			onreply);	
+	}
 
+
+	function ondata(d) {
 		data = [];
 
 		var record = [];
@@ -3003,6 +3032,12 @@ function unquote(s)
 if(s==void 0) s= "";
 var m = s.match(/^"(.*)"$/);
 return m==null ? s : m[1];
+}
+
+//****************************************************************************
+
+function mylog(msg) {
+	fs.appendFileSync("mylog.log",msg+"\n");
 }
 
 //****************************************************************************

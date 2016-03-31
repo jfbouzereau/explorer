@@ -85,8 +85,9 @@ Various file formats are accepted :
 	<td>*</td>
 	<td>A config file with a content like this: <br>
 BigQuery <br>
-client_secret:my_private_key.json <br>
+client_secret:/full/path/to/my_private_key.json <br>
 query:select * from lookerdata:cdc.project_tycho_reports limit 1000 <br>
+timeout:60000 <br>
 	</td>
 </tr>
 <tr>
