@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.98";
+var VERSION = "1.99";
 
 /***************************************************************************/
 
@@ -110,6 +110,8 @@ _action("REMOVE_LABELN","Remove partition");
 _action("SWAP_LABELN","Swap partition");
 _action("DRAG_TABLE","Show values ...");
 _action("SHOW_TABLE","Show graph values");
+_action("DRAG_PICTURE","Generate picture...");
+_action("SHOW_PICTURE","Generate picture of graph");
 _action("DRAG_HELP","Display help ...");
 _action("SHOW_HELP","Display help about this graph");
 _action("DRAG_ADD","Add field");
@@ -186,6 +188,7 @@ var GACTIONS = {}
 	GACTIONS[CLONE_GRAPH] = 1;
 	GACTIONS[EXPORT_CHART] = 1;
 	GACTIONS[CHANGE_DISPLAY] = 1;
+	GACTIONS[SHOW_PICTURE] = 1;
 	
 
 /***************************************************************************/
@@ -273,6 +276,7 @@ var TOOL = {};
 
 _tool("DUSTBIN");
 _tool("SHOW");
+_tool("PICTURE");
 _tool("HELP");
 _tool("ADD");
 _tool("CLONE");
@@ -643,7 +647,6 @@ function _tool(name)
 
 TOOL[name] = ZNUM;
 ZNUM++;
-
 }
 
 //*********************************************************************
@@ -1307,44 +1310,9 @@ return k<NBTYPE1 ? -1 : k>=NBTYPE3 ? -1 : k;
 
 //*********************************************************************
 
-function inDustbinIcon(pt)
+function inToolIcon(pt,name)
 {
-return inRect(pt,mywidth-20,myheight-40,20,20);
-}
-
-//*********************************************************************
-
-function inTableIcon(pt)
-{
-return inRect(pt,mywidth-40,myheight-40,20,20);
-}
-
-//*********************************************************************
-
-function inHelpIcon(pt)
-{
-return inRect(pt,mywidth-60,myheight-40,20,20);
-}
-
-//*********************************************************************
-
-function inAddIcon(pt)
-{
-return inRect(pt,mywidth-80,myheight-40,20,20);
-}
-
-//*********************************************************************
-
-function inCloneIcon(pt)
-{
-return inRect(pt,mywidth-100,myheight-40,20,20);
-}
-
-//*********************************************************************
-
-function inSortIcon(pt)
-{
-return inRect(pt,mywidth-120,myheight-40,20,20);
+return inRect(pt,mywidth-20*TOOL[name]-20,myheight-40,20,20);
 }
 
 //*********************************************************************
@@ -24811,37 +24779,43 @@ if(inValueHandle(ptclick))
 	return;
 	}
 
-if(inDustbinIcon(ptclick))
+if(inToolIcon(ptclick,"DUSTBIN"))
 	{
 	faction = action = DRAG_DUSTBIN;
 	return;
 	}
 
-if(inTableIcon(ptclick))
+if(inToolIcon(ptclick,"SHOW"))
 	{
 	faction = action = DRAG_TABLE;
 	return
 	}
 
-if(inHelpIcon(ptclick))
+if(inToolIcon(ptclick,"PICTURE"))
+	{
+	faction = action = DRAG_PICTURE;
+	return;
+	}
+
+if(inToolIcon(ptclick,"HELP"))
 	{
 	faction = action = DRAG_HELP;
 	return;
 	}
 
-if(inAddIcon(ptclick))
+if(inToolIcon(ptclick,"ADD"))
 	{
 	faction = action = DRAG_ADD;
 	return;
 	}
 
-if(inCloneIcon(ptclick))
+if(inToolIcon(ptclick,"CLONE"))
 	{
 	faction = action = DRAG_CLONE;
 	return;
 	}
 
-if(inSortIcon(ptclick))
+if(inToolIcon(ptclick,"SORT"))
 	{	
 	faction = action = DRAG_SORT;
 	return;
@@ -25102,6 +25076,10 @@ ptmove = getxy(event)
 if(action==SHOW_TABLE)
 	{
 	showGraphTable();
+	}
+else if(action==SHOW_PICTURE)
+	{
+	showGraphPicture();
 	}
 else if(action==SHOW_HELP)
 	{
@@ -25884,6 +25862,58 @@ showTable(t,"DATA");
 
 //*********************************************************************
 
+function showGraphPicture()
+{
+if(graphindex<0) return;
+var graph = graphs[graphindex];
+
+// setup temp canvas to draw the graph
+
+var canvas = document.createElement("canvas");
+canvas.setAttribute("width",graph.w);
+canvas.setAttribute("height",graph.h);
+
+var savex = graph.x;
+var savey = graph.y;
+
+graph.x = graph.y = 0;
+
+var ctx = canvas.getContext("2d");
+ctx.fillStyle = "#FFFFFF";
+ctx.fillRect(0,0,graph.w,graph.h);
+try { GINFO[graph.type].draw(ctx,graph); }
+catch(err) { console.log(err) }
+
+graph.x = savex;
+graph.y = savey;
+
+var data = canvas.toDataURL();
+
+if(window.inbrowser)
+	{
+	var w = window.open(data,"explorer","status=0");
+	}
+else
+	{		
+	var i = data.indexOf(",");
+	if(i<0) return;
+	var buffer = new Buffer(data.substring(i+1),"base64");
+
+	var filename = (Math.random()+"").replace(/../,"")+".png";
+	filename = require("path").join(require("os").tmpdir(),filename);
+	randomfiles.push(filename);
+
+	var fs = require("fs");		
+	fs.writeFileSync(filename,buffer);
+
+	var source = '<img src="file://'+filename+'">';
+	ipc.send("window", {title:"Explorer",source:source});
+	}
+
+}
+
+//*********************************************************************
+
 function showGraphTable()
 {
 if(graphindex<0) return;
@@ -25959,16 +25989,18 @@ function keydown(event) {
 if(window.inbrowser)
 	{
 	var w = window.open("",wname,"status=0");
+	var d = w.document;
 	d.open()
 	d.write(h);
 	d.close()
 	}
 else
 	{		
-	var tmpdir = require("os").tmpdir();
-	var fs = require("fs");		
-	var filename = tmpdir+"/"+Math.random()+".html";
+	var filename = (Math.random()+"").replace(/../,"")+".html";
+	filename = require("path").join(require("os").tmpdir(),filename);
 	randomfiles.push(filename);
+
+	var fs = require("fs");		
 	fs.writeFileSync(filename,h,"utf8");
 	var w = window.open("file://"+filename);
 	}
@@ -26504,37 +26536,43 @@ if(index>=0)
 	return;	
 	}
 
-if(inDustbinIcon(ptmove))
+if(inToolIcon(ptmove,"DUSTBIN"))
 	{
 	message = "Remove ...";
 	return;
 	}
 
-if(inTableIcon(ptmove))
+if(inToolIcon(ptmove,"SHOW"))
 	{
 	message = AHELP[DRAG_TABLE];
-	return
+	return;
 	}
 
-if(inHelpIcon(ptmove))
+if(inToolIcon(ptmove,"PICTURE"))
+	{
+	message = AHELP[DRAG_PICTURE];
+	return;
+	}
+
+if(inToolIcon(ptmove,"HELP"))
 	{
 	message = AHELP[DRAG_HELP];
 	return;
 	}
 
-if(inAddIcon(ptmove))
+if(inToolIcon(ptmove,"ADD"))
 	{
 	message = AHELP[DRAG_ADD];
 	return;
 	}
 
-if(inCloneIcon(ptmove))
+if(inToolIcon(ptmove,"CLONE"))
 	{
 	message = AHELP[DRAG_CLONE];
 	return;
 	}
 
-if(inSortIcon(ptmove))
+if(inToolIcon(ptmove,"SORT"))
 	{
 	message = AHELP[DRAG_SORT];
 	return;
@@ -26837,6 +26875,14 @@ else if(faction==DRAG_TABLE)
 	else
 		action = DRAG_TABLE;
 	}
+else if(faction==DRAG_PICTURE)
+	{
+	graphindex  = inGraph(ptmove);
+	if(graphindex>=0)
+		action = SHOW_PICTURE;
+	else
+		action = DRAG_PICTURE;
+	}
 else if(faction==DRAG_HELP)
 	{
 	graphindex = -1;
@@ -26922,7 +26968,7 @@ else if(faction==DRAG_LABEL)
 	{
 	graphindex = -1
 	var i = inFullGraph(ptmove);
-	if(inDustbinIcon(ptmove))
+	if(inToolIcon(ptmove,"DUSTBIN"))
 		{
 		if(labelInUse(labelindex))
 			action = DONT_REMOVE;
@@ -26932,11 +26978,11 @@ else if(faction==DRAG_LABEL)
 			AHELP[action] = 'Remove field "'+labels[labelindex]+'"';
 			}
 		}
-	else if(inTableIcon(ptmove))
+	else if(inToolIcon(ptmove,"SHOW"))
 		{
 		action = SHOW_LABEL;
 		}
-	else if(inSortIcon(ptmove))
+	else if(inToolIcon(ptmove,"SORT"))
 		{
 		action = SORT_DATA;
 		var o = labelindex == lastsort ? ORDER[1-lastorder] : "ascending";
@@ -26988,7 +27034,7 @@ else if(faction==DRAG_VALUE)
 	graphindex = -1
 	var i = inFullGraph(ptmove);
 	var j;
-	if(inDustbinIcon(ptmove))
+	if(inToolIcon(ptmove,"DUSTBIN"))
 		{
 		if(valueInUse(valueindex))
 			action = DONT_REMOVE;
@@ -26998,11 +27044,11 @@ else if(faction==DRAG_VALUE)
 			AHELP[action] = 'Remove field "'+values[valueindex]+'"';
 			}
 		}
-	else if(inTableIcon(ptmove))
+	else if(inToolIcon(ptmove,"SHOW"))
 		{
 		action = SHOW_VALUE;
 		}
-	else if(inSortIcon(ptmove))
+	else if(inToolIcon(ptmove,"SORT"))
 		{
 		action = SORT_DATA;
 		var o = valueindex==-lastsort ? ORDER[1-lastorder] : "ascending";
@@ -27674,9 +27720,41 @@ ctx.fillStyle = "#FFFFFF"
 ctx.fillRect(x,y,20,20);
 ctx.fillStyle = "#000000"
 for(var i=3;i<18;i+=3)
-	ctx.fillRect(x+4,y+i,13,1)
+	ctx.fillRect(x+4,y+i+1,13,1)
 for(var i=4;i<19;i+=4)
-	ctx.fillRect(x+i,y+3,1,13) 
+	ctx.fillRect(x+i,y+3+1,1,13) 
+frameIcon(ctx,x,y);
+}
+
+//*********************************************************************
+
+function drawPictureIcon(ctx,x,y)
+{
+ctx.fillStyle = "#FFFFFF";
+ctx.fillRect(x,y,20,20);
+ctx.fillStyle = "#000000";
+drawRect(ctx,x+2,y+2,16,16);
+
+ctx.beginPath();
+ctx.moveTo(x+2,y+18);
+ctx.lineTo(x+15,y+8);
+ctx.lineTo(x+18,y+12);
+ctx.lineTo(x+18,y+18);
+ctx.closePath();
+ctx.fill();
+
+ctx.beginPath();
+ctx.arc(x+7,y+7,2.5,0,2*Math.PI,false);
+ctx.fill();
+
+ctx.fillStyle = "#FFFFFF";
+ctx.beginPath();
+ctx.moveTo(x+3,y+10);
+ctx.lineTo(x+12,y+15);
+ctx.lineTo(x+13,y+10);
+ctx.closePath();
+ctx.fill();
+
 frameIcon(ctx,x,y);
 }
 
@@ -27878,27 +27956,33 @@ for(var i=4;i<=16;i+=4)
 ctx.stroke()
 frameIcon(ctx,x,y);
 
-x = w-20;
+x = w;
+
+x -= 20;
 y = h-40;
 drawDustbinIcon(ctx,x,y);
 
-x = w-40;
+x -= 20;
 y = h-40;
 drawTableIcon(ctx,x,y);
 
-x = w-60;
+x -= 20;;
+y = h-40;
+drawPictureIcon(ctx,x,y);
+
+x -= 20;
 y = h-40;
 drawHelpIcon(ctx,x,y);
 
-x = w-80;
+x -= 20;
 y = h-40;
 drawAddIcon(ctx,x,y);
 
-x = w - 100;
+x -= 20;
 y = h - 40;
 drawCloneIcon(ctx,x,y);
 
-x = w-120;
+x -= 20;
 y = h-40;
 drawSortIcon(ctx,x,y);
 
@@ -28475,8 +28559,14 @@ if((action==DRAG_AXIS)||(action==DRAG_RESULT))
 	ctx.fillRect(ptmove.x-10,ptmove.y-10,20,20)
 	}
 
-if((action==DRAG_TABLE)||(action==DRAG_DUSTBIN)||(action==DRAG_HELP)||(action==DRAG_ADD)||(action==DRAG_CLONE)||
-	(action==EXPORT_CHART)||(action==DRAG_SORT))
+if((action==DRAG_TABLE)||
+	(action==DRAG_DUSTBIN)||
+	(action==DRAG_HELP)||
+	(action==DRAG_ADD)||
+	(action==DRAG_CLONE)||
+	(action==EXPORT_CHART)||
+	(action==DRAG_SORT)||
+	(action==DRAG_PICTURE))
 	{
 	ctx.strokeStyle = GRAY
 	ctx.strokeRect(ptmove.x-10,ptmove.y-10,20,20);

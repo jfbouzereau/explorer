@@ -1,8 +1,9 @@
 {
   "name": "Explorer",
-  "version": "1.98.0",
+  "version": "1.99.0",
   "main": "main.js",
   "dependencies": {
-    "gapitoken": "^0.1.5"
+    "gapitoken": "^0.1.5",
+    "request": "^2.69.0"
   }
 }

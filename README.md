@@ -344,6 +344,8 @@ Here are the various tools proposed by the toolbar at the bottom of the screen :
 
 * Help. Drag this icon onto a graph to get some informations about the analysis, the results produced,  the representation options, and the possible actions.
 
+* Picture : Drag this icon onto a graph to get its image in png format.
+
 * Table : Drag this icon to the pink or blue zone to get a table of the values of the dataset.
 Drag this icon onto a graph to get a table of the numerical results. They can be copied and pasted into another software.
 
