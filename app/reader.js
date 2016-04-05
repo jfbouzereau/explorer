@@ -1,4 +1,6 @@
-var ipc = require("ipc");
+var ipc = require("electron").ipcRenderer;
+
+var reading = false;
 
 document.body.addEventListener("dragover", function(e) {
 	e.stopPropagation();
@@ -15,8 +17,15 @@ document.body.addEventListener("drop" ,function(e) {
 	e.stopPropagation();
 	e.preventDefault();
 	var file = e.dataTransfer.files[0];
+	reading = true;
+	window.close();
 	ipc.send("filename",file.path);
 	return false;
+},false);
+
+window.addEventListener("beforeunload", function(e) {
+	if(!reading)
+		ipc.send("exit");	
 },false);
 
 var button = document.getElementById("button");

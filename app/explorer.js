@@ -1,6 +1,6 @@
-var remote = require("remote");
+var remote = require("electron").remote;
 var console = remote.getGlobal("console");
-var ipc = require("ipc");
+var ipc = require("electron").ipcRenderer;
 
 // check if console if working
 try	{
@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.99";
+var VERSION = "1.100";
 
 /***************************************************************************/
 
@@ -467,15 +467,14 @@ var animtimer = null
 var newfield = 0;
 
 var randomfiles = [];
+var retrying = false;
 
 //***************************************************************************
 //***************************************************************************
 
-ipc.on("start",  function (filename)
+ipc.on("start",  function (event,filename)
 {
-
-	console.log("start "+filename);
-
+	
 	var loader = require("./loader");
 
 	loader.load(filename,loaded)
@@ -486,7 +485,8 @@ ipc.on("start",  function (filename)
 		{
 		console.log("NULL DATA");
 		window.close();
-		ipc.send("reader");
+		retrying = true;
+		ipc.sendSync("reader");
 		return;
 		}
 
@@ -497,11 +497,11 @@ ipc.on("start",  function (filename)
 
 //***************************************************************************
 
-ipc.on("locale", function(locale) {
+ipc.on("locale", function(event,locale) {
 	mylocale = locale;
 });
 
-ipc.on("clipboard", function(content)
+ipc.on("clipboard", function(event,content)
 {
 console.log("explorer received clipboard "+content.length);
 
@@ -518,7 +518,7 @@ function loaded(data)
 		{
 		console.log("NULL DATA");
 		window.close();
-		ipc.send("reader");
+		ipc.sendSync("reader");
 		return;
 		}
 
@@ -580,6 +580,9 @@ for(var i=0;i<randomfiles.length;i++)
 	console.log("removing "+randomfiles[i]);
 	fs.unlinkSync(randomfiles[i]);	
 	}
+
+if(!retrying)
+	ipc.sendSync("exit");
 }
 
 //***************************************************************************
@@ -25879,10 +25882,22 @@ var savey = graph.y;
 graph.x = graph.y = 0;
 
 var ctx = canvas.getContext("2d");
+
+// default settings
+ctx.lineWidth = 1
+ctx.lineJoin = "round"
+ctx.font = "14px helvetica"
+ctx.textAlign = "center"
+
 ctx.fillStyle = "#FFFFFF";
 ctx.fillRect(0,0,graph.w,graph.h);
+
+ctx.save();
 try { GINFO[graph.type].draw(ctx,graph); }
 catch(err) { console.log(err) }
+
+ctx.restore();
+drawGraphSlots(ctx,graph);
 
 graph.x = savex;
 graph.y = savey;
@@ -27700,6 +27715,8 @@ ctx.stroke()
 
 function drawDustbinIcon(ctx,x,y)
 {
+ctx.fillStyle = "#FFFFFF";
+ctx.fillRect(x,y,20,20);
 ctx.fillStyle = "#000000";
 ctx.fillRect(x+4,y+5,1,13);
 ctx.fillRect(x+7,y+7,1,9);

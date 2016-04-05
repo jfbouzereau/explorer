@@ -206,11 +206,11 @@ Once the data have been successfully loaded, the main window is displayed :
 
 Here are the elements of the interface :
 
-  1. List of the categorical fields (aka "the pink zone"). By default only 10 fields are displayed. To resize the list, move the mouse just below the list and drag to shrink or extend the list.
+  1. List of the categorical fields (aka "the pink zone"). By default only 10 fields are displayed. To resize the list, move the mouse just below the list and drag to shrink or extend the list. To scroll the list, move the mouse to the right of the list.
   
   2. Icons of the existing analyses (graphs). To run a new analysis, just drag its icon to the workspace.  
   
-  3. List of the numerical fields (aka "the blue zone"). By default only 10 fields are displayed. To resize the list, move the mouse just below the list and drag to shrink or extend the list.
+  3. List of the numerical fields (aka "the blue zone"). By default only 10 fields are displayed. To resize the list, move the mouse just below the list and drag to shrink or extend the list. To scroll the list, move the mouse to the right of the list.
   
   4. Icons of the tools
   

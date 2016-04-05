@@ -20,16 +20,23 @@ var data = [];
 function load(filename,callback)
 {
 console.log("LOADING "+filename);
-var content = fs.readFileSync(filename);
+try	{
+	var content = fs.readFileSync(filename);
+	}
+catch(err)
+	{
+	console.log(err);
+	callback(null);
+	}
 
-if(filename.toLowerCase().indexOf(".dbf")==filename.length-4)
-	process_dbase_content(content,callback);
-else if(filename.toLowerCase().indexOf(".sdd")==filename.length-4)
-	process_sdd_content(content,callback);
-else if(filename.toLowerCase().indexOf(".ws")==filename.length-3)
-	process_mlwin_content(content,callback);
-else
-	process_content(content,filename,callback);
+	if(filename.toLowerCase().indexOf(".dbf")==filename.length-4)
+		process_dbase_content(content,callback);
+	else if(filename.toLowerCase().indexOf(".sdd")==filename.length-4)
+		process_sdd_content(content,callback);
+	else if(filename.toLowerCase().indexOf(".ws")==filename.length-3)
+		process_mlwin_content(content,callback);
+	else
+		process_content(content,filename,callback);
 }
 
 //****************************************************************************
@@ -541,6 +548,12 @@ catch(e)
 function process_tabular_content(content,callback)
 {
 console.log("process tabular");
+
+if(is_binary(content))
+	{
+	callback(null);
+	return;
+	}
 
 	content = content+"";
 
@@ -3032,6 +3045,20 @@ function unquote(s)
 if(s==void 0) s= "";
 var m = s.match(/^"(.*)"$/);
 return m==null ? s : m[1];
+}
+
+//****************************************************************************
+
+function is_binary(content) {
+if(!Buffer.isBuffer(content)) return false;
+
+var n = content.length;
+var z = 0;
+for(var i=0;i<n;i++)
+	if(content[i]==0)
+		z+=1;
+
+return z>20;
 }
 
 //****************************************************************************
