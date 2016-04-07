@@ -347,7 +347,7 @@ Here are the various tools proposed by the toolbar at the bottom of the screen :
 * Picture : Drag this icon onto a graph to get its image in png format.
 
 * Table : Drag this icon to the pink or blue zone to get a table of the values of the dataset.
-Drag this icon onto a graph to get a table of the numerical results. They can be copied and pasted into another software.
+Drag this icon onto a graph to get a table of the numerical results. They can be copied to the clipboard ( with control-C or command-C ) and pasted into another software.
 
 * Dustbin : Drag this icon onto a field, or drag a field onto this icon to delete the field from the dataset in memory. The original input file is not modified. If the field is in use by any graph, it cannot be deleted.
 
