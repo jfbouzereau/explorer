@@ -1,6 +1,6 @@
 {
   "name": "Explorer",
-  "version": "1.100.0",
+  "version": "1.101.0",
   "main": "main.js",
   "dependencies": {
     "gapitoken": "^0.1.5",

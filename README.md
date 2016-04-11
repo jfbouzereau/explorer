@@ -190,6 +190,16 @@ query:select * from mytable <br>
 	<td>The names of the fields are expected on the first line</td>
 </tr>
 <tr>
+	<td>Bzip2 file</td>
+	<td>bz2</td>
+	<td>The uncompressed file must be in one of the previous formats</td>
+</tr>
+<tr>
+	<td>Gzip file</td>
+	<td>gz</td>
+	<td>The uncompressed file must be in one of the previous formats</td>
+</tr>
+<tr>
 	<td>Web file</td>
 	<td>*</td>
 	<td>Contains the url of the data. The remote file must be in one of the previous formats</td>
@@ -349,7 +359,7 @@ Here are the various tools proposed by the toolbar at the bottom of the screen :
 * Table : Drag this icon to the pink or blue zone to get a table of the values of the dataset.
 Drag this icon onto a graph to get a table of the numerical results. They can be copied to the clipboard ( with control-C or command-C ) and pasted into another software.
 
-* Dustbin : Drag this icon onto a field, or drag a field onto this icon to delete the field from the dataset in memory. The original input file is not modified. If the field is in use by any graph, it cannot be deleted.
+* Dustbin : Drag this icon onto a field, or drag a field onto this icon to permanently remove the field ( if the field is used by some graphs, it cannot be removed ). Drag a pie slice, a bar, or a tree map slice onto this icon to permanently remove the corresponding records. The original input file is not modified. 
 
 ## Types of analysis
 * Pie chart

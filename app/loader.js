@@ -573,7 +573,7 @@ if(is_binary(content))
 		var record = lines[i].split(sep);
 		if(record.length!=nv) continue;
 		for(var j=0;j<nv;j++)
-			record[j] = unquote(record[j]);
+			record[j] = unquote(record[j].replace(",","."));
 		data.push(record);
 		}
 
