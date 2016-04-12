@@ -27,6 +27,20 @@ This Explorer allows to perform various statistical analyses and data mining ope
 			<img src="http://jfbouzereau.free.fr/explorer/youtube.jpeg"></img>
 		</a></td>
 </tr>
+
+<tr>
+	<td> Weather data</td>
+	<td align="center">
+		<a href="http://www.dailymotion.com/video/x43ve34" title="watch on dailymotion">
+			<img src="http://jfbouzereau.free.fr/explorer/dailymotion.png">
+		</a>
+	</td>
+	<td align="center">
+		<a href="https://www.youtube.com/watch?v=SiRfQXZCiDg" title="watch on youtube">
+			<img src="http://jfbouzereau.free.fr/explorer/youtube.jpeg"></img>
+		</a>
+	</td>
+</tr>
 </table>
 
 
