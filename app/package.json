@@ -5,6 +5,7 @@
   "dependencies": {
     "gapitoken": "^0.1.5",
     "mongodb": "^2.1.16",
-    "request": "^2.69.0"
+    "request": "^2.69.0",
+    "tedious": "^1.14.0"
   }
 }

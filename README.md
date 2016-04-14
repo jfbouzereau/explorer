@@ -142,7 +142,7 @@ timeout:60000 <br>
 <tr>
 	<td>MongoDB</td>
 	<td>*</td>
-	<td>A config file with a content like this:<br>
+	<td>A config file with a content like this:<br><br>
 		mongodb<br>
 		host:192.168.0.121:27017<br>
 		database:geo<br>
@@ -153,35 +153,30 @@ timeout:60000 <br>
 <tr>
 	<td>Mysql</td>
 	<td>*</td>
-	<td>A config file with a content like this:
-<div style="font-family:Courier;">
+	<td>A config file with a content like this:<br><br>
 mysql <br>
 host:192.168.0.2 <br>
 user:bob <br>
 password:secret <br>
 database:test <br>
 query:select * from mytable <br>
-</div>
 	</td>
 </tr>
 <tr>
 	<td>Postgres</td>
 	<td>*</td>
-	<td>A config file with a content like this:
-<div style="font-family:Courier;">
+	<td>A config file with a content like this:<br><br>
 postgres <br>
 host:192.168.0.2 <br>
 user:bob <br>
 password:secret <br>
 database:test <br>
 query:select * from mytable <br>
-</div>
-or: 
-<div style="font-family:Courier;">
+<br>
+or: <br>
 postgres <br>
 connection:bob:secret@192.168.0.2/test <br>
 query:select * from mytable <br>
-</div>
 	</td>
 </tr>
 <tr>
@@ -203,6 +198,17 @@ query:select * from mytable <br>
 	<td>SPSS</td>
 	<td>sav</td>
 	<td>Uncompressed format only</td>
+</tr>
+<tr>
+	<td>SQL Server</td>
+	<td>*</td>
+	<td>A config file with a content like this:<br><br>
+		mssql<br>
+		host:192.168.0.121<br>
+		username:bob<br>
+		password:secret<br>
+		query:select * from mytable<br>
+	</td>
 </tr>
 <tr>
 	<td>Stata</td>

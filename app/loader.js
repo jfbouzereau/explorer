@@ -115,6 +115,9 @@ else if(check(content,'B','i','g','Q','u','e','r','y'))
 else if(check(content,'m','o','n','g','o','d','b'))
 	process_mongodb(content,callback);
 
+else if(check(content,'m','s','s','q','l'))
+	process_mssql(content,callback);
+
 else
 	process_tabular_content(content,callback);
 
@@ -3068,6 +3071,86 @@ MongoClient.connect(url, function(err,db) {
 
 		});
 
+
+	});
+
+
+}
+
+//****************************************************************************
+
+function process_mssql(content, callback) {
+
+console.log("process mssql "+content.length);
+
+content = content+"";
+
+lines = content.split("\n");
+if(lines.length<2)
+	lines = content.split("\r");
+
+// default parameters
+var config = {server:"localhost",userName:"test",password:"test"};
+var query = null;
+
+var m;
+for(var i=0;i<lines.length;i++)
+	{
+	if(m=lines[i].match(/host:(.*)/))
+		config.server = m[1];
+	if(m=lines[i].match(/usern?a?m?e?:(.*)/))
+		config.userName = m[1];
+	if(m=lines[i].match(/password:(.*)/))
+		config.password = m[1];
+	if(m=lines[i].match(/query:(.*)/))
+		query = m[1];
+	}
+
+
+var Connection = require("tedious").Connection;
+var Request = require("tedious").Request;
+
+
+data = null;
+var fields = null;
+
+var cnx = new Connection(config);
+cnx.on("connect", function(err) {
+	if(err) 
+		{
+		console.log(err.stack);
+		callback(null);
+		return;
+		}
+
+	var rq = new Request(query, function(err, count) {		
+		if(err) {
+			console.log(err.stack);
+			callback(null);
+			return;
+			}
+		cnx.close();
+		check_data_type(callback);	
+		});
+
+	rq.on("row", function(cols) {
+		if(!fields)
+			{
+			fields = [];
+			for(var i=0;i<cols.length;i++)
+				fields.push(cols[i].metadata.colName);
+			data = [];
+			data.push(fields);
+			}	
+
+		var record = [];		
+		for (var i=0;i<cols.length;i++)
+			record.push(cols[i].value);
+
+		data.push(record);
+		});
+
+	cnx.execSql(rq);
 
 	});
 
