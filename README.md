@@ -140,6 +140,17 @@ timeout:60000 <br>
 	<td>Uncompressed format only</td>
 </tr>
 <tr>
+	<td>MongoDB</td>
+	<td>*</td>
+	<td>A config file with a content like this:<br>
+		mongodb<br>
+		host:192.168.0.121:27017<br>
+		database:geo<br>
+		collection:countries<br>
+		query:{cont:{$eq:"EU"},pop:{$gt:50000000}}<br>
+	</td>
+</tr>
+<tr>
 	<td>Mysql</td>
 	<td>*</td>
 	<td>A config file with a content like this:

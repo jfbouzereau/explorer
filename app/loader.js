@@ -112,6 +112,9 @@ else if((content[0]>=0x69)&&(content[0]<=0x72)&&(content[1]>=0x01)&&(content[1]<
 else if(check(content,'B','i','g','Q','u','e','r','y'))
 	process_bigquery(content,callback);
 
+else if(check(content,'m','o','n','g','o','d','b'))
+	process_mongodb(content,callback);
+
 else
 	process_tabular_content(content,callback);
 
@@ -2986,6 +2989,89 @@ var gapi = new GAPI( {
 
 		callback(data);
 		}
+}
+
+//****************************************************************************
+
+function process_mongodb(content, callback) {
+
+
+console.log("process mongodb "+content.length);
+
+content = content+"";
+
+lines = content.split("\n");
+if(lines.length<2)
+	lines = content.split("\r");
+
+// default parameters
+var params = {host:"localhost:27017",database:"test",collection:"test",query:{}};
+
+var m;
+for(var i=0;i<lines.length;i++)
+	{
+	if(m=lines[i].match(/host:(.*)/))
+		params.host = m[1];
+	if(m=lines[i].match(/user:(.*)/))
+		params.user = m[1];
+	if(m=lines[i].match(/password:(.*)/))
+		params.password = m[1];
+	if(m=lines[i].match(/database:(.*)/))
+		params.database = m[1];
+	if(m=lines[i].match(/collection:(.*)/))
+		params.collection = m[1];
+	if(m=lines[i].match(/query:(.*)/))
+		{
+		try { eval("params.query = "+m[1]); } catch(err) { console.log(err) }
+		}
+	}
+
+
+
+var url = "mongodb://"+params.host+"/"+params.database;
+
+var MongoClient = require("mongodb").MongoClient;
+
+MongoClient.connect(url, function(err,db) {
+
+	if(err) { console.log(err.stack); callback(null); return; }
+
+	var collection = db.collection(params.collection);
+	
+	collection.find(params.query).toArray(function(err,docs) {
+
+		if(err) { console.log(err.stack) ; callback(null) ; return ; }
+
+		db.close();
+
+		var fields = []
+		for(var x in docs[0])
+			fields.push(x);
+
+		data = [];
+		data.push(fields);
+
+		for(var i=0;i<docs.length;i++)
+			{
+			var record = [];
+			var ok = true;
+			for(var j=0;j<fields.length;j++)
+				if(fields[j] in docs[i])
+					record.push(docs[i][fields[j]]);
+				else
+					{ ok = false; break; }
+			if(ok)
+				data.push(record);
+			}
+		
+		check_data_type(callback);	
+
+		});
+
+
+	});
+
+
 }
 
 //****************************************************************************
