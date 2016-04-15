@@ -95,6 +95,13 @@ Various file formats are accepted :
 	<td>Access 2000 or higher</td>
 </tr>
 <tr>
+	<td>ARFF / KEEL</td>
+	<td>*</td>
+	<td>No comments at the beginning of the file.<br>
+	The first line must be @relation 
+	</td>
+</tr>
+<tr>
 	<td>BigQuery</td>
 	<td>*</td>
 	<td>A config file with a content like this: <br>

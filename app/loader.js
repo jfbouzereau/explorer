@@ -118,6 +118,9 @@ else if(check(content,'m','o','n','g','o','d','b'))
 else if(check(content,'m','s','s','q','l'))
 	process_mssql(content,callback);
 
+else if(check(content,'@','r','e','l','a','t','i','o','n'))
+	process_keel(content,callback);
+
 else
 	process_tabular_content(content,callback);
 
@@ -3154,6 +3157,48 @@ cnx.on("connect", function(err) {
 
 	});
 
+
+}
+
+//****************************************************************************
+
+function process_keel(content, callback) 
+{
+
+console.log("process keel "+content.length);
+
+lines = (""+content).replace(/\r/g,"").split("\n");
+
+data = [];
+fields = [];
+indata = false;
+
+for(var i=0;i<lines.length;i++)
+	{
+	if(indata)
+		{
+		var record = lines[i].replace(/ /g,"").split(",");
+		if(record.length==fields.length)	
+			data.push(record);
+		}
+	else if(lines[i].substring(0,9)=="@relation")
+		{
+		}
+	else if(lines[i].substring(0,10)=="@attribute")
+		{
+		lines[i] = lines[i].replace(/[^a-zA-Z0-9@]/g," ");	
+		console.log(lines[i]);
+		var words = lines[i].replace(/ +/g," ").split(" ");
+		fields.push(words[1]);
+		}
+	else if(lines[i].substring(0,5)=="@data")
+		{
+		data.push(fields);
+		indata = true;
+		}
+	}
+
+check_data_type(callback);
 
 }
 
