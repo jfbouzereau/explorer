@@ -1,4 +1,9 @@
-# Presentation
+<table width="100%" >
+<tr><td align="center" style="border:0px"><img src="screenshots/icon.png"</td><tr>
+<tr><td align="center" style="border:0px"><h1>Data Explorer</h1></td><tr>
+</table>
+
+# Introduction
 
 This Explorer allows to perform various statistical analyses and data mining operations in a very easy and intuitive way. As the name implies, this software aims at exploring data and getting quick insight of the order of magnitude of the observed objects. That's why it does focus on graphical representation and mouse driven operations, unlike the traditional statistical tools cluttered with numerous dialog boxes and lists with five decimal figures. You can, however, have the detailed numbers once your analysis is completed.
 
