@@ -1,7 +1,3 @@
-<table width="100%" >
-<tr><td align="center" style="border:0px"><img src="screenshots/icon.png"</td><tr>
-<tr><td align="center" style="border:0px"><h1>Data Explorer</h1></td><tr>
-</table>
 
 # Introduction
 
