@@ -487,6 +487,18 @@ Drag this icon onto a graph to get a table of the numerical results. They can be
 The Explorer can also be executed in any modern browser. Open app/index.html, 
 paste the data from the clipboard, and click OK.
 
+## Credits
+
+The Explorer takes advantage of some very useful npm modules :
+
+* [gapitoken](https://www.npmjs.com/package/gapitoken) Node.js module for Google API service account authorization 
+* [mongodb](https://www.npmjs.com/package/mongodb) The official MongoDB driver for Node.js
+* [pg](https://www.npmjs.com/package/pg) Pure javascript PostgreSQL client for node.ja
+* [lzma-purejs](https://www.npmjs.com/package/lzma-purejs) pure JavaScript LZMA de/compression, for node.js
+* [mysql](https://www.npmjs.com/package/mysql) A node.js driver for mysql
+* [request](https://www.npmjs.com/package/request) Simplified HTTP request client
+* [tedious](https://www.npmjs.com/package/tedious) A TDS driver, for connecting to MS SQLServer databases
+
 ## Contact
 
 jfbouzereau&#064;netcourrier.com
