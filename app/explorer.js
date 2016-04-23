@@ -14,7 +14,7 @@ catch(e)
 /***************************************************************************/
 // CONSTANTS
 
-var VERSION = "1.103";
+var VERSION = "1.104";
 
 /***************************************************************************/
 
@@ -179,6 +179,8 @@ _action("CREATE_HISTO_LABEL","Create dummy variable from selection");
 _action("CREATE_HISTO_VALUE","Create dummy variable from selection");
 _action("SCROLL_UP_MASK","");
 _action("SCROLL_DOWN_MASK","");
+_action("SETUP_NEURON","Set neural network configuration");
+
 
 // actions that gray the graph
 var GACTIONS = {}
@@ -231,6 +233,7 @@ _type("CHI2","Chi square test",{toplabel:1,leftlabel:2,menu:"chi2",unit:1});
 _type("HOMO","Homogeneity",{toplabel:1,leftlabel:2,menu:"homo",unit:1});
 _type("SET","Dummy constructor",{leftlabel:1});
 _type("MASK","Mask",{toplabel:1});
+_type("NEURON","Perceptron",{leftlabel:1,ilabels:1});
 
 var NBTYPE1 = KNUM;			// max graph types
 
@@ -503,6 +506,7 @@ ipc.on("start",  function (event,filename)
 		}
 
 	ipc.send("title",filename);
+
 	init(data);
 	}
 });
@@ -543,7 +547,6 @@ function loaded(data)
 
 function init(data)
 {
-
 
 canvas = document.getElementById("canvas");
 
@@ -774,7 +777,9 @@ this.total = 0;
 
 this._z = {};		// specific data
 
+this.progress = null;
 this.timerid = null;	// for long computation
+this.worker = null;		// for subprocess computation
 
 // height of graph title bar
 this.hbar = (this.selection.length/2)*16;
@@ -1656,6 +1661,31 @@ if(k)
 	graph["ivalue"+k] = valueindex;
 
 computeGraphData(graph);
+}
+
+//*********************************************************************
+
+function spreadGraphValue(graph,name)
+{
+var k = GINFO[graph.type][name];
+if(!k) return;
+
+var saveindex = valueindex;
+
+valueindex = 1;
+setGraphValue(graph,name);
+
+for(valueindex=2;valueindex<values.length;valueindex++)
+	{
+	var g = clone(graph);
+	g.x = graph.x + (valueindex-1)*20;
+	g.y = graph.y + (valueindex-1)*20;
+	graphs.push(g);
+	setGraphValue(g,name);
+	}
+
+valueindex = saveindex;
+
 }
 
 //*********************************************************************
@@ -2682,9 +2712,15 @@ ctx.fillStyle = "#000000";
 ctx.textAlign = "center";
 var n = graph._keys1.length;
 var dx = graph.w/n;
+var last = -99999;
 for(var i=0;i<n;i++)
 	{
-	ctx.fillText(graph._keys1[i],xleft+i*dx+dx/2,graph.y+35);
+	var l = ctx.measureText(graph._keys1[i]).width;
+	if(xleft+i*dx+dx/2-l/2>last)
+		{
+		ctx.fillText(graph._keys1[i],xleft+i*dx+dx/2,graph.y+35);
+		last = xleft+i*dx+dx/2+l/2;
+		}
 	}
 
 //drawGraphBin(ctx,graph)
@@ -2975,7 +3011,6 @@ if(graph.ilabel2>=0)
 	graph._z.keys2 = keys2;
 	}
 
-console.log("curve length "+curve.length);
 }
 
 //*********************************************************************
@@ -3184,33 +3219,24 @@ function keydownLineGraph(event,graph)
 
 function inTagSlice(pt,graph)
 {
+if(graph.ilabel1<0) return -1;
+
 var ctx = canvas.getContext("2d")
 
-var max = 0
-var nkey = 0
-for(var j=0;j<graph._keys1.length;j++)
-	{
-	var key = graph._keys1[j]
-	if(key in graph.omit) continue
-	nkey ++
-	if(graph._count[key]>max)
-		max = graph._count[key]
-	}
-if(max==0) max = 1
+var max = graph._z.max;
+var sizes = graph._z.sizes;
+var nsize = sizes.length;
 
 var x = graph.x + 5
 var y = graph.y + graph.hbar + 30 + 12 -13*graph.yshift
 
-var tcard = ["8px","10px","12px","14px","16px"]
-
 for(var j=0;j<graph._keys1.length;j++)
 	{
 	var key = graph._keys1[j]
-	if(key in graph.omit) continue
-	var icard = Math.floor(graph._count[key]*5/max)
-	if(icard>=tcard.length) icard = tcard.length-1		
+	var isize = Math.floor(graph._count[key]*nsize/max)
+	if(isize>=nsize) isize = nsize-1;
 
-	ctx.font = tcard[icard]+" helvetica"
+	ctx.font = sizes[isize]+" helvetica"
 	var ms = ctx.measureText(key)
 	var width = ms.width
 	if(x+width>graph.x+graph.w-20)
@@ -3243,25 +3269,43 @@ function drawTagIcon(ctx,x,y)
 
 //*********************************************************************
 
-function drawTagGraph(ctx,graph)
+function computeTagData(graph)
 {
+if(graph.ilabel1<0) return ;
 
-ctx.fillStyle = "#FFFFFF"
-ctx.strokeStyle = "#000000"
+var max = 0;
+var nkey = graph._keys1.length;
 
-var hilite = getColor(graph.hue,1,0.5)
-
-var max = 0
-var nkey = 0
-for(var j=0;j<graph._keys1.length;j++)
+for(var j=0;j<nkey;j++)
 	{
 	var key = graph._keys1[j]
-	if(key in graph.omit) continue
-	nkey ++
 	if(graph._count[key]>max)
 		max = graph._count[key]
 	}
 if(max==0) max = 1
+graph._z.max = max;
+
+var sizes = ["8px","9px","10px","11px","12px","13px","14px","15px","16px"];
+graph._z.sizes = sizes;
+
+}
+
+//*********************************************************************
+
+function drawTagGraph(ctx,graph)
+{
+
+if(graph.ilabel1<0) return;
+
+ctx.fillStyle = "#FFFFFF";
+ctx.strokeStyle = "#000000";
+
+var hilite = getColor(graph.hue,1,0.5)
+
+var max = graph._z.max;
+
+var sizes = graph._z.sizes;
+var nsize = sizes.length;
 
 var x = graph.x + 5
 var y = graph.y + graph.hbar + 30 + 12 - graph.yshift;
@@ -3270,17 +3314,15 @@ ctx.save()
 ctx.fillStyle = "#000000"
 ctx.textAlign = "start"
 
-var tcard = ["8px","10px","12px","14px","16px"]
 
 for(var j=0;j<graph._keys1.length;j++)
 	{
 	var key = graph._keys1[j]
-	if(key in graph.omit) continue		
-	//console.log("key="+key+" count "+graph._count[key]);
-	var icard = Math.floor(graph._count[key]*5/max)
-	if(icard>=tcard.length) icard = tcard.length-1		
 
-	ctx.font = tcard[icard]+" helvetica"
+	var isize = Math.floor(graph._count[key]*nsize/max)
+	if(isize>=nsize) isize = nsize-1;
+
+	ctx.font = sizes[isize]+" helvetica"
 	var ms = ctx.measureText(key)
 	var width = ms.width
 	if(x+width>graph.x+graph.w-20)
@@ -3292,9 +3334,11 @@ for(var j=0;j<graph._keys1.length;j++)
 	
 	
 	if(hiliteMatch1(graph.ilabel1,key))
-		ctx.fillStyle = "#FF0000"
-	else
-		ctx.fillStyle = "#000000"
+		{
+		ctx.fillStyle = getColor(graph.hue,0.5,1);
+		ctx.fillRect(x-2,y-11,width+4,12);
+		ctx.fillStyle = "#000000";
+		}
 
 	if(y>=graph.y+graph.hbar+13)
 		ctx.fillText(key,x,y)
@@ -3308,6 +3352,24 @@ ctx.beginPath()
 ctx.moveTo(graph.x+graph.w-20,graph.y+graph.hbar)
 ctx.lineTo(graph.x+graph.w-20,graph.y+graph.h)
 ctx.stroke()
+
+}
+
+//*********************************************************************
+
+function moveTagGraph(pt,graph)
+{
+var i = inTagSlice(pt,graph);
+
+if(i<0)
+	return false;
+else
+	{
+	message = graph._keys1[i];
+	overlabel1 = graph.ilabel1;
+	overkey1 = graph._keys1[i];
+	return true;
+	}
 
 }
 
@@ -11353,11 +11415,11 @@ if(i1<0) return
 
 var initial = values[i1].substring(0,1)
 
-var xslot = (graph._z.xmax - graph._z.xmin)/graph.nslot;
-var xmin = graph._z.xmin;
-var xmax = graph._z.xmax;
-
 var name = "";
+
+var xslot = (graph._z.xmax - graph._z.xmin)/(graph.nslot-1);
+var xmin = graph._z.xmin - xslot/2;
+
 
 for(var i=0;i<lrecords.length;i++)
 	{
@@ -13610,15 +13672,18 @@ var d = dx/nv;
 
 
 // draw grid
+var offset = option==0 ? d : 0;
 
 ctx.fillStyle = "#DDDDDD";
 for(var j=0;j<=nv;j++)
 	{
-	ctx.fillRect(x1+j*d,y1+j*d-d,1,y2-y1-j*d+d);
-	ctx.fillRect(x1,y1+j*d,j*d+d,1);
+	ctx.fillRect(x1+j*d,y1+j*d-d+offset,1,y2-y1-j*d+d-offset);
+	ctx.fillRect(x1,y1+j*d,j*d+d-offset,1);
 	}
 
 ctx.fillStyle = "#000000";
+
+var offset = option==0 ? d/2 : 0;
 
 // draw names
 ctx.fillStyle = "#000000";
@@ -13626,7 +13691,7 @@ ctx.textAlign = "left";
 for(var j=0;j<nv;j++)
 	{	
 	ctx.save();
-	ctx.translate(x1+j*d+d,y1+j*d);
+	ctx.translate(x1+j*d+d-offset,y1+j*d+offset);
 	ctx.rotate(-Math.PI/4);
 	ctx.fillText(values[graph.ivalues[j]],5,5);
 	ctx.restore();
@@ -23674,6 +23739,525 @@ if(action==SWAP_CORNERS)
 
 //*********************************************************************
 //
+//				NEURON
+//
+//*********************************************************************
+
+function drawNeuronIcon(ctx,x,y)
+{
+var input = [[3,6],[3,13]];
+var hidden = [[10,3],[10,7],[10,12],[10,16]];
+var output = [[17,5],[17,10],[17,15]];
+
+/*
+ctx.fillStyle = "#000000";
+for(var i=0;i<input.length;i++)
+	for(var j=0;j<hidden.length;j++)
+		line(input[i][0],input[i][1],hidden[j][0],hidden[j][1]);
+for(var i=0;i<hidden.length;i++)
+	for(var j=0;j<output.length;j++)
+		line(hidden[i][0],hidden[i][1],output[j][0],output[j][1]);
+*/
+
+ctx.fillStyle = "#000000";
+for(var i=0;i<input.length;i++)
+	rect(input[i][0],input[i][1]);
+for(var i=0;i<hidden.length;i++)
+	rect(hidden[i][0],hidden[i][1]);
+for(var i=0;i<output.length;i++)
+
+	rect(output[i][0],output[i][1]);
+	function rect(x1,y1)
+	{
+	ctx.fillRect(x+x1-1,y+y1-1,3,3);
+	}
+
+	function line(x1,y1,x2,y2)
+	{
+	var xx = x+(x1+x2)/2;
+	var yy = y+(y1+y2)/2;
+	ctx.fillRect(xx,yy,1,1);
+	/*
+	for(var i=0;i<10;i++)
+		{
+		var xx = Math.round(x+x1+i*(x2-x1)/10);
+		var yy = Math.round(y+y1+i*(y2-y1)/10);
+		ctx.fillRect(xx,yy,1,1);
+		}	
+	*/
+	}
+}
+
+//*********************************************************************
+
+function computeNeuronData(graph)
+{
+
+// send dummy command to stop the previous function if any
+if(graph.worker)
+	graph.worker.send({func:"{}"});
+
+if(!("nh1" in graph)) graph.nh1 = 10;
+if(!("nh2" in graph)) graph.nh2 = 0;
+
+graph._z.good = 0;
+graph._z.nr = 0;
+graph._z.ni = 0;
+graph._z.no = 0;
+
+if(graph.ilabel1>=0)
+	if(graph.ilabels.length>0)
+		{
+		// check that output is not in inputs
+		for(var j=0;j<graph.ilabels.length;j++)
+			if(graph.ilabels[j]==graph.ilabel1)
+				graph.ilabels.splice(j,1);
+		}
+
+if(graph.ilabels.length>0)
+	{
+
+	var nv = graph.ilabels.length;
+
+	var nr = 0;
+
+	var keys = new Array(nv);
+	var nkey = new Array(nv);
+	for(var j=0;j<nv;j++)
+		{
+		keys[j] = {};
+		nkey[j] = 0;
+		}
+
+	// compute the number of keys
+	for(var i=0;i<lrecords.length;i++)
+		{
+		nr++;
+		if(!recordMatch(i,graph)) continue;
+		for(var j=0;j<nv;j++)
+			{
+			var key = lrecords[i][graph.ilabels[j]];
+			if(!(key in keys[j]))
+				{
+				keys[j][key] = nkey[j];
+				nkey[j]++;
+				}	
+			}
+		}
+
+
+
+	for(var j=0;j<nv;j++)
+		if(nkey[j]>255)
+			{
+			graph.error = labels[graph.ilabels[j]]+" has more than 255 categories";
+			return;
+			}
+
+	for(var j=1;j<nv;j++)	
+		nkey[j] += nkey[j-1];
+
+	nkey[-1] = 0;
+
+	var ni = nkey[nv-1];
+
+	graph._z.ni = ni;
+	graph._z.keys = keys;
+	graph._z.nkey = nkey;
+	graph._z.nr = nr;
+	}
+
+if(graph.ilabel1>=0)
+	{
+	var keys1 = {};
+	var no = 0;
+
+	for(var i=0;i<lrecords.length;i++)
+		{
+		if(!recordMatch(i,graph)) continue;
+		var key1 = lrecords[i][graph.ilabel1];
+		if(!(key1 in keys1))
+			{
+			keys1[key1] = no;
+			no++;
+			}
+		}
+
+	if(no>255)
+		{
+		graph.error = labels[graph.ilabel1]+" has nore than 255 categories";
+		return;
+		}
+
+	graph._z.no = no;
+	graph._z.keys1 = keys1;
+	}
+
+if((graph.ilabel1>=0)&&(graph.ilabels.length>0))
+	{
+	//  buffer containing input , output and flag for each record
+
+	var buffer = new Buffer(nr*(nv+2));
+
+	var offset = 0;
+	for(var i=0;i<lrecords.length;i++)
+		{
+		for(var j=0;j<nv;j++)
+			{
+			var key = lrecords[i][graph.ilabels[j]];
+			buffer[offset+j] = keys[j][key];
+			}
+
+		var key1 = lrecords[i][graph.ilabel1];
+		buffer[offset+nv] = keys1[key1];
+
+		buffer[offset+nv+1] = recordMatch(i,graph) ? 1 : 0;
+
+		offset += nv+2;
+		}
+
+	// write data to temp file
+	var os = require("os");
+	var path = require("path");
+	var fs = require("fs");	
+
+	var tempfile = (Math.random()+"").substring(2);
+	tempfile = path.join(os.tmpdir(),tempfile);
+	fs.writeFileSync(tempfile,buffer);	
+
+
+	graph.progress = 0;
+
+	// create worker
+	if(graph.worker==null)
+		{
+		graph.worker = require("child_process").fork("worker.js",[],{cwd:__dirname});
+
+		graph.worker.on("message", function(message) {
+			if(message.type=="progress")
+				{
+				graph.progress = message.progress;
+				if(graph.progress==1)
+					graph.progress = null;
+				draw();
+				}
+			if(message.type=="result")
+				{
+				graph._z.nok = message.nok;
+				graph._z.nset = message.nset;
+				graph._z.result = message.result;
+				draw();
+				}
+			});
+		}
+
+	var message = {};
+		message.ni = ni;
+		message.nh1 = graph.nh1;		
+		message.nh2 = graph.nh2;
+		message.no = no;
+		message.nr = nr;
+		message.nv = nv;
+		message.nkey = nkey;
+		message.tempfile = tempfile;
+
+	console.log(message);
+
+		message.func = trainNeuron.toString();
+
+	graph.worker.send(message);
+	
+	}
+
+}
+
+//*********************************************************************
+
+function trainNeuron()
+{
+var myid = msgid;
+
+var ni = message.ni;
+var nr = message.nr;
+var no = message.no;
+var nh1 = message.nh1;
+var nh2 = message.nh2;
+var nv = message.nv;
+
+var nkey = message.nkey;
+nkey[-1] = 0;
+
+// load data
+var fs = require("fs");
+var buffer = fs.readFileSync(message.tempfile);
+try { fs.unlinkSync(message.tempfile); } catch(err) { }
+
+
+// build neural network
+var synaptic = require("synaptic");
+var Architect = synaptic.Architect;
+if(nh2==0)
+	var perceptron = new Architect.Perceptron(ni,nh1,no);
+else
+	var perceptron = new Architect.Perceptron(ni,nh1,nh2,no);
+
+
+// train the network
+
+var input = new Array(ni);
+var output = new Array(no);
+
+var iter = 0;
+
+run();
+
+	function run()
+	{
+	// another message has been sent
+	if(msgid != myid )  return;
+
+	iter++;
+	if(iter>1000) 
+		{
+		terminate();
+		return;
+		}
+
+
+	var offset = 0;
+	for(var i=0;i<nr;i++)
+		{
+		// if record in the training set
+		if(buffer[offset+nv+1])
+			{
+			for(var k=0;k<ni;k++)
+				input[k] = 0;
+			for(var k=0;k<no;k++)
+				output[k] = 0;
+
+			for(var j=0;j<nv;j++)
+				input[nkey[j-1]+buffer[offset+j]] = 1;			
+
+			output[buffer[offset+nv]] = 1;
+
+			perceptron.activate(input);
+			perceptron.propagate(0.2,output);
+			}
+	
+		offset += nv+2;
+		}
+
+	if((iter%10)==0)
+		process.send({type:"progress",output:output,progress:iter/1000});
+
+	setImmediate(run);
+	}
+
+	function terminate()
+	{
+	// another message has been sent
+	if( msgid != myid ) return;
+
+	process.send({type:"progress",progress:1});
+
+	// compute the result for all the records
+	var nok = 0;
+	var nset = 0;
+	var result = new Array(nr);
+
+	var offset = 0;
+	for(var i=0;i<nr;i++)
+		{	
+		for(var k=0;k<ni;k++)
+			input[k] = 0;
+		for(var k=0;k<no;k++)
+			output[k] = 0;
+
+		for(var j=0;j<nv;j++)
+			input[nkey[j-1]+buffer[offset+j]] = 1;
+
+		var state = perceptron.activate(input);	
+
+		var jmax = 0;
+		for(var j=1;j<state.length;j++)
+			if(state[j]>state[jmax])
+				jmax = j;
+
+		result[i]= jmax;
+
+		if(buffer[offset+nv+1])				// record in training set
+			{
+			nset++;
+			if(jmax==buffer[offset+nv])		// computed = actual
+				nok++;
+			}
+
+		offset += nv+2;
+		}
+
+	process.send({type:"result",nset:nset,nok:nok,result:result});	
+	}
+
+}
+
+//*********************************************************************
+
+function drawNeuronGraph(ctx,graph)
+{
+
+	var ni = graph._z.ni;
+	var no = graph._z.no;
+
+	var nh1 = graph.nh1;
+	var nh2 = graph.nh2;
+
+	var xleft = graph.x+40;
+	var ytop = graph.y + graph.hbar + 30;
+	var xright = graph.x + graph.w - 120;
+
+	ctx.textAlign = "center";
+	ctx.fillStyle = "#000000";
+	ctx.fillText(ni+" input neurons",(xleft+xright)/2,ytop+10);
+
+	drawCursor(xleft,ytop+60, xright-xleft,20,"Hidden layer",graph.nh1);
+	drawCursor(xleft,ytop+140,xright-xleft,20,"Hidden layer",graph.nh2);
+
+	ctx.textAlign = "center";
+	ctx.fillStyle = "#000000";
+	ctx.fillText(no+" output neurons",(xleft+xright)/2,ytop+220);
+
+	var pct = Math.round(graph._z.nok * 10000 / graph._z.nset)/100;
+	if(pct)
+		{
+		ctx.fillText("Success rate : "+pct+" %",(xleft+xright)/2,ytop+280)
+		ctx.fillStyle = PINK;
+		ctx.strokeStyle = "#000000";
+		drawRightArrow(ctx,xright-20,ytop+275);
+		}
+
+	function drawCursor(x,y,w,h,label,value)
+	{
+		ctx.strokeStyle = "#000000";
+		ctx.fillStyle = "#FFFFFF";
+		ctx.lineWidth = 1;
+
+		ctx.strokeRect(x,y,w,h);
+
+		ctx.beginPath();
+		for(var i=10;i<=50;i+=10)
+			{
+			var xx = x+w*i/50;
+			ctx.moveTo(xx,y+5);
+			ctx.lineTo(xx,y+h-5);
+			}
+		ctx.stroke();
+
+		var xx = x+w*value/50;
+		ctx.fillRect(xx-5,y-5,10,h+10);
+		ctx.strokeRect(xx-5,y-5,10,h+10);
+	
+	ctx.fillStyle = "#000000"
+	ctx.fillText(label+" : "+value+" neurons",(xleft+xright)/2,y-10);
+
+	}
+
+}
+
+//*********************************************************************
+
+function downNeuronGraph(pt,graph)
+{
+
+graph._z.action = 0;
+
+var xleft = graph.x+40;
+var ytop = graph.y + graph.hbar + 30;
+var xright = graph.x + graph.w - 120;
+
+var x = xleft + graph.nh1*(xright-xleft)/50;
+if(inRect(pt,x-5,ytop+60-10,20,40))
+	{
+	graph._z.action = 1;
+	return SETUP_NEURON;
+	}
+
+var x = xleft + graph.nh2*(xright-xleft)/50;
+if(inRect(pt,x-5,ytop+140-10,20,40))
+	{
+	graph._z.action = 2;
+	return SETUP_NEURON;
+	}
+
+if(inRect(xright-30,ytop-260,30,30))
+	{
+	graph._z.action = 3;
+	return DRAG_AXIS;
+	}
+
+return -1;
+}
+
+//*********************************************************************
+
+function dragNeuronGraph(pt,graph)
+{
+
+var xleft = graph.x+40;
+var ytop = graph.y + graph.hbar + 30;
+var xright = graph.x + graph.w - 120;
+
+if(graph._z.action==1)
+	{
+	graph.nh1 = Math.round(50*(pt.x-xleft)/(xright-xleft));
+	if(graph.nh1<1) graph.nh1 = 1;
+	if(graph.nh1>50) graph.nh1 = 50;
+	}
+
+if(graph._z.action==2)
+	{
+	graph.nh2 = Math.round(50*(pt.x-xleft)/(xright-xleft));
+	if(graph.nh2<0) graph.nh2 = 0;
+	if(graph.nh2>50) graph.nh2 = 50;
+	}
+
+if(graph._z.action==3)
+	{
+	if(inLabel(pt))
+		action = CREATE_LABEL;
+	else
+		action = DRAG_AXIS;
+	}
+
+}
+
+
+//*********************************************************************
+
+function upNeuronGraph(graph)
+{
+try {
+if(action==CREATE_LABEL)
+	{
+	var keys1 = graph._z.keys1;
+	var invkeys1 = {};
+	for(var key1 in keys1)
+		invkeys1[keys1[key1]] = key1;
+
+	var result = graph._z.result;
+
+	for(var i=0;i<lrecords.length;i++)
+		lrecords[i].push( invkeys1[result[i]]);
+
+	if(zlabel==labels.length) zlabel++;
+	newfield++;
+	var name = labels[graph.ilabel1]+"_"+newfield;
+	labels.push(name);
+	}
+}catch(err) { console.log(err.stack) }
+}
+
+//*********************************************************************
+//
 //                PALETTE
 //
 //*********************************************************************
@@ -24104,6 +24688,9 @@ GINFO[graph.type].close(graph);
 if(graph.timerid)
 	clearTimeout(graph.timerid);
 
+if(graph.worker)
+	graph.worker.kill("SIGTERM");
+
 graphs.splice(index,1);
 }
 
@@ -24165,6 +24752,7 @@ if(graph.timerid)
 	clearTimeout(graph.timerid);
 	graph.timerid = null;
 	}
+
 }
 
 //*********************************************************************
@@ -25972,12 +26560,18 @@ else if(action==SET_LABELN)
 else if(action==SET_TOPVALUE)
 	{
 	graph = graphs[graphindex]
-	setGraphValue(graph,"topvalue");
+	if(valueindex==0)
+		spreadGraphValue(graph,"topvalue");
+	else
+		setGraphValue(graph,"topvalue");
 	}
 else if(action==SET_LEFTVALUE)
 	{
 	graph = graphs[graphindex]	
-	setGraphValue(graph,"leftvalue");
+	if(valueindex==0)
+		spreadGraphValue(graph,"leftvalue");
+	else
+		setGraphValue(graph,"leftvalue");
 	}
 else if(action==SET_VALUEI)
 	{		
@@ -27963,9 +28557,11 @@ else if(faction==DRAG_AXIS)
 	if((graph.type==TYPE.ACP)||(graph.type==TYPE.DISCRI)||(graph.type==TYPE.REGRES))
 		action = (inValue(ptmove) >=0)  ? CREATE_PROJECTION : DRAG_AXIS
 	else if((graph.type==TYPE.DISTRIB)||(graph.type==TYPE.HISTO)||(graph.type==TYPE.DENDRO))
-		action = (inLabel(ptmove) >=0) ?  CREATE_LABEL : DRAG_AXIS
+		action = (inLabel(ptmove) >=0) ?  CREATE_LABEL : DRAG_AXIS;
 	else if(graph.type==TYPE.CLUSTERING)
-		action = (inLabel(ptmove) >=0) ? CREATE_KGROUP : DRAG_AXIS
+		action = (inLabel(ptmove) >=0) ? CREATE_KGROUP : DRAG_AXIS;
+	else if(graph.type==TYPE.NEURON)
+		action = (inLabel(ptmove) >=0) ? CREATE_LABEL : DRAG_AXIS;
 	}
 else if(faction==DRAG_RESULT)
 	{

@@ -60,6 +60,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 - [Units](#units)
 - [Types of analyses](#types-of-analyses)
 - [In the browser](#in-the-browser)
+- [Credits](#credits)
 - [Contact](#contact)
 
 ## Installation and run
@@ -481,6 +482,7 @@ Drag this icon onto a graph to get a table of the numerical results. They can be
 * QQ plot
 * Box plot
 * Parallel coordinates
+* Neural network (perceptron)
 
 ## In the browser
 

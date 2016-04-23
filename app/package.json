@@ -1,11 +1,12 @@
 {
   "name": "Explorer",
-  "version": "1.103.0",
+  "version": "1.104.0",
   "main": "main.js",
   "dependencies": {
     "gapitoken": "^0.1.5",
     "mongodb": "^2.1.16",
     "request": "^2.69.0",
+    "synaptic": "^1.0.2",
     "tedious": "^1.14.0"
   }
 }
