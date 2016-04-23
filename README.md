@@ -499,6 +499,7 @@ The Explorer takes advantage of some very useful npm modules :
 * [lzma-purejs](https://www.npmjs.com/package/lzma-purejs) pure JavaScript LZMA de/compression, for node.js
 * [mysql](https://www.npmjs.com/package/mysql) A node.js driver for mysql
 * [request](https://www.npmjs.com/package/request) Simplified HTTP request client
+* [synaptic](https://github.com/cazala/synaptic) Architecture-free neural network library for node.js and the browser
 * [tedious](https://www.npmjs.com/package/tedious) A TDS driver, for connecting to MS SQLServer databases
 
 ## Contact
