@@ -1,5 +1,5 @@
 
-# Introduction
+## Introduction
 
 This Explorer allows to perform various statistical analyses and data mining operations in a very easy and intuitive way. As the name implies, this software aims at exploring data and getting quick insight of the order of magnitude of the observed objects. That's why it does focus on graphical representation and mouse driven operations, unlike the traditional statistical tools cluttered with numerous dialog boxes and lists with five decimal figures. You can, however, have the detailed numbers once your analysis is completed.
 
@@ -28,7 +28,6 @@ This Explorer allows to perform various statistical analyses and data mining ope
 			<img src="http://jfbouzereau.free.fr/explorer/youtube.jpeg"></img>
 		</a></td>
 </tr>
-
 <tr>
 	<td> Weather data</td>
 	<td align="center">
@@ -38,6 +37,19 @@ This Explorer allows to perform various statistical analyses and data mining ope
 	</td>
 	<td align="center">
 		<a href="https://www.youtube.com/watch?v=SiRfQXZCiDg" title="watch on youtube">
+			<img src="http://jfbouzereau.free.fr/explorer/youtube.jpeg"></img>
+		</a>
+	</td>
+</tr>
+<tr>
+	<td> Animations </td>
+	<td align="center">
+		<a href="http://www.dailymotion.com/video/x46oonf" title="watch on dailymotion">
+			<img src="http://jfbouzereau.free.fr/explorer/dailymotion.png">
+		</a>
+	</td>
+	<td align="center">
+		<a href="https://youtu.be/kbB_wY6OaZc" title="watch on youtube">
 			<img src="http://jfbouzereau.free.fr/explorer/youtube.jpeg"></img>
 		</a>
 	</td>
