@@ -42,7 +42,7 @@ This Explorer allows to perform various statistical analyses and data mining ope
 	</td>
 </tr>
 <tr>
-	<td> Animations </td>
+	<td> Animation </td>
 	<td align="center">
 		<a href="http://www.dailymotion.com/video/x46oonf" title="watch on dailymotion">
 			<img src="http://jfbouzereau.free.fr/explorer/dailymotion.png">
