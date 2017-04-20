@@ -2,11 +2,17 @@
   "name": "Explorer",
   "version": "1.104.0",
   "main": "main.js",
+  "scripts": {
+    "start": "./node_modules/.bin/electron ."
+  },
   "dependencies": {
     "gapitoken": "^0.1.5",
     "mongodb": "^2.1.16",
     "request": "^2.69.0",
     "synaptic": "^1.0.2",
     "tedious": "^1.14.0"
+  },
+  "devDependencies": {
+    "electron": "^1.6.5"
   }
 }

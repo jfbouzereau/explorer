@@ -89,12 +89,12 @@ Download the latest version corresponding to your system (32bit or 64bit) from [
 ##### Linux
 Download [electron](https://github.com/atom/electron/releases) for linux, download the source of the Explorer from [the release page](https://github.com/jfbouzereau/explorer/releases), copy the app folder into electron/resources, then run Electron.
 
-##Build from Source
+## Build from Source
 
 Should you want to go the Build & Deploy route -you'll require `node v6.1.0`, `npm@3.9.5` and `electron@1.2.5`
 - Download the Source files (`zip` or `tar.gz`) from the [the release page](https://github.com/jfbouzereau/explorer/releases).
 - Unzip
-- `cd exlorer-1.x`
+- `cd explorer-1.x`
 - `npm install`
 - `cd app`
 - `electron main.js`
