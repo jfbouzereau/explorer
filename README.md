@@ -1,4 +1,3 @@
-
 ## Introduction
 
 This Explorer allows to perform various statistical analyses and data mining operations in a very easy and intuitive way. As the name implies, this software aims at exploring data and getting quick insight of the order of magnitude of the observed objects. That's why it does focus on graphical representation and mouse driven operations, unlike the traditional statistical tools cluttered with numerous dialog boxes and lists with five decimal figures. You can, however, have the detailed numbers once your analysis is completed.
@@ -87,17 +86,30 @@ Download the latest version for darwin from [the release page](https://github.co
 Download the latest version corresponding to your system (32bit or 64bit) from [the release page](https://github.com/jfbouzereau/explorer/releases). The application is bundled into a single exe file, thanks to [BoxedApp Packer](http://www.boxedapp.com/boxedapppacker/index.html) .
 
 ##### Linux
-Download [electron](https://github.com/atom/electron/releases) for linux, download the source of the Explorer from [the release page](https://github.com/jfbouzereau/explorer/releases), copy the app folder into electron/resources, then run Electron.
+
+Follow the "Build from source" instructions below.
 
 ## Build from Source
 
-Should you want to go the Build & Deploy route -you'll require `node v6.1.0`, `npm@3.9.5` and `electron@1.2.5`
-- Download the Source files (`zip` or `tar.gz`) from the [the release page](https://github.com/jfbouzereau/explorer/releases).
-- Unzip
-- `cd explorer-1.x`
-- `npm install`
-- `cd app`
-- `electron main.js`
+Download and unzip the Source files (`zip` or `tar.gz`) from the [the release page](https://github.com/jfbouzereau/explorer/releases), or clone the repository:
+
+```sh
+git clone https://github.com/jfbouzereau/explorer.git
+```
+
+Enter the Explorer's directory with `cd explorer-1.x/app` (if you downloaded it from Releases) or `cd explorer/app` (if you cloned the repository).
+
+Install the dependencies: 
+
+```sh
+npm install
+```
+
+And launch the app:
+
+```sh
+npm start
+```
 
 ## Data loading
 
