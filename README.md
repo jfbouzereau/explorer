@@ -91,6 +91,9 @@ Follow the "Build from source" instructions below.
 
 ## Build from Source
 
+Should you want to go the Build & Deploy route -you'll require `node.js` (developed
+on v6.1.0, confirmed to work on v4.7.3) and `npm` (comes with node.js, developed using v3.9.5, confirmed to work on v2.15.11).
+
 Download and unzip the Source files (`zip` or `tar.gz`) from the [the release page](https://github.com/jfbouzereau/explorer/releases), or clone the repository:
 
 ```sh
