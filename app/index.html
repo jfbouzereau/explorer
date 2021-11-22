@@ -15,6 +15,14 @@ var mylocale = language.substring(0,2);
 window.inbrowser = true;
 
 function require(name) {
+	if(name=="electron") 
+		return { remote: {
+			getGlobal:function g(what)  { return window[what] }
+		},
+		ipcRenderer: {
+			on:function o(event) { return null; }
+		}
+	}
 	if(name=="remote")
 		return {
 		getGlobal:function g(what)  { return window[what] }
@@ -47,6 +55,7 @@ function click() {
 	canvas.style.position = "fixed";
 	canvas.style.left = "0px";
 	canvas.style.top = "0px";
+	canvas.id = "canvas";
 	document.body.appendChild(canvas);		
 
     window.addEventListener("mousedown", down);
@@ -54,8 +63,11 @@ function click() {
     window.addEventListener("mouseup", up);
     window.addEventListener("resize", draw);
 
+	init(data);	
+	/*
     loadData(remote.getGlobal("data"));
     draw();
+	*/
 }
 
 
